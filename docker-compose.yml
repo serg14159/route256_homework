@@ -1,0 +1,8 @@
+version: "3.8"
+
+services:
+  cart:
+    container_name: cart
+    build: ./cart/
+    ports:
+      - "8080:8080" # HTTP
