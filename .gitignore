@@ -12,3 +12,4 @@
 /cart/vendor.protogen/
 /loms/pgdata
 bin/
+.env

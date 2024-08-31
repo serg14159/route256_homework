@@ -1,0 +1,12 @@
+project:
+  name: Cart
+  debug: true
+  environment: development
+
+server:
+  host: 0.0.0.0
+  port: 8082
+
+productService:
+  apiuri: "http://route256.pavl.uk:8080"
+  token: testtoken
