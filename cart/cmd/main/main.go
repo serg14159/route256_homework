@@ -28,11 +28,11 @@ func main() {
 	}
 
 	log.Info().
-		Str("version", cfg.Project.Version).
-		Str("commitHash", cfg.Project.CommitHash).
-		Bool("debug", cfg.Project.Debug).
-		Str("environment", cfg.Project.Environment).
-		Msgf("Starting service: %s", cfg.Project.Name)
+		Str("version", cfg.Project.GetVersion()).
+		Str("commitHash", cfg.Project.GetCommitHash()).
+		Bool("debug", cfg.Project.GetDebug()).
+		Str("environment", cfg.Project.GetEnvironment()).
+		Msgf("Starting service: %s", cfg.Project.GetName())
 
 	// Set log level
 	if cfg.Project.Debug {
