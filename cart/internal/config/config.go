@@ -1,7 +1,7 @@
 package config
 
 import (
-	"github.com/rs/zerolog/log"
+	"log"
 
 	"github.com/spf13/viper"
 )
@@ -99,7 +99,7 @@ func (c *Config) ReadConfig(configPath string) error {
 	viper.SetConfigFile(configPath)
 	err := viper.ReadInConfig()
 	if err != nil {
-		log.Error().Msgf("Error loading config file: %v", err)
+		log.Printf("Error loading config file: %v", err)
 	}
 
 	// Read env
@@ -107,39 +107,39 @@ func (c *Config) ReadConfig(configPath string) error {
 	// Project
 	err = viper.BindEnv("project.debug", "PROJECT_DEBUG")
 	if err != nil {
-		log.Error().Msgf("Error bind env: %v", err)
+		log.Printf("Error bind env: %v", err)
 	}
 	err = viper.BindEnv("project.name", "PROJECT_NAME")
 	if err != nil {
-		log.Error().Msgf("Error bind env: %v", err)
+		log.Printf("Error bind env: %v", err)
 	}
 	err = viper.BindEnv("project.environment", "PROJECT_ENVIRONMENT")
 	if err != nil {
-		log.Error().Msgf("Error bind env: %v", err)
+		log.Printf("Error bind env: %v", err)
 	}
 	// Server
 	err = viper.BindEnv("server.host", "SERVER_HOST")
 	if err != nil {
-		log.Error().Msgf("Error bind env: %v", err)
+		log.Printf("Error bind env: %v", err)
 	}
 	err = viper.BindEnv("server.port", "SERVER_PORT")
 	if err != nil {
-		log.Error().Msgf("Error bind env: %v", err)
+		log.Printf("Error bind env: %v", err)
 	}
 	// ProductService
 	err = viper.BindEnv("productService.apiuri", "PRODUCT_SERVICE_APIURI")
 	if err != nil {
-		log.Error().Msgf("Error bind env: %v", err)
+		log.Printf("Error bind env: %v", err)
 	}
 	err = viper.BindEnv("productService.token", "PRODUCT_SERVICE_TOKEN")
 	if err != nil {
-		log.Error().Msgf("Error bind env: %v", err)
+		log.Printf("Error bind env: %v", err)
 	}
 
 	// Load config into struct
 	err = viper.Unmarshal(&c)
 	if err != nil {
-		log.Error().Msgf("Error unmarshalling config: %v", err)
+		log.Printf("Error unmarshalling config: %v", err)
 		return err
 	}
 

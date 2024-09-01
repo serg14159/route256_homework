@@ -3,8 +3,9 @@ package server
 import (
 	"context"
 	"net/http"
+	"route256/cart/internal/models"
 
-	"github.com/rs/zerolog/log"
+	"log"
 )
 
 type IConfig interface {
@@ -13,6 +14,10 @@ type IConfig interface {
 }
 
 type ICartService interface {
+	AddProduct(ctx context.Context, UID models.UID, SKU models.SKU, Count uint16) error
+	DelProduct(ctx context.Context, UID models.UID, SKU models.SKU) error
+	DelCart(ctx context.Context, UID models.UID) error
+	GetCart(ctx context.Context, UID models.UID) ([]models.CartItemResponse, uint32, error)
 }
 
 type Server struct {
@@ -21,6 +26,7 @@ type Server struct {
 	cartService ICartService
 }
 
+// Function for create new server.
 func NewServer(cfg IConfig, cartService ICartService) *Server {
 	server := &http.Server{}
 	return &Server{
@@ -32,19 +38,23 @@ func NewServer(cfg IConfig, cartService ICartService) *Server {
 
 // Function for running server.
 func (s *Server) Run() error {
-	// Set host and port
+	// Set address
 	address := s.cfg.GetHost() + ":" + s.cfg.GetPort()
 	s.server.Addr = address
 
 	// Set handler
-
-	// TO DO
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /user/{user_id}/cart/{sku_id}", s.AddProduct)
+	mux.HandleFunc("DELETE /user/{user_id}/cart/{sku_id}", s.DelProduct)
+	mux.HandleFunc("DELETE /user/{user_id}/cart", s.DelCart)
+	mux.HandleFunc("GET /user/{user_id}/cart", s.GetCart)
+	s.server.Handler = mux
 
 	// Run goroutine with ListenAndServe
 	go func() {
-		log.Info().Msgf("Server is running on %s", address)
+		log.Printf("Server is running on %s", address)
 		if err := s.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatal().Err(err).Msg("Failed listen")
+			log.Printf("Failed listen: %v", err)
 		}
 	}()
 

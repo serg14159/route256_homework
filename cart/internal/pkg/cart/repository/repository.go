@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"route256/cart/internal/models"
+	"sort"
 	"sync"
 )
 
@@ -22,7 +23,7 @@ func NewCartRepository() *Repository {
 }
 
 // Function for adding item to cart.
-func (r *Repository) AddCartItem(ctx context.Context, UID models.UID, item models.CartItem) error {
+func (r *Repository) AddItem(ctx context.Context, UID models.UID, item models.CartItem) error {
 	if UID < 1 || item.SKU < 1 {
 		return errors.New("UID and SKU must be defined")
 	}
@@ -44,7 +45,7 @@ func (r *Repository) AddCartItem(ctx context.Context, UID models.UID, item model
 }
 
 // Function for delete item from cart.
-func (r *Repository) DelItem(UID models.UID, SKU models.SKU) error {
+func (r *Repository) DeleteItem(ctx context.Context, UID models.UID, SKU models.SKU) error {
 	if UID < 1 || SKU < 1 {
 		return errors.New("UID and SKU must be defined")
 	}
@@ -60,7 +61,7 @@ func (r *Repository) DelItem(UID models.UID, SKU models.SKU) error {
 }
 
 // Function for delete cart.
-func (r *Repository) DelCart(UID models.UID) error {
+func (r *Repository) DeleteItemsByUserID(ctx context.Context, UID models.UID) error {
 	if UID < 1 {
 		return errors.New("UID must be defined")
 	}
@@ -74,9 +75,9 @@ func (r *Repository) DelCart(UID models.UID) error {
 }
 
 // Function for getting items from cart.
-func (r *Repository) GetCart(UID models.UID) ([]models.CartItem, uint32, error) {
+func (r *Repository) GetItemsByUserID(ctx context.Context, UID models.UID) ([]models.CartItem, error) {
 	if UID < 1 {
-		return nil, 0, errors.New("UID must be defined")
+		return nil, errors.New("UID must be defined")
 	}
 
 	r.mu.Lock()
@@ -84,15 +85,17 @@ func (r *Repository) GetCart(UID models.UID) ([]models.CartItem, uint32, error) 
 
 	cart, ok := r.storage[UID]
 	if !ok || len(cart) == 0 {
-		return nil, 0, errors.New("cart not found")
+		return nil, errors.New("cart not found")
 	}
 
 	items := make([]models.CartItem, 0, len(cart))
-	var totalPrice uint32
 	for _, item := range cart {
 		items = append(items, item)
-		totalPrice += uint32(item.Count) * item.Price
 	}
 
-	return items, totalPrice, nil
+	sort.Slice(items, func(i, j int) bool {
+		return items[i].SKU < items[j].SKU
+	})
+
+	return items, nil
 }

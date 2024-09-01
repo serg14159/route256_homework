@@ -7,11 +7,13 @@ import (
 	"os/signal"
 	"route256/cart/internal/app/server"
 	"route256/cart/internal/config"
+	"route256/cart/internal/pkg/cart/repository"
+	"route256/cart/internal/pkg/cart/service"
 	"time"
 
+	"log"
+
 	"github.com/joho/godotenv"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 )
 
 func main() {
@@ -29,44 +31,36 @@ func main() {
 	// Read config
 	cfg := config.NewConfig()
 	if err := cfg.ReadConfig(configPath); err != nil {
-		log.Fatal().Err(err).Msg("Failed init configuration")
+		log.Printf("Failed init configuration, err:%s", err)
 	}
 
-	log.Info().
-		Str("version", cfg.Project.GetVersion()).
-		Str("commitHash", cfg.Project.GetCommitHash()).
-		Bool("debug", cfg.Project.GetDebug()).
-		Str("environment", cfg.Project.GetEnvironment()).
-		Msgf("Starting service: %s", cfg.Project.GetName())
+	log.Printf("Starting service: %s | version=%s | commitHash=%s | debug=%t | environment=%s",
+		cfg.Project.GetName(), cfg.Project.GetVersion(), cfg.Project.GetCommitHash(), cfg.Project.GetDebug(), cfg.Project.GetEnvironment())
 
-	// Set log level
-	if cfg.Project.Debug {
-		zerolog.SetGlobalLevel(zerolog.DebugLevel)
-	} else {
-		zerolog.SetGlobalLevel(zerolog.InfoLevel)
-	}
+	// Repository
+	cartRepository := repository.NewCartRepository()
 
-	log.Debug().Msgf("Cfg: %v", cfg)
+	// Service
+	cartService := service.NewService(cartRepository)
 
 	// Server
-	var a any
-	s := server.NewServer(&cfg.Server, a)
+	s := server.NewServer(&cfg.Server, cartService)
 
 	err := s.Run()
 	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to start server")
+		log.Printf("Failed to start server, err:%s", err)
 	}
 
 	// Wait os interrupt
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt)
 	<-quit
-	log.Debug().Msgf("Shutdown Server ...")
+	log.Printf("Shutdown Server ...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := s.Shutdown(ctx); err != nil {
-		log.Fatal().Err(err).Msg("Failed server shutdown")
+		log.Printf("Failed server shutdown, err:%s", err)
 	}
-	log.Debug().Msgf("Server exiting")
+	log.Printf("Server exiting")
 }
