@@ -63,7 +63,7 @@ func (c *Client) GetProduct(SKU models.SKU) (*models.GetProductResponse, error) 
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code: %d, expected: 200, %w", resp.StatusCode, internal_errors.ErrNotFound)
+		return nil, fmt.Errorf("product service status code: %d, invalid sku, %w", resp.StatusCode, internal_errors.ErrPreconditionFailed)
 	}
 
 	body, err := io.ReadAll(resp.Body)

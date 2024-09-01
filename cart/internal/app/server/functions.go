@@ -34,6 +34,8 @@ func getStatusCodeFromError(err error) int {
 		return http.StatusForbidden // 403
 	case errors.Is(err, internal_errors.ErrNotFound):
 		return http.StatusNotFound // 404
+	case errors.Is(err, internal_errors.ErrPreconditionFailed):
+		return http.StatusPreconditionFailed // 412
 	case errors.Is(err, internal_errors.ErrInternalServerError):
 		return http.StatusInternalServerError // 500
 	default:

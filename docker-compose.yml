@@ -5,4 +5,5 @@ services:
     container_name: cart
     build: ./cart/
     ports:
-      - "8080:8080" # HTTP
+      - "8082:8082" # HTTP
+    network_mode: "host"
