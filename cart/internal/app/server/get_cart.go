@@ -8,6 +8,7 @@ import (
 	"strconv"
 )
 
+// Function handler for get cart contents.
 func (s *Server) GetCart(w http.ResponseWriter, r *http.Request) {
 	log.Printf("GetCart")
 	rawUID := r.PathValue("user_id")

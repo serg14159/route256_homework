@@ -9,6 +9,7 @@ import (
 	"route256/cart/internal/config"
 	"route256/cart/internal/pkg/cart/repository"
 	"route256/cart/internal/pkg/cart/service"
+	"route256/cart/internal/pkg/clients/product_service"
 	"time"
 
 	"log"
@@ -40,8 +41,11 @@ func main() {
 	// Repository
 	cartRepository := repository.NewCartRepository()
 
+	// Product service client
+	productService := product_service.NewClient(&cfg.ProductService)
+
 	// Service
-	cartService := service.NewService(cartRepository)
+	cartService := service.NewService(cartRepository, productService)
 
 	// Server
 	s := server.NewServer(&cfg.Server, cartService)

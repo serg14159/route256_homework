@@ -53,11 +53,11 @@ type GetCartResponse struct {
 
 // Product service.
 type GetProductRequest struct {
-	Name  string `json:"name"`
-	Price uint32 `json:"price"`
+	Token string `json:"token"`
+	SKU   uint32 `json:"sku"`
 }
 
 type GetProductResponse struct {
-	Token string `json:"token"`
-	SKU   uint32 `json:"sku"`
+	Name  string `json:"name"`
+	Price uint32 `json:"price"`
 }

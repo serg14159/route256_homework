@@ -9,6 +9,7 @@ import (
 	"strconv"
 )
 
+// Function handler for add product into cart.
 func (s *Server) AddProduct(w http.ResponseWriter, r *http.Request) {
 	log.Printf("AddProduct")
 	rawUID := r.PathValue("user_id")
@@ -30,6 +31,10 @@ func (s *Server) AddProduct(w http.ResponseWriter, r *http.Request) {
 	log.Printf("SKU: %v", SKU)
 
 	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		writeJSONError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 
 	var req models.AddProductRequest
 
