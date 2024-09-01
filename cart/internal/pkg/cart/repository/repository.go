@@ -2,10 +2,13 @@ package repository
 
 import (
 	"context"
-	"errors"
+	"fmt"
+	"log"
 	"route256/cart/internal/models"
 	"sort"
 	"sync"
+
+	internal_errors "route256/cart/internal/pkg/errors"
 )
 
 type Storage = map[models.UID]map[models.SKU]models.CartItem
@@ -25,7 +28,7 @@ func NewCartRepository() *Repository {
 // Function for adding item to cart.
 func (r *Repository) AddItem(ctx context.Context, UID models.UID, item models.CartItem) error {
 	if UID < 1 || item.SKU < 1 {
-		return errors.New("UID and SKU must be defined")
+		return fmt.Errorf("UID and SKU must be greater than zero: %w", internal_errors.ErrBadRequest)
 	}
 
 	r.mu.Lock()
@@ -47,7 +50,7 @@ func (r *Repository) AddItem(ctx context.Context, UID models.UID, item models.Ca
 // Function for delete item from cart.
 func (r *Repository) DeleteItem(ctx context.Context, UID models.UID, SKU models.SKU) error {
 	if UID < 1 || SKU < 1 {
-		return errors.New("UID and SKU must be defined")
+		return fmt.Errorf("UID and SKU must be greater than zero: %w", internal_errors.ErrBadRequest)
 	}
 
 	r.mu.Lock()
@@ -63,7 +66,7 @@ func (r *Repository) DeleteItem(ctx context.Context, UID models.UID, SKU models.
 // Function for delete cart.
 func (r *Repository) DeleteItemsByUserID(ctx context.Context, UID models.UID) error {
 	if UID < 1 {
-		return errors.New("UID must be defined")
+		return fmt.Errorf("UID must be greater than zero: %w", internal_errors.ErrBadRequest)
 	}
 
 	r.mu.Lock()
@@ -77,7 +80,7 @@ func (r *Repository) DeleteItemsByUserID(ctx context.Context, UID models.UID) er
 // Function for getting items from cart.
 func (r *Repository) GetItemsByUserID(ctx context.Context, UID models.UID) ([]models.CartItem, error) {
 	if UID < 1 {
-		return nil, errors.New("UID must be defined")
+		return nil, fmt.Errorf("UID must be greater than zero: %w", internal_errors.ErrBadRequest)
 	}
 
 	r.mu.Lock()
@@ -85,17 +88,22 @@ func (r *Repository) GetItemsByUserID(ctx context.Context, UID models.UID) ([]mo
 
 	cart, ok := r.storage[UID]
 	if !ok || len(cart) == 0 {
-		return nil, errors.New("cart not found")
+		return nil, fmt.Errorf("cart for UID not found in storage: %w", internal_errors.ErrNotFound)
 	}
+
+	log.Printf("cart: %v", cart)
 
 	items := make([]models.CartItem, 0, len(cart))
 	for _, item := range cart {
 		items = append(items, item)
 	}
+	log.Printf("items: %v", items)
 
 	sort.Slice(items, func(i, j int) bool {
 		return items[i].SKU < items[j].SKU
 	})
+
+	log.Printf("items: %v", items)
 
 	return items, nil
 }

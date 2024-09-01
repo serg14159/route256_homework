@@ -19,13 +19,13 @@ func (s *Server) DelCart(w http.ResponseWriter, r *http.Request) {
 	log.Printf("UID: %v", UID)
 
 	if UID < 1 {
-		writeJSONError(w, http.StatusBadRequest, "fail validation")
+		writeJSONError(w, http.StatusBadRequest, "validation fail")
 		return
 	}
 
 	err = s.cartService.DelCart(r.Context(), UID)
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		writeJSONError(w, getStatusCodeFromError(err), err.Error())
 		return
 	}
 

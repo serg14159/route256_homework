@@ -21,13 +21,13 @@ func (s *Server) GetCart(w http.ResponseWriter, r *http.Request) {
 	log.Printf("UID: %v", UID)
 
 	if UID < 1 {
-		writeJSONError(w, http.StatusBadRequest, "fail validation")
+		writeJSONError(w, http.StatusBadRequest, "validation failed")
 		return
 	}
 
 	items, totalPrice, err := s.cartService.GetCart(r.Context(), UID)
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		writeJSONError(w, getStatusCodeFromError(err), err.Error())
 		return
 	}
 

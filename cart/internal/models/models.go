@@ -22,7 +22,7 @@ type CartItemResponse struct {
 
 // Add product in user cart by SKU.
 type AddProductRequest struct {
-	Count uint16 `json:"count"`
+	Count uint16 `json:"count" validate:"required,min=1"`
 }
 
 type AddProductResponse struct {

@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"route256/cart/internal/http/client_middleware"
 	"route256/cart/internal/models"
+
+	internal_errors "route256/cart/internal/pkg/errors"
 )
 
 type IConfig interface {
@@ -42,14 +44,14 @@ func (c *Client) GetProduct(SKU models.SKU) (*models.GetProductResponse, error) 
 
 	jsonData, err := json.Marshal(reqBody)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal request body: %w", err)
+		return nil, fmt.Errorf("failed to marshal request body: %w, %w", err, internal_errors.ErrInternalServerError)
 	}
 
 	uri := c.cfg.GetURI() + "/get_product"
 
 	req, err := http.NewRequest("POST", uri, bytes.NewBuffer(jsonData))
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
+		return nil, fmt.Errorf("failed to create request: %w, %w", err, internal_errors.ErrInternalServerError)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
@@ -60,14 +62,18 @@ func (c *Client) GetProduct(SKU models.SKU) (*models.GetProductResponse, error) 
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code: %d, expected: 200, %w", resp.StatusCode, internal_errors.ErrNotFound)
+	}
+
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %w", err)
+		return nil, fmt.Errorf("failed to read response body: %w, %w", err, internal_errors.ErrInternalServerError)
 	}
 
 	var product models.GetProductResponse
 	if err := json.Unmarshal(body, &product); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal response body: %w", err)
+		return nil, fmt.Errorf("failed to unmarshal response body: %w, %w", err, internal_errors.ErrInternalServerError)
 	}
 
 	return &product, nil

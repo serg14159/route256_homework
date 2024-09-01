@@ -30,6 +30,11 @@ func (s *Server) AddProduct(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("SKU: %v", SKU)
 
+	if UID < 1 || SKU < 1 {
+		writeJSONError(w, http.StatusBadRequest, "validation failed")
+		return
+	}
+
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		writeJSONError(w, http.StatusBadRequest, err.Error())
@@ -44,18 +49,16 @@ func (s *Server) AddProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("req.Count: %v", req.Count)
-
-	if UID < 1 || SKU < 1 || req.Count < 1 {
-		writeJSONError(w, http.StatusBadRequest, "fail validation")
+	if err := validate.Struct(req); err != nil {
+		http.Error(w, "Validation failed: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	log.Printf("UID < 1 || SKU < 1 || req.Count < 1")
+	log.Printf("req.Count: %v", req.Count)
 
 	err = s.cartService.AddProduct(r.Context(), UID, SKU, req.Count)
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		writeJSONError(w, getStatusCodeFromError(err), err.Error())
 		return
 	}
 

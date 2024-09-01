@@ -3,9 +3,12 @@ package server
 import (
 	"context"
 	"net/http"
+	"route256/cart/internal/http/server_middleware"
 	"route256/cart/internal/models"
 
 	"log"
+
+	"github.com/go-playground/validator"
 )
 
 type IConfig interface {
@@ -48,7 +51,10 @@ func (s *Server) Run() error {
 	mux.HandleFunc("DELETE /user/{user_id}/cart/{sku_id}", s.DelProduct)
 	mux.HandleFunc("DELETE /user/{user_id}/cart", s.DelCart)
 	mux.HandleFunc("GET /user/{user_id}/cart", s.GetCart)
-	s.server.Handler = mux
+
+	logMux := server_middleware.NewLogMux(mux)
+
+	s.server.Handler = logMux
 
 	// Run goroutine with ListenAndServe
 	go func() {
@@ -64,4 +70,10 @@ func (s *Server) Run() error {
 // Shutdown stop server
 func (s *Server) Shutdown(ctx context.Context) error {
 	return s.server.Shutdown(ctx)
+}
+
+var validate *validator.Validate
+
+func init() {
+	validate = validator.New()
 }

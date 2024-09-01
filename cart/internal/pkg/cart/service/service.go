@@ -2,9 +2,10 @@ package service
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"log"
 	"route256/cart/internal/models"
+	internal_errors "route256/cart/internal/pkg/errors"
 )
 
 type ICartRepository interface {
@@ -33,12 +34,12 @@ func NewService(repository ICartRepository, productService IProductService) *Car
 // Function for add product into cart.
 func (s *CartService) AddProduct(ctx context.Context, UID models.UID, SKU models.SKU, Count uint16) error {
 	if UID < 1 || SKU < 1 || Count < 1 {
-		return errors.New("fail validation")
+		return fmt.Errorf("UID, SKU and Count must be greater than zero: %w", internal_errors.ErrBadRequest)
 	}
 
 	product, err := s.productService.GetProduct(SKU)
 	if err != nil {
-		return errors.New("product not found")
+		return err
 	}
 
 	log.Printf("product: %v", product)
@@ -59,7 +60,7 @@ func (s *CartService) AddProduct(ctx context.Context, UID models.UID, SKU models
 // Function for delete product from cart.
 func (s *CartService) DelProduct(ctx context.Context, UID models.UID, SKU models.SKU) error {
 	if UID < 1 || SKU < 1 {
-		return errors.New("fail validation")
+		return fmt.Errorf("UID and SKU must be greater than zero: %w", internal_errors.ErrBadRequest)
 	}
 
 	err := s.repository.DeleteItem(ctx, UID, SKU)
@@ -73,7 +74,7 @@ func (s *CartService) DelProduct(ctx context.Context, UID models.UID, SKU models
 // Function for delete user cart.
 func (s *CartService) DelCart(ctx context.Context, UID models.UID) error {
 	if UID < 1 {
-		return errors.New("fail validation")
+		return fmt.Errorf("UID must be greater than zero: %w", internal_errors.ErrBadRequest)
 	}
 
 	err := s.repository.DeleteItemsByUserID(ctx, UID)
@@ -87,7 +88,7 @@ func (s *CartService) DelCart(ctx context.Context, UID models.UID) error {
 // Function for get user cart.
 func (s *CartService) GetCart(ctx context.Context, UID models.UID) ([]models.CartItemResponse, uint32, error) {
 	if UID < 1 {
-		return nil, 0, errors.New("fail validation")
+		return nil, 0, fmt.Errorf("UID must be greater than zero: %w", internal_errors.ErrBadRequest)
 	}
 
 	cartItems, err := s.repository.GetItemsByUserID(ctx, UID)
@@ -95,14 +96,18 @@ func (s *CartService) GetCart(ctx context.Context, UID models.UID) ([]models.Car
 		return nil, 0, err
 	}
 
-	var items = make([]models.CartItemResponse, len(cartItems))
+	log.Printf("cartItems: %v", cartItems)
+
+	var items []models.CartItemResponse
 	var totalPrice uint32
 
 	for _, item := range cartItems {
 		product, err := s.productService.GetProduct(item.SKU)
 		if err != nil {
-			return nil, 0, errors.New("product not found")
+			return nil, 0, fmt.Errorf("get product err: %w", err)
 		}
+
+		log.Printf("product: %v", product)
 
 		items = append(items, models.CartItemResponse{
 			SKU:   item.SKU,
@@ -111,6 +116,8 @@ func (s *CartService) GetCart(ctx context.Context, UID models.UID) ([]models.Car
 			Price: product.Price,
 		})
 		totalPrice += uint32(item.Count) * product.Price
+
+		log.Printf("items: %v", items)
 	}
 
 	return items, totalPrice, nil

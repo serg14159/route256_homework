@@ -28,13 +28,13 @@ func (s *Server) DelProduct(w http.ResponseWriter, r *http.Request) {
 	log.Printf("SKU: %v", SKU)
 
 	if UID < 1 || SKU < 1 {
-		writeJSONError(w, http.StatusBadRequest, "fail validation")
+		writeJSONError(w, http.StatusBadRequest, "validation failed")
 		return
 	}
 
 	err = s.cartService.DelProduct(r.Context(), UID, SKU)
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		writeJSONError(w, getStatusCodeFromError(err), err.Error())
 		return
 	}
 
