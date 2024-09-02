@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"log"
 	"route256/cart/internal/models"
 	internal_errors "route256/cart/internal/pkg/errors"
 )
@@ -37,12 +36,10 @@ func (s *CartService) AddProduct(ctx context.Context, UID models.UID, SKU models
 		return fmt.Errorf("UID, SKU and Count must be greater than zero: %w", internal_errors.ErrBadRequest)
 	}
 
-	product, err := s.productService.GetProduct(SKU)
+	_, err := s.productService.GetProduct(SKU)
 	if err != nil {
 		return err
 	}
-
-	log.Printf("product: %v", product)
 
 	item := models.CartItem{
 		SKU:   SKU,
@@ -96,8 +93,6 @@ func (s *CartService) GetCart(ctx context.Context, UID models.UID) ([]models.Car
 		return nil, 0, err
 	}
 
-	log.Printf("cartItems: %v", cartItems)
-
 	var items []models.CartItemResponse
 	var totalPrice uint32
 
@@ -107,8 +102,6 @@ func (s *CartService) GetCart(ctx context.Context, UID models.UID) ([]models.Car
 			return nil, 0, fmt.Errorf("get product err: %w", err)
 		}
 
-		log.Printf("product: %v", product)
-
 		items = append(items, models.CartItemResponse{
 			SKU:   item.SKU,
 			Name:  product.Name,
@@ -116,8 +109,6 @@ func (s *CartService) GetCart(ctx context.Context, UID models.UID) ([]models.Car
 			Price: product.Price,
 		})
 		totalPrice += uint32(item.Count) * product.Price
-
-		log.Printf("items: %v", items)
 	}
 
 	return items, totalPrice, nil

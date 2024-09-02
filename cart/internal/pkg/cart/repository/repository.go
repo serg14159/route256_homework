@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"fmt"
-	"log"
 	"route256/cart/internal/models"
 	"sort"
 	"sync"
@@ -91,19 +90,14 @@ func (r *Repository) GetItemsByUserID(ctx context.Context, UID models.UID) ([]mo
 		return nil, fmt.Errorf("cart for UID not found in storage: %w", internal_errors.ErrNotFound)
 	}
 
-	log.Printf("cart: %v", cart)
-
 	items := make([]models.CartItem, 0, len(cart))
 	for _, item := range cart {
 		items = append(items, item)
 	}
-	log.Printf("items: %v", items)
 
 	sort.Slice(items, func(i, j int) bool {
 		return items[i].SKU < items[j].SKU
 	})
-
-	log.Printf("items: %v", items)
 
 	return items, nil
 }

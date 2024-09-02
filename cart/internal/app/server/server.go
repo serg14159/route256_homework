@@ -7,8 +7,6 @@ import (
 	"route256/cart/internal/models"
 
 	"log"
-
-	"github.com/go-playground/validator"
 )
 
 type IConfig interface {
@@ -70,10 +68,4 @@ func (s *Server) Run() error {
 // Shutdown stop server
 func (s *Server) Shutdown(ctx context.Context) error {
 	return s.server.Shutdown(ctx)
-}
-
-var validate *validator.Validate
-
-func init() {
-	validate = validator.New()
 }

@@ -6,7 +6,15 @@ import (
 	"log"
 	"net/http"
 	internal_errors "route256/cart/internal/pkg/errors"
+
+	"github.com/go-playground/validator"
 )
+
+var validate *validator.Validate
+
+func init() {
+	validate = validator.New()
+}
 
 // Function for set response headers.
 func setResponseHeaders(w http.ResponseWriter, statusCode int) {
