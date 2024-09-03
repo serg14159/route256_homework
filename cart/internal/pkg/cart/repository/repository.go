@@ -26,7 +26,7 @@ func NewCartRepository() *Repository {
 
 // Function for adding item to cart.
 func (r *Repository) AddItem(ctx context.Context, UID models.UID, item models.CartItem) error {
-	if UID < 1 || item.SKU < 1 {
+	if UID < 1 || item.SKU < 1 || item.Count < 1 {
 		return fmt.Errorf("UID and SKU must be greater than zero: %w", internal_errors.ErrBadRequest)
 	}
 

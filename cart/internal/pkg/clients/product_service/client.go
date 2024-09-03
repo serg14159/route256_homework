@@ -15,6 +15,7 @@ import (
 type IConfig interface {
 	GetURI() string
 	GetToken() string
+	GetMaxRetries() int
 }
 
 type Client struct {
@@ -28,7 +29,7 @@ func NewClient(cfg IConfig) *Client {
 		cfg: cfg,
 		client: &http.Client{
 			Transport: &client_middleware.RetryMiddleware{
-				MaxRetries: 3,
+				MaxRetries: cfg.GetMaxRetries(),
 				Transport:  http.DefaultTransport,
 			},
 		},

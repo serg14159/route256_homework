@@ -57,8 +57,9 @@ func (s *Server) GetHost() string {
 
 // ProductService - contains parameters for ProductService.
 type ProductService struct {
-	ApiURI string `yaml:"apiuri" mapstructure:"apiuri"`
-	Token  string `yaml:"token" mapstructure:"token"`
+	ApiURI     string `yaml:"apiuri" mapstructure:"apiuri"`
+	Token      string `yaml:"token" mapstructure:"token"`
+	MaxRetries int    `yaml:"maxRetries" mapstructure:"maxRetries"`
 }
 
 func (ps *ProductService) GetURI() string {
@@ -67,6 +68,10 @@ func (ps *ProductService) GetURI() string {
 
 func (ps *ProductService) GetToken() string {
 	return ps.Token
+}
+
+func (ps *ProductService) GetMaxRetries() int {
+	return ps.MaxRetries
 }
 
 // Config - contains all configuration parameters in config package
@@ -94,6 +99,7 @@ func (c *Config) ReadConfig(configPath string) error {
 	// ProductService
 	viper.SetDefault("productService.apiuri", "http://route256.pavl.uk:8080")
 	viper.SetDefault("productService.token", "testtoken")
+	viper.SetDefault("productService.maxRetries", "3")
 
 	// Read config file
 	viper.SetConfigFile(configPath)
@@ -132,6 +138,10 @@ func (c *Config) ReadConfig(configPath string) error {
 		log.Printf("Error bind env: %v", err)
 	}
 	err = viper.BindEnv("productService.token", "PRODUCT_SERVICE_TOKEN")
+	if err != nil {
+		log.Printf("Error bind env: %v", err)
+	}
+	err = viper.BindEnv("productService.maxRetries", "PRODUCT_SERVICE_MAX_RETRIES")
 	if err != nil {
 		log.Printf("Error bind env: %v", err)
 	}

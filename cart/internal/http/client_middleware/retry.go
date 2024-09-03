@@ -6,6 +6,12 @@ import (
 	"time"
 )
 
+const (
+	retryDelay            = 1 * time.Second
+	statusEnhanceYourCalm = 420
+	statusTooManyRequests = 429
+)
+
 type RetryMiddleware struct {
 	Transport  http.RoundTripper
 	MaxRetries int
@@ -27,7 +33,7 @@ func (r *RetryMiddleware) RoundTrip(req *http.Request) (*http.Response, error) {
 		}
 
 		// If status not 420 or 429, return resp
-		if resp.StatusCode != 420 && resp.StatusCode != 429 {
+		if resp.StatusCode != statusEnhanceYourCalm && resp.StatusCode != statusTooManyRequests {
 			return resp, nil
 		}
 
@@ -35,7 +41,7 @@ func (r *RetryMiddleware) RoundTrip(req *http.Request) (*http.Response, error) {
 
 		// If status 420 or 429, wait and retry
 		if i < r.MaxRetries {
-			time.Sleep(1 * time.Second)
+			time.Sleep(retryDelay)
 		}
 	}
 

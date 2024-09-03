@@ -17,6 +17,9 @@ import (
 	"github.com/joho/godotenv"
 )
 
+const quitChannelBufferSize = 1
+const shutdownTimeout = 5 * time.Second
+
 func main() {
 	_ = godotenv.Load()
 
@@ -56,12 +59,12 @@ func main() {
 	}
 
 	// Wait os interrupt
-	quit := make(chan os.Signal, 1)
+	quit := make(chan os.Signal, quitChannelBufferSize)
 	signal.Notify(quit, os.Interrupt)
 	<-quit
 	log.Printf("Shutdown Server ...")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
 	if err := s.Shutdown(ctx); err != nil {
 		log.Printf("Failed server shutdown, err:%s", err)
