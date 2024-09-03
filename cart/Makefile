@@ -13,3 +13,14 @@ docker_build:
 .PHONY: docker_run
 docker_run:
 	docker run -p 8082:8082 cart:latest
+
+.PHONY: test_coverage
+test_coverage: test coverage
+
+.PHONY: test
+test:
+	go test ./... -coverprofile=coverage.out
+
+.PHONY: coverage
+coverage:
+	go tool cover -func=coverage.out

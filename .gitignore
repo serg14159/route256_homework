@@ -13,3 +13,4 @@
 /loms/pgdata
 bin/
 .env
+coverage.out
