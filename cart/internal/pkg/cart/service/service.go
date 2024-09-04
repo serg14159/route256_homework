@@ -15,7 +15,7 @@ type ICartRepository interface {
 }
 
 type IProductService interface {
-	GetProduct(SKU models.SKU) (*models.GetProductResponse, error)
+	GetProduct(ctx context.Context, SKU models.SKU) (*models.GetProductResponse, error)
 }
 
 type CartService struct {
@@ -36,7 +36,7 @@ func (s *CartService) AddProduct(ctx context.Context, UID models.UID, SKU models
 		return fmt.Errorf("UID, SKU and Count must be greater than zero: %w", internal_errors.ErrBadRequest)
 	}
 
-	_, err := s.productService.GetProduct(SKU)
+	_, err := s.productService.GetProduct(ctx, SKU)
 	if err != nil {
 		return err
 	}
@@ -97,7 +97,7 @@ func (s *CartService) GetCart(ctx context.Context, UID models.UID) ([]models.Car
 	var totalPrice uint32
 
 	for _, item := range cartItems {
-		product, err := s.productService.GetProduct(item.SKU)
+		product, err := s.productService.GetProduct(ctx, item.SKU)
 		if err != nil {
 			return nil, 0, fmt.Errorf("get product err: %w", err)
 		}

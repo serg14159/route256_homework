@@ -2,6 +2,7 @@ package product_service
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -37,7 +38,7 @@ func NewClient(cfg IConfig) *Client {
 }
 
 // Function for executes a request to the Product Service using a client with retries.
-func (c *Client) GetProduct(SKU models.SKU) (*models.GetProductResponse, error) {
+func (c *Client) GetProduct(ctx context.Context, SKU models.SKU) (*models.GetProductResponse, error) {
 	reqBody := models.GetProductRequest{
 		Token: c.cfg.GetToken(),
 		SKU:   uint32(SKU),
