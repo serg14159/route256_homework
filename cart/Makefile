@@ -19,7 +19,7 @@ test_coverage: test coverage
 
 .PHONY: test
 test:
-	go test ./... -coverprofile=coverage.out
+	go test $(shell go list ./... | grep -v /mock) -coverprofile=coverage.out
 
 .PHONY: coverage
 coverage:
