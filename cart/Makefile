@@ -28,6 +28,10 @@ test:
 .PHONY: coverage
 coverage:
 	go tool cover -func=coverage.out
+
+.PHONY: test_bench
+test_bench:
+	go test -bench=. ./...
 	
 # lint
 .PHONY: cognitive_complexity
