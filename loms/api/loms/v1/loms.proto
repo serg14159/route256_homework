@@ -49,7 +49,7 @@ message Item {
 // OrderCreate
 message OrderCreateRequest {
     int64 user = 1 [(validate.rules).int64.gt = 0];
-    repeated Item items = 2;
+    repeated Item items = 2 [(validate.rules).message.required = true];
 }
 
 message OrderCreateResponse {
