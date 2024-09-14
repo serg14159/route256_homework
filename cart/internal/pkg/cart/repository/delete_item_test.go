@@ -10,9 +10,6 @@ import (
 
 // Function for tests the DeleteItem method of repository.
 func TestRepository_DeleteItem(t *testing.T) {
-	// Init repo
-	repo := NewCartRepository()
-
 	// Init test data
 	tests := []struct {
 		name    string
@@ -26,8 +23,6 @@ func TestRepository_DeleteItem(t *testing.T) {
 			UID:  1,
 			SKU:  1001,
 			setup: func(repo *Repository) {
-				repo.mu.Lock()
-				defer repo.mu.Unlock()
 				repo.storage[1] = map[models.SKU]models.CartItem{
 					1001: {SKU: 1001, Count: 2},
 				}
@@ -53,8 +48,6 @@ func TestRepository_DeleteItem(t *testing.T) {
 			UID:  1,
 			SKU:  9999,
 			setup: func(repo *Repository) {
-				repo.mu.Lock()
-				defer repo.mu.Unlock()
 				repo.storage[1] = map[models.SKU]models.CartItem{
 					1001: {SKU: 1001, Count: 2},
 				}
@@ -65,12 +58,16 @@ func TestRepository_DeleteItem(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Run test parallel
 			t.Parallel()
 
-			ctx := context.Background()
+			// Init repo
+			repo := NewCartRepository()
 
 			// Setup storage
 			tt.setup(repo)
+
+			ctx := context.Background()
 
 			// Run function
 			err := repo.DeleteItem(ctx, tt.UID, tt.SKU)

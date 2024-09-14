@@ -9,9 +9,6 @@ import (
 )
 
 func TestRepository_GetItemsByUserID(t *testing.T) {
-	// Init repo
-	repo := NewCartRepository()
-
 	// Init test data
 	tests := []struct {
 		name          string
@@ -21,7 +18,6 @@ func TestRepository_GetItemsByUserID(t *testing.T) {
 		expectedLen   int
 		expectedItems []models.CartItem
 	}{
-
 		{
 			name:        "get from empty cart",
 			UID:         1,
@@ -33,8 +29,6 @@ func TestRepository_GetItemsByUserID(t *testing.T) {
 			name: "successful get user cart with 1 items",
 			UID:  2,
 			setup: func(repo *Repository) {
-				repo.mu.Lock()
-				defer repo.mu.Unlock()
 				repo.storage[2] = map[models.SKU]models.CartItem{
 					1001: {SKU: 1001, Count: 2},
 				}
@@ -49,8 +43,6 @@ func TestRepository_GetItemsByUserID(t *testing.T) {
 			name: "successful get user cart with 3 items",
 			UID:  3,
 			setup: func(repo *Repository) {
-				repo.mu.Lock()
-				defer repo.mu.Unlock()
 				repo.storage[3] = map[models.SKU]models.CartItem{
 					1003: {SKU: 1003, Count: 1},
 					1002: {SKU: 1002, Count: 5},
@@ -77,8 +69,6 @@ func TestRepository_GetItemsByUserID(t *testing.T) {
 			name: "cart for UID not found",
 			UID:  4,
 			setup: func(repo *Repository) {
-				repo.mu.Lock()
-				defer repo.mu.Unlock()
 				repo.storage[5] = map[models.SKU]models.CartItem{
 					1001: {SKU: 1001, Count: 2},
 				}
@@ -91,12 +81,16 @@ func TestRepository_GetItemsByUserID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// Run test parallel
 			t.Parallel()
 
-			ctx := context.Background()
+			// Init repo
+			repo := NewCartRepository()
 
 			// Setup storage
 			tt.setup(repo)
+
+			ctx := context.Background()
 
 			// Run function
 			items, err := repo.GetItemsByUserID(ctx, tt.UID)

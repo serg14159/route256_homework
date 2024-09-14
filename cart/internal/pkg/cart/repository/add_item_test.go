@@ -10,14 +10,12 @@ import (
 
 // Function for tests the AddItem method of repository.
 func TestRepository_AddItem(t *testing.T) {
-	// Init repo
-	repo := NewCartRepository()
-
 	// Init test data
 	tests := []struct {
 		name          string
 		UID           models.UID
 		item          models.CartItem
+		setup         func(repo *Repository)
 		expectedSKU   models.SKU
 		expectedCount uint16
 		wantErr       bool
@@ -29,6 +27,7 @@ func TestRepository_AddItem(t *testing.T) {
 				SKU:   1001,
 				Count: 2,
 			},
+			setup:         func(repo *Repository) {},
 			expectedSKU:   1001,
 			expectedCount: 2,
 			wantErr:       false,
@@ -39,6 +38,11 @@ func TestRepository_AddItem(t *testing.T) {
 			item: models.CartItem{
 				SKU:   1001,
 				Count: 2,
+			},
+			setup: func(repo *Repository) {
+				repo.storage[1] = map[models.SKU]models.CartItem{
+					1001: {SKU: 1001, Count: 2},
+				}
 			},
 			expectedSKU:   1001,
 			expectedCount: 4,
@@ -51,6 +55,7 @@ func TestRepository_AddItem(t *testing.T) {
 				SKU:   1001,
 				Count: 2,
 			},
+			setup:   func(repo *Repository) {},
 			wantErr: true,
 		},
 		{
@@ -60,6 +65,7 @@ func TestRepository_AddItem(t *testing.T) {
 				SKU:   0,
 				Count: 2,
 			},
+			setup:   func(repo *Repository) {},
 			wantErr: true,
 		},
 		{
@@ -69,15 +75,21 @@ func TestRepository_AddItem(t *testing.T) {
 				SKU:   1001,
 				Count: 0,
 			},
+			setup:   func(repo *Repository) {},
 			wantErr: true,
 		},
 	}
 
-	for i, tt := range tests {
+	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if i >= 2 {
-				t.Parallel()
-			}
+			// Run test parallel
+			t.Parallel()
+
+			// Init repo
+			repo := NewCartRepository()
+
+			// Setup storage
+			tt.setup(repo)
 
 			ctx := context.Background()
 
