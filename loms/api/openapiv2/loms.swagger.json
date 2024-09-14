@@ -1,0 +1,301 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "loms.proto",
+    "version": "version not set"
+  },
+  "tags": [
+    {
+      "name": "Loms"
+    }
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/v1/order/cancel": {
+      "post": {
+        "operationId": "Loms_OrderCancel",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/lomsOrderCancelResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/lomsOrderCancelRequest"
+            }
+          }
+        ],
+        "tags": [
+          "Loms"
+        ]
+      }
+    },
+    "/v1/order/create": {
+      "post": {
+        "operationId": "Loms_OrderCreate",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/lomsOrderCreateResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/lomsOrderCreateRequest"
+            }
+          }
+        ],
+        "tags": [
+          "Loms"
+        ]
+      }
+    },
+    "/v1/order/info/{orderID}": {
+      "get": {
+        "operationId": "Loms_OrderInfo",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/lomsOrderInfoResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "orderID",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "format": "int64"
+          }
+        ],
+        "tags": [
+          "Loms"
+        ]
+      }
+    },
+    "/v1/order/pay": {
+      "post": {
+        "operationId": "Loms_OrderPay",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/lomsOrderPayResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/lomsOrderPayRequest"
+            }
+          }
+        ],
+        "tags": [
+          "Loms"
+        ]
+      }
+    },
+    "/v1/stocks/info/{sku}": {
+      "get": {
+        "operationId": "Loms_StocksInfo",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/lomsStocksInfoResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "sku",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          }
+        ],
+        "tags": [
+          "Loms"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "lomsItem": {
+      "type": "object",
+      "properties": {
+        "sku": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "count": {
+          "type": "integer",
+          "format": "int64"
+        }
+      }
+    },
+    "lomsOrderCancelRequest": {
+      "type": "object",
+      "properties": {
+        "orderID": {
+          "type": "string",
+          "format": "int64"
+        }
+      },
+      "title": "OrderCancel"
+    },
+    "lomsOrderCancelResponse": {
+      "type": "object"
+    },
+    "lomsOrderCreateRequest": {
+      "type": "object",
+      "properties": {
+        "user": {
+          "type": "string",
+          "format": "int64"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/lomsItem"
+          }
+        }
+      },
+      "title": "OrderCreate"
+    },
+    "lomsOrderCreateResponse": {
+      "type": "object",
+      "properties": {
+        "orderID": {
+          "type": "string",
+          "format": "int64"
+        }
+      }
+    },
+    "lomsOrderInfoResponse": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string"
+        },
+        "user": {
+          "type": "string",
+          "format": "int64"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/lomsItem"
+          }
+        }
+      }
+    },
+    "lomsOrderPayRequest": {
+      "type": "object",
+      "properties": {
+        "orderID": {
+          "type": "string",
+          "format": "int64"
+        }
+      },
+      "title": "OrderPay"
+    },
+    "lomsOrderPayResponse": {
+      "type": "object"
+    },
+    "lomsStocksInfoResponse": {
+      "type": "object",
+      "properties": {
+        "count": {
+          "type": "string",
+          "format": "uint64"
+        }
+      }
+    },
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {}
+    },
+    "rpcStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    }
+  }
+}

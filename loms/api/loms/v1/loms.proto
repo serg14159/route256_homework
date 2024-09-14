@@ -48,7 +48,7 @@ message Item {
 
 // OrderCreate
 message OrderCreateRequest {
-    int64 user = 1 [(validate.rules).uint64.gt = 0];
+    int64 user = 1 [(validate.rules).int64.gt = 0];
     repeated Item items = 2;
 }
 
@@ -58,18 +58,18 @@ message OrderCreateResponse {
 
 // OrderInfo
 message OrderInfoRequest {
-    int64 orderID = 1 [(validate.rules).uint64.gt = 0];
+    int64 orderID = 1 [(validate.rules).int64.gt = 0];
 }
 
 message OrderInfoResponse {
     string status = 1;
-    int64 user = 2 [(validate.rules).uint64.gt = 0];
+    int64 user = 2 [(validate.rules).int64.gt = 0];
     repeated Item items = 3;
 }
 
 // OrderPay
 message OrderPayRequest {
-    int64 orderID = 1 [(validate.rules).uint64.gt = 0];
+    int64 orderID = 1 [(validate.rules).int64.gt = 0];
 }
 
 message OrderPayResponse {
@@ -77,7 +77,7 @@ message OrderPayResponse {
 
 // OrderCancel
 message OrderCancelRequest {
-    int64 orderID = 1 [(validate.rules).uint64.gt = 0];
+    int64 orderID = 1 [(validate.rules).int64.gt = 0];
 }
 
 message OrderCancelResponse {
