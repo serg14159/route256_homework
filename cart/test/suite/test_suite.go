@@ -80,7 +80,7 @@ func (s *TSuite) SetupTest() {
 	// Run server
 	go func() {
 		err := s.server.Run()
-		if err != nil && err != http.ErrServerClosed {
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Fatalf("Server failed to start: %v", err)
 		}
 	}()
@@ -125,12 +125,8 @@ func (s *TSuite) TestDeleteProductFromCart() {
 	// Check delete item
 	_, err = s.repo.GetItemsByUserID(ctx, UID)
 
-	if err != nil {
-		if errors.Is(err, internal_errors.ErrNotFound) {
-			return
-		}
-		require.NoError(s.T(), err)
-	}
+	require.Error(s.T(), err)
+	require.True(s.T(), errors.Is(err, internal_errors.ErrNotFound), "error not ErrNotFound")
 }
 
 // Function TestGetCart

@@ -23,6 +23,8 @@ func TestRepository_DeleteItemsByUserID(t *testing.T) {
 			name: "successful delete user cart",
 			UID:  1,
 			setup: func(repo *Repository) {
+				repo.mu.Lock()
+				defer repo.mu.Unlock()
 				repo.storage[1] = map[models.SKU]models.CartItem{
 					1001: {SKU: 1001, Count: 2},
 				}
@@ -45,6 +47,8 @@ func TestRepository_DeleteItemsByUserID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			ctx := context.Background()
 
 			// Setup storage
