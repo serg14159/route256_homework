@@ -48,24 +48,24 @@ type OrderCreateRequest struct {
 
 // OrderCreateResponse represents a response after creating an order.
 type OrderCreateResponse struct {
-	OrderID int64 `json:"orderID"`
+	OrderID OID `json:"orderID"`
 }
 
 // OrderInfoRequest represents a request for information about an order.
 type OrderInfoRequest struct {
-	OrderID int64 `validate:"gt=0"`
+	OrderID OID `validate:"gt=0"`
 }
 
 // OrderInfoResponse represents a response containing order information.
 type OrderInfoResponse struct {
-	Status string `json:"status"`
-	User   UID    `validate:"gt=0"`
-	Items  []Item `json:"items"`
+	Status OrderStatus `json:"status"`
+	User   UID         `validate:"gt=0"`
+	Items  []Item      `json:"items"`
 }
 
 // OrderPayRequest represents a request to pay for an order.
 type OrderPayRequest struct {
-	OrderID int64 `validate:"gt=0"`
+	OrderID OID `validate:"gt=0"`
 }
 
 // OrderPayResponse represents a response after paying for an order.
@@ -73,7 +73,7 @@ type OrderPayResponse struct{}
 
 // OrderCancelRequest represents a request to cancel an order.
 type OrderCancelRequest struct {
-	OrderID int64 `validate:"gt=0"`
+	OrderID OID `validate:"gt=0"`
 }
 
 // OrderCancelResponse represents a response after canceling an order.

@@ -27,7 +27,7 @@ func NewOrderRepository() *OrderRepository {
 }
 
 // Function CreateOrder add new order to repository and returns unique orderID.
-func (r *OrderRepository) CreateOrder(order models.Order) (int64, error) {
+func (r *OrderRepository) CreateOrder(order models.Order) (models.OID, error) {
 	// Validate input data
 	err := validateOrder(order)
 	if err != nil {

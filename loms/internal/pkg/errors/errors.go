@@ -9,4 +9,6 @@ var (
 	ErrNotFound            = errors.New("not found")
 	ErrPreconditionFailed  = errors.New("precondition failed")
 	ErrInternalServerError = errors.New("internal server error")
+
+	ErrInvalidOrderStatus = errors.New("invalid order status")
 )

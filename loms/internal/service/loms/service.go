@@ -15,13 +15,13 @@ type IStockRepository interface {
 	ReserveCancelItems(items []models.Item) error
 }
 
-type CartService struct {
+type LomsService struct {
 	orderRepository IOrderRepository
 	stockRepository IStockRepository
 }
 
-func NewService(orderRepository IOrderRepository, stockRepository IStockRepository) *CartService {
-	return &CartService{
+func NewService(orderRepository IOrderRepository, stockRepository IStockRepository) *LomsService {
+	return &LomsService{
 		orderRepository: orderRepository,
 		stockRepository: stockRepository,
 	}
