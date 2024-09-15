@@ -95,6 +95,7 @@ type Swagger struct {
 	Port     int    `yaml:"port" mapstructure:"port"`
 	GtAddr   string `yaml:"gtAddr" mapstructure:"gtAddr"`
 	Filepath string `yaml:"filepath" mapstructure:"filepath"`
+	Dist     string `yaml:"dist" mapstructure:"dist"`
 }
 
 func (s *Swagger) GetSwaggerHost() string {
@@ -111,6 +112,10 @@ func (s *Swagger) GetGtAddr() string {
 
 func (s *Swagger) GetFilepath() string {
 	return s.Filepath
+}
+
+func (s *Swagger) GetDist() string {
+	return s.Dist
 }
 
 // Data - struct for data.
@@ -196,6 +201,7 @@ func setDefaultValues() {
 	viper.SetDefault("swagger.gtAddr", "0.0.0.0")
 	viper.SetDefault("swagger.port", 50052)
 	viper.SetDefault("swagger.filepath", "api/openapiv2/loms.swagger.json")
+	viper.SetDefault("swagger.dist", "./swagger/dist")
 
 	// Data
 	viper.SetDefault("data.stockFilePath", "data/stock-data.json")
@@ -225,6 +231,7 @@ func (c *Config) bindEnvVariables() error {
 		"swagger.port":     "SWAGGER_PORT",
 		"swagger.gtAddr":   "SWAGGER_GT_ADDR",
 		"swagger.filepath": "SWAGGER_FILEPATH",
+		"swagger.dist":     "SWAGGER_DIST",
 
 		// Data
 		"data.stockFilePath": "DATA_STOCK_FILEPATH",

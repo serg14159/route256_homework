@@ -2,7 +2,9 @@ package main
 
 import (
 	"flag"
+	loms "route256/loms/internal/app/loms"
 	config "route256/loms/internal/config"
+	"route256/loms/internal/server"
 	"time"
 
 	"log"
@@ -36,4 +38,13 @@ func main() {
 
 	// Cfg
 	log.Printf("Cfg: %v", cfg)
+
+	// Loms
+	controller := loms.NewService()
+
+	// GRPC server
+	if err := server.NewGrpcServer(&cfg.Project, &cfg.Grpc, &cfg.Gateway, &cfg.Swagger, controller).Start(); err != nil {
+		log.Printf("Failed creating gRPC server, err:%s", err)
+		return
+	}
 }

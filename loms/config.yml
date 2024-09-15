@@ -23,6 +23,7 @@ swagger:
   gtAddr: 0.0.0.0
   port: 50052
   filepath: "api/openapiv2/loms.swagger.json"
+  dist: "./swagger/dist"
 
 data:
   stockFilePath: "data/stock-data.json"
