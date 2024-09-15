@@ -88,18 +88,8 @@ func NewConfig() *Config {
 // ReadConfig - read configurations from default/file/env and init instance Config.
 func (c *Config) ReadConfig(configPath string) error {
 
-	// Set default
-	// Project
-	viper.SetDefault("project.debug", "false")
-	viper.SetDefault("project.name", "Cart")
-	viper.SetDefault("project.environment", "development")
-	// Server
-	viper.SetDefault("server.port", "8082")
-	viper.SetDefault("server.host", "localhost")
-	// ProductService
-	viper.SetDefault("productService.apiuri", "http://route256.pavl.uk:8080")
-	viper.SetDefault("productService.token", "testtoken")
-	viper.SetDefault("productService.maxRetries", "3")
+	// Set default values
+	setDefaultValues()
 
 	// Read config file
 	viper.SetConfigFile(configPath)
@@ -110,40 +100,10 @@ func (c *Config) ReadConfig(configPath string) error {
 
 	// Read env
 	viper.AutomaticEnv()
-	// Project
-	err = viper.BindEnv("project.debug", "PROJECT_DEBUG")
-	if err != nil {
-		log.Printf("Error bind env: %v", err)
-	}
-	err = viper.BindEnv("project.name", "PROJECT_NAME")
-	if err != nil {
-		log.Printf("Error bind env: %v", err)
-	}
-	err = viper.BindEnv("project.environment", "PROJECT_ENVIRONMENT")
-	if err != nil {
-		log.Printf("Error bind env: %v", err)
-	}
-	// Server
-	err = viper.BindEnv("server.host", "SERVER_HOST")
-	if err != nil {
-		log.Printf("Error bind env: %v", err)
-	}
-	err = viper.BindEnv("server.port", "SERVER_PORT")
-	if err != nil {
-		log.Printf("Error bind env: %v", err)
-	}
-	// ProductService
-	err = viper.BindEnv("productService.apiuri", "PRODUCT_SERVICE_APIURI")
-	if err != nil {
-		log.Printf("Error bind env: %v", err)
-	}
-	err = viper.BindEnv("productService.token", "PRODUCT_SERVICE_TOKEN")
-	if err != nil {
-		log.Printf("Error bind env: %v", err)
-	}
-	err = viper.BindEnv("productService.maxRetries", "PRODUCT_SERVICE_MAX_RETRIES")
-	if err != nil {
-		log.Printf("Error bind env: %v", err)
+
+	// Bind env variables
+	if err := c.bindEnvVariables(); err != nil {
+		return err
 	}
 
 	// Load config into struct
@@ -156,5 +116,40 @@ func (c *Config) ReadConfig(configPath string) error {
 	c.Project.Version = version
 	c.Project.CommitHash = commitHash
 
+	return nil
+}
+
+func setDefaultValues() {
+	// Project
+	viper.SetDefault("project.debug", "false")
+	viper.SetDefault("project.name", "Cart")
+	viper.SetDefault("project.environment", "development")
+	// Server
+	viper.SetDefault("server.port", "8082")
+	viper.SetDefault("server.host", "localhost")
+	// ProductService
+	viper.SetDefault("productService.apiuri", "http://route256.pavl.uk:8080")
+	viper.SetDefault("productService.token", "testtoken")
+	viper.SetDefault("productService.maxRetries", "3")
+}
+
+func (c *Config) bindEnvVariables() error {
+	envVars := map[string]string{
+		"project.debug":             "PROJECT_DEBUG",
+		"project.name":              "PROJECT_NAME",
+		"project.environment":       "PROJECT_ENVIRONMENT",
+		"server.host":               "SERVER_HOST",
+		"server.port":               "SERVER_PORT",
+		"productService.apiuri":     "PRODUCT_SERVICE_APIURI",
+		"productService.token":      "PRODUCT_SERVICE_TOKEN",
+		"productService.maxRetries": "PRODUCT_SERVICE_MAX_RETRIES",
+	}
+
+	for key, env := range envVars {
+		if err := viper.BindEnv(key, env); err != nil {
+			log.Printf("Error bind env: %v", err)
+			return err
+		}
+	}
 	return nil
 }
