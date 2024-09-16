@@ -6,10 +6,38 @@ type UID = int64
 // Stock keeping unit.
 type SKU = uint32
 
+// Order ID.
+type OID = int64
+
 // Item represents a single item in an order.
 type Item struct {
 	SKU   SKU    `validate:"gt=0"`
-	Count uint32 `validate:"gt=0"`
+	Count uint16 `validate:"gt=0"`
+}
+
+// Stock represents the inventory information for a specific product (SKU).
+type Stock struct {
+	SKU        SKU    `json:"sku"`
+	TotalCount uint64 `json:"total_count"`
+	Reserved   uint64 `json:"reserved"`
+}
+
+// OrderStatus represents the status of an order.
+type OrderStatus string
+
+const (
+	OrderStatusNew             OrderStatus = "new"
+	OrderStatusAwaitingPayment OrderStatus = "awaiting payment"
+	OrderStatusFailed          OrderStatus = "failed"
+	OrderStatusPayed           OrderStatus = "paid"
+	OrderStatusCancelled       OrderStatus = "cancelled"
+)
+
+// Order represents order containing items.
+type Order struct {
+	Status OrderStatus
+	UserID int64
+	Items  []Item
 }
 
 // OrderCreateRequest represents a request to create an order.
