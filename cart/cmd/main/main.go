@@ -6,10 +6,10 @@ import (
 	"os"
 	"os/signal"
 	"route256/cart/internal/app/server"
+	"route256/cart/internal/clients/product_service"
 	"route256/cart/internal/config"
-	"route256/cart/internal/pkg/cart/repository"
-	"route256/cart/internal/pkg/cart/service"
-	"route256/cart/internal/pkg/clients/product_service"
+	repository "route256/cart/internal/repository/cart"
+	service "route256/cart/internal/service/cart"
 	"time"
 
 	"log"

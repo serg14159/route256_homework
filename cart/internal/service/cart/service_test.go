@@ -2,7 +2,7 @@ package service
 
 import (
 	"errors"
-	"route256/cart/internal/pkg/cart/service/mock"
+	"route256/cart/internal/service/cart/mock"
 
 	"testing"
 
