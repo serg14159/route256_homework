@@ -70,87 +70,152 @@ func (r *StockRepository) GetAvailableStockBySKU(SKU models.SKU) (uint64, error)
 	return available, nil
 }
 
-// Function Reserve reserves the specified count of product.
-func (r *StockRepository) Reserve(SKU models.SKU, count uint16) error {
+// Function ReserveItems reserves the specified count of products in the provided array of items.
+func (r *StockRepository) ReserveItems(items []models.Item) error {
 	// Validate input data
-	if SKU < 1 || count < 1 {
-		return fmt.Errorf("SKU and count must be greater than zero: %w", internal_errors.ErrBadRequest)
+	for _, item := range items {
+		if item.SKU < 1 || item.Count < 1 {
+			return fmt.Errorf("SKU and count must be greater than zero: %w", internal_errors.ErrBadRequest)
+		}
 	}
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	// Get stock by SKU
-	stock, exists := r.stocks[SKU]
-	if !exists {
-		return internal_errors.ErrNotFound
-	}
+	// List of successfully reserved items for potential rollback
+	var reservedItems []models.Item
 
-	// Check
-	available := stock.TotalCount - stock.Reserved
-	if available < uint64(count) {
-		return fmt.Errorf("not enough stock: %w", internal_errors.ErrPreconditionFailed)
-	}
+	// Reserve
+	for _, item := range items {
+		stock, exists := r.stocks[item.SKU]
+		if !exists {
+			r.cancelReservations(reservedItems)
+			return fmt.Errorf("not found stock for SKU %d: %w", item.SKU, internal_errors.ErrNotFound)
+		}
 
-	// Update
-	stock.Reserved += uint64(count)
-	r.stocks[SKU] = stock
+		// Check available
+		available := stock.TotalCount - stock.Reserved
+		if available < uint64(item.Count) {
+			r.cancelReservations(reservedItems)
+			return fmt.Errorf("not enough stock for SKU %d: %w", item.SKU, internal_errors.ErrPreconditionFailed)
+		}
+
+		// Reserve product
+		stock.Reserved += uint64(item.Count)
+		r.stocks[item.SKU] = stock
+
+		// Add successfully reserved items for potential rollback
+		reservedItems = append(reservedItems, item)
+	}
 
 	return nil
 }
 
-// Function ReserveRemove removes reserved stock for product.
-func (r *StockRepository) ReserveRemove(SKU models.SKU, count uint16) error {
+// Function cancelReservations rolls back all previously successful reservations.
+func (r *StockRepository) cancelReservations(reservedItems []models.Item) {
+	for _, item := range reservedItems {
+		stock := r.stocks[item.SKU]
+		stock.Reserved -= uint64(item.Count)
+		r.stocks[item.SKU] = stock
+	}
+}
+
+// Function ReserveRemoveItems removes reserved stock for product.
+func (r *StockRepository) ReserveRemoveItems(items []models.Item) error {
 	// Validate input data
-	if SKU < 1 || count < 1 {
-		return fmt.Errorf("SKU and count must be greater than zero: %w", internal_errors.ErrBadRequest)
+	for _, item := range items {
+		if item.SKU < 1 || item.Count < 1 {
+			return fmt.Errorf("SKU and count must be greater than zero: %w", internal_errors.ErrBadRequest)
+		}
 	}
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	// Get stock by SKU
-	stock, exists := r.stocks[SKU]
-	if !exists {
-		return internal_errors.ErrNotFound
-	}
+	// List of successfully removed items for potential rollback
+	var removedItems []models.Item
 
-	// Check
-	if stock.Reserved < uint64(count) {
-		return fmt.Errorf("not enough reserved stock: %w", internal_errors.ErrPreconditionFailed)
-	}
+	// Remove reserved
+	for _, item := range items {
+		stock, exists := r.stocks[item.SKU]
+		if !exists {
+			r.cancelReserveRemove(removedItems)
+			return fmt.Errorf("not found stock for SKU %d: %w", item.SKU, internal_errors.ErrNotFound)
+		}
 
-	// Update
-	stock.Reserved -= uint64(count)
-	stock.TotalCount -= uint64(count)
-	r.stocks[SKU] = stock
+		// Check
+		if stock.Reserved < uint64(item.Count) {
+			r.cancelReserveRemove(removedItems)
+			return fmt.Errorf("not enough reserved stock for SKU %d: %w", item.SKU, internal_errors.ErrPreconditionFailed)
+		}
+
+		// Remove reserved stock and update total count
+		stock.Reserved -= uint64(item.Count)
+		stock.TotalCount -= uint64(item.Count)
+		r.stocks[item.SKU] = stock
+
+		// Add to the list of removed reservations for potential rollback
+		removedItems = append(removedItems, item)
+	}
 
 	return nil
 }
 
-// Function ReserveCancel cancels reservation and makes the stock available again.
-func (r *StockRepository) ReserveCancel(SKU models.SKU, count uint16) error {
+// Function cancelReserveRemove rolls back all previously successful remove from reserved stock.
+func (r *StockRepository) cancelReserveRemove(removedItems []models.Item) {
+	for _, item := range removedItems {
+		stock := r.stocks[item.SKU]
+		stock.Reserved += uint64(item.Count)
+		stock.TotalCount += uint64(item.Count)
+		r.stocks[item.SKU] = stock
+	}
+}
+
+// Function ReserveCancelItems cancels reservation and makes the stock available again.
+func (r *StockRepository) ReserveCancelItems(items []models.Item) error {
 	// Validate input data
-	if SKU < 1 || count < 1 {
-		return fmt.Errorf("SKU and count must be greater than zero: %w", internal_errors.ErrBadRequest)
+	for _, item := range items {
+		if item.SKU < 1 || item.Count < 1 {
+			return fmt.Errorf("SKU and count must be greater than zero: %w", internal_errors.ErrBadRequest)
+		}
 	}
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	// Check
-	stock, exists := r.stocks[SKU]
-	if !exists {
-		return internal_errors.ErrNotFound
-	}
+	// List of successfully cancelled reservations for potential rollback
+	var cancelledItems []models.Item
 
-	if stock.Reserved < uint64(count) {
-		return fmt.Errorf("not enough reserved stock to cancel: %w", internal_errors.ErrPreconditionFailed)
-	}
+	// Cancel reserved
+	for _, item := range items {
+		stock, exists := r.stocks[item.SKU]
+		if !exists {
+			r.cancelReserveCancel(cancelledItems)
+			return fmt.Errorf("not found stock for SKU %d: %w", item.SKU, internal_errors.ErrNotFound)
+		}
 
-	// Update
-	stock.Reserved -= uint64(count)
-	r.stocks[SKU] = stock
+		// Check
+		if stock.Reserved < uint64(item.Count) {
+			r.cancelReserveCancel(cancelledItems)
+			return fmt.Errorf("not enough reserved stock to cancel for SKU %d: %w", item.SKU, internal_errors.ErrPreconditionFailed)
+		}
+
+		// Cancel reserved stock
+		stock.Reserved -= uint64(item.Count)
+		r.stocks[item.SKU] = stock
+
+		// Add to the list of cancelled reservations for potential rollback
+		cancelledItems = append(cancelledItems, item)
+	}
 
 	return nil
+}
+
+// Function cancelReserveCancel rolls back all previously successful cancel of reserved stock
+func (r *StockRepository) cancelReserveCancel(cancelledItems []models.Item) {
+	for _, item := range cancelledItems {
+		stock := r.stocks[item.SKU]
+		stock.Reserved += uint64(item.Count)
+		r.stocks[item.SKU] = stock
+	}
 }
