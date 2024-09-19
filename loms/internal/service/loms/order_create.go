@@ -11,21 +11,8 @@ import (
 // Function OrderCreate.
 func (s *LomsService) OrderCreate(ctx context.Context, req *models.OrderCreateRequest) (*models.OrderCreateResponse, error) {
 	// Validate input data
-	if req.User < 1 {
-		return nil, fmt.Errorf("userID must be greater than zero: %w", internal_errors.ErrBadRequest)
-	}
-
-	if len(req.Items) == 0 {
-		return nil, fmt.Errorf("order must contain at least one item: %w", internal_errors.ErrBadRequest)
-	}
-
-	for _, item := range req.Items {
-		if item.SKU < 1 {
-			return nil, fmt.Errorf("SKU must be greater than zero: %w", internal_errors.ErrBadRequest)
-		}
-		if item.Count < 1 {
-			return nil, fmt.Errorf("count must be greater than zero: %w", internal_errors.ErrBadRequest)
-		}
+	if err := validateOrderCreateRequest(req); err != nil {
+		return nil, err
 	}
 
 	// Create order with status "new"
@@ -61,4 +48,25 @@ func (s *LomsService) OrderCreate(ctx context.Context, req *models.OrderCreateRe
 	return &models.OrderCreateResponse{
 		OrderID: orderID,
 	}, nil
+}
+
+func validateOrderCreateRequest(req *models.OrderCreateRequest) error {
+	if req.User < 1 {
+		return fmt.Errorf("userID must be greater than zero: %w", internal_errors.ErrBadRequest)
+	}
+
+	if len(req.Items) == 0 {
+		return fmt.Errorf("order must contain at least one item: %w", internal_errors.ErrBadRequest)
+	}
+
+	for _, item := range req.Items {
+		if item.SKU < 1 {
+			return fmt.Errorf("SKU must be greater than zero: %w", internal_errors.ErrBadRequest)
+		}
+		if item.Count < 1 {
+			return fmt.Errorf("count must be greater than zero: %w", internal_errors.ErrBadRequest)
+		}
+	}
+
+	return nil
 }

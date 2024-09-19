@@ -4,15 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-
+	"log"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
-
-	"log"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
@@ -23,8 +21,9 @@ import (
 	grpc_ctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
 
 	api "route256/loms/internal/app/loms"
-	mw "route256/loms/internal/pkg/mv"
 	pb "route256/loms/pkg/api/loms/v1"
+
+	mw "route256/loms/internal/pkg/mv"
 )
 
 const quitChannelBufferSize = 1
@@ -61,6 +60,9 @@ type GrpcServer struct {
 	cfgGateway     ICfgGateway
 	cfgSwagger     ICfgSwagger
 	lomsServiceApi *api.Service
+	gatewayServer  *http.Server
+	swaggerServer  *http.Server
+	grpcServer     *grpc.Server
 }
 
 func NewGrpcServer(cfgPrj ICfgPrj, cfgGrpc ICfgGrpc, cfgGateway ICfgGateway, cfgSwagger ICfgSwagger, lomsServiceApi *api.Service) *GrpcServer {
@@ -73,45 +75,89 @@ func NewGrpcServer(cfgPrj ICfgPrj, cfgGrpc ICfgGrpc, cfgGateway ICfgGateway, cfg
 	}
 }
 
-// Function for start server.
+// Start
 func (s *GrpcServer) Start() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	if err := s.startServers(ctx, cancel); err != nil {
+		return err
+	}
+
+	s.awaitTermination(ctx)
+	s.shutdownServers(ctx)
+	return nil
+}
+
+// Start servers
+func (s *GrpcServer) startServers(ctx context.Context, cancel context.CancelFunc) error {
+	// Start Gateway server
+	if err := s.startGatewayServer(ctx, cancel); err != nil {
+		return err
+	}
+
+	// Start Swagger server
+	if err := s.startSwaggerServer(ctx, cancel); err != nil {
+		return err
+	}
+
+	// Start gRPC server
+	return s.startGrpcServer(ctx)
+}
+
+func (s *GrpcServer) startGatewayServer(ctx context.Context, cancel context.CancelFunc) error {
 	gatewayAddr := fmt.Sprintf("%s:%v", s.cfgGateway.GetGatewayHost(), s.cfgGateway.GetGatewayPort())
+	grpcAddr := fmt.Sprintf("%s:%v", s.cfgGrpc.GetGrpcHost(), s.cfgGrpc.GetGrpcPort())
+	s.gatewayServer = createGatewayServer(grpcAddr, gatewayAddr, s.cfgGateway.GetGatewayAllowedCORSOrigins())
+
+	go func() {
+		log.Printf("Gateway server is running on %s", gatewayAddr)
+		if err := s.gatewayServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Printf("Failed running gateway server: %v", err)
+			cancel()
+		}
+	}()
+	return nil
+}
+
+func (s *GrpcServer) startSwaggerServer(ctx context.Context, cancel context.CancelFunc) error {
 	swaggerAddr := fmt.Sprintf("%s:%v", s.cfgSwagger.GetSwaggerHost(), s.cfgSwagger.GetSwaggerPort())
 	swaggerGtAddr := fmt.Sprintf("%s:%v", s.cfgSwagger.GetGtAddr(), s.cfgGateway.GetGatewayPort())
-	grpcAddr := fmt.Sprintf("%s:%v", s.cfgGrpc.GetGrpcHost(), s.cfgGrpc.GetGrpcPort())
-
-	gatewayServer := createGatewayServer(grpcAddr, gatewayAddr, s.cfgGateway.GetGatewayAllowedCORSOrigins())
-	swaggerServer, err := createSwaggerServer(swaggerGtAddr, swaggerAddr, s.cfgSwagger.GetFilepath(), s.cfgSwagger.GetDist())
+	var err error
+	s.swaggerServer, err = createSwaggerServer(swaggerGtAddr, swaggerAddr, s.cfgSwagger.GetFilepath(), s.cfgSwagger.GetDist())
 	if err != nil {
 		return err
 	}
 
 	go func() {
-		log.Printf("Gateway server is running on %s", gatewayAddr)
-		if err := gatewayServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Printf("Failed running gateway server: %v", err)
-			cancel()
-		}
-	}()
-
-	go func() {
 		log.Printf("Swagger server is running on %s", swaggerAddr)
-		if err := swaggerServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		if err := s.swaggerServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Printf("Failed running swagger server: %v", err)
 			cancel()
 		}
 	}()
+	return nil
+}
 
+func (s *GrpcServer) startGrpcServer(ctx context.Context) error {
+	grpcAddr := fmt.Sprintf("%s:%v", s.cfgGrpc.GetGrpcHost(), s.cfgGrpc.GetGrpcPort())
 	l, err := net.Listen("tcp", grpcAddr)
 	if err != nil {
 		return fmt.Errorf("failed to listen: %w", err)
 	}
-	defer l.Close()
 
-	grpcServer := grpc.NewServer(
+	s.grpcServer = s.createGrpcServer()
+	go func() {
+		log.Printf("GRPC Server is listening on: %s", grpcAddr)
+		if err := s.grpcServer.Serve(l); err != nil {
+			log.Printf("Failed running gRPC server: %v", err)
+		}
+	}()
+	return nil
+}
+
+func (s *GrpcServer) createGrpcServer() *grpc.Server {
+	server := grpc.NewServer(
 		grpc.KeepaliveParams(keepalive.ServerParameters{
 			MaxConnectionIdle: time.Duration(s.cfgGrpc.GetGrpcMaxConnectionIdle()) * time.Minute,
 			Timeout:           time.Duration(s.cfgGrpc.GetGrpcTimeout()) * time.Second,
@@ -126,19 +172,16 @@ func (s *GrpcServer) Start() error {
 		)),
 	)
 
-	pb.RegisterLomsServer(grpcServer, s.lomsServiceApi)
-
-	go func() {
-		log.Printf("GRPC Server is listening on: %s", grpcAddr)
-		if err := grpcServer.Serve(l); err != nil {
-			log.Printf("Failed running gRPC server: %v", err)
-		}
-	}()
+	pb.RegisterLomsServer(server, s.lomsServiceApi)
 
 	if s.cfgPrj.GetDebug() {
-		reflection.Register(grpcServer)
+		reflection.Register(server)
 	}
 
+	return server
+}
+
+func (s *GrpcServer) awaitTermination(ctx context.Context) {
 	quit := make(chan os.Signal, quitChannelBufferSize)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 
@@ -148,15 +191,27 @@ func (s *GrpcServer) Start() error {
 	case done := <-ctx.Done():
 		log.Printf("ctx.Done: %v", done)
 	}
+}
 
-	if err := gatewayServer.Shutdown(ctx); err != nil {
-		log.Printf("gatewayServer.Shutdown: %v", err)
-	} else {
-		log.Printf("gatewayServer shut down correctly: %v", err)
+func (s *GrpcServer) shutdownServers(ctx context.Context) {
+	if s.gatewayServer != nil {
+		if err := s.gatewayServer.Shutdown(ctx); err != nil {
+			log.Printf("gatewayServer.Shutdown: %v", err)
+		} else {
+			log.Printf("gatewayServer shut down correctly")
+		}
 	}
 
-	grpcServer.GracefulStop()
-	log.Printf("grpcServer shut down correctly")
+	if s.swaggerServer != nil {
+		if err := s.swaggerServer.Shutdown(ctx); err != nil {
+			log.Printf("swaggerServer.Shutdown: %v", err)
+		} else {
+			log.Printf("swaggerServer shut down correctly")
+		}
+	}
 
-	return nil
+	if s.grpcServer != nil {
+		s.grpcServer.GracefulStop()
+		log.Printf("grpcServer shut down correctly")
+	}
 }
