@@ -2,18 +2,19 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	loms "route256/loms/internal/app/loms"
+	repo_order "route256/loms/internal/repository/orders"
+	repo_stocks "route256/loms/internal/repository/stocks"
+	loms_usecase "route256/loms/internal/service/loms"
+
 	config "route256/loms/internal/config"
 	"route256/loms/internal/server"
-	"time"
 
 	"log"
 
 	"github.com/joho/godotenv"
 )
-
-const quitChannelBufferSize = 1
-const shutdownTimeout = 5 * time.Second
 
 func main() {
 	_ = godotenv.Load()
@@ -37,10 +38,20 @@ func main() {
 		cfg.Project.GetName(), cfg.Project.GetVersion(), cfg.Project.GetCommitHash(), cfg.Project.GetDebug(), cfg.Project.GetEnvironment())
 
 	// Cfg
-	log.Printf("Cfg: %v", cfg)
+	fmt.Printf("cfg: %v", cfg)
+
+	// Repository order
+	repoOrder := repo_order.NewOrderRepository()
+
+	// Repository stocks
+	repoStocks := repo_stocks.NewStockRepository()
+	repoStocks.LoadStocks(cfg.Data.GetStockFilePath())
+
+	// Loms usecase
+	lomsUsecaseService := loms_usecase.NewService(repoOrder, repoStocks)
 
 	// Loms
-	controller := loms.NewService()
+	controller := loms.NewService(lomsUsecaseService)
 
 	// GRPC server
 	if err := server.NewGrpcServer(&cfg.Project, &cfg.Grpc, &cfg.Gateway, &cfg.Swagger, controller).Start(); err != nil {

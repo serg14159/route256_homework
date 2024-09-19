@@ -8,7 +8,7 @@ import (
 )
 
 // Function OrderCancel.
-func (s *LomsService) OrderCancel(ctx context.Context, req models.OrderCancelRequest) error {
+func (s *LomsService) OrderCancel(ctx context.Context, req *models.OrderCancelRequest) error {
 	// Validate input data
 	if req.OrderID < 1 {
 		return fmt.Errorf("orderID must be greater than zero: %w", internal_errors.ErrBadRequest)

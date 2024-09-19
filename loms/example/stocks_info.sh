@@ -6,7 +6,7 @@ GRPC_METHOD="loms.Loms/StocksInfo"
 payload=$(
   cat <<EOF
 {
-  "sku": 987
+  "sku": 1003
 }
 EOF
 )

@@ -23,6 +23,7 @@ import (
 	grpc_ctxtags "github.com/grpc-ecosystem/go-grpc-middleware/tags"
 
 	api "route256/loms/internal/app/loms"
+	mw "route256/loms/internal/pkg/mv"
 	pb "route256/loms/pkg/api/loms/v1"
 )
 
@@ -72,6 +73,7 @@ func NewGrpcServer(cfgPrj ICfgPrj, cfgGrpc ICfgGrpc, cfgGateway ICfgGateway, cfg
 	}
 }
 
+// Function for start server.
 func (s *GrpcServer) Start() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -118,6 +120,8 @@ func (s *GrpcServer) Start() error {
 		}),
 		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
 			grpc_ctxtags.UnaryServerInterceptor(),
+			mw.Logger,
+			mw.Validate,
 			grpcrecovery.UnaryServerInterceptor(),
 		)),
 	)

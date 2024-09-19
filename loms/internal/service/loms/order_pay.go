@@ -10,7 +10,7 @@ import (
 )
 
 // Function OrderPay.
-func (s *LomsService) OrderPay(ctx context.Context, req *models.OrderInfoRequest) error {
+func (s *LomsService) OrderPay(ctx context.Context, req *models.OrderPayRequest) error {
 	// Validate input data
 	if req.OrderID < 1 {
 		return fmt.Errorf("orderID must be greater than zero: %w", internal_errors.ErrBadRequest)

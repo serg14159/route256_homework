@@ -8,6 +8,7 @@ import (
 	"strings"
 )
 
+// Function for create swagger server.
 func createSwaggerServer(gatewayAddr, swaggerAddr, swaggerPath string, swaggerDir string) (*http.Server, error) {
 	originalSwagger, err := os.ReadFile(swaggerPath)
 	if err != nil {

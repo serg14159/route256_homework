@@ -9,18 +9,15 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
+	mw "route256/loms/internal/pkg/mv"
 	pb "route256/loms/pkg/api/loms/v1"
 )
 
+// Function for create gateway server.
 func createGatewayServer(grpcAddr, gatewayAddr string, allowedOrigins []string) *http.Server {
 	// Create a client connection to the gRPC Server we just started.
 	// This is where the gRPC-Gateway proxies the requests.
-	conn, err := grpc.DialContext(
-		context.Background(),
-		grpcAddr,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		//grpc.WithInsecure(),
-	)
+	conn, err := grpc.NewClient(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Printf("Failed to dial server: %v", err)
 	}
@@ -30,33 +27,25 @@ func createGatewayServer(grpcAddr, gatewayAddr string, allowedOrigins []string) 
 		log.Printf("Failed registration handler: %v", err)
 	}
 
+	middlewareChain := сhainHTTPMiddleware(
+		mw.WithHTTPLoggingMiddleware,
+		mw.Cors(allowedOrigins),
+	)
+
 	gatewayServer := &http.Server{
 		Addr:    gatewayAddr,
-		Handler: cors(mux, allowedOrigins),
+		Handler: middlewareChain(mux),
 	}
 
 	return gatewayServer
 }
 
-func cors(h http.Handler, allowedOrigins []string) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		providedOrigin := r.Header.Get("Origin")
-		matches := false
-		for _, allowedOrigin := range allowedOrigins {
-			if providedOrigin == allowedOrigin {
-				matches = true
-				break
-			}
+// Function ChainHTTPMiddleware combines several HTTP middleware into one chain.
+func сhainHTTPMiddleware(middlewares ...func(http.Handler) http.Handler) func(http.Handler) http.Handler {
+	return func(finalHandler http.Handler) http.Handler {
+		for i := len(middlewares) - 1; i >= 0; i-- {
+			finalHandler = middlewares[i](finalHandler)
 		}
-
-		if matches {
-			w.Header().Set("Access-Control-Allow-Origin", providedOrigin)
-			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE")
-			w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, Authorization, ResponseType")
-		}
-		if r.Method == "OPTIONS" {
-			return
-		}
-		h.ServeHTTP(w, r)
-	})
+		return finalHandler
+	}
 }

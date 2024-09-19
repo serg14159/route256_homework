@@ -9,7 +9,7 @@ payload=$(
   "user": 12345,
   "items": [
     {
-      "sku": 987,
+      "sku": 1003,
       "count": 1
     }
   ]
