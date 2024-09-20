@@ -21,6 +21,7 @@ type IProductService interface {
 
 type ILomsService interface {
 	OrderCreate(ctx context.Context, user int64, items []*loms.Item) (int64, error)
+	StocksInfo(ctx context.Context, SKU models.SKU) (int64, error)
 }
 
 type CartService struct {
@@ -46,6 +47,15 @@ func (s *CartService) AddProduct(ctx context.Context, UID models.UID, SKU models
 	_, err := s.productService.GetProduct(ctx, SKU)
 	if err != nil {
 		return err
+	}
+
+	stocks, err := s.lomsService.StocksInfo(ctx, SKU)
+	if err != nil {
+		return err
+	}
+
+	if stocks < int64(Count) {
+		return fmt.Errorf("number of stocks: %d less than required count: %d, err: %w", stocks, Count, internal_errors.ErrBadRequest)
 	}
 
 	item := models.CartItem{

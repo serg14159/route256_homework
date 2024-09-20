@@ -2,6 +2,8 @@ package client
 
 import (
 	"context"
+	"fmt"
+	"route256/cart/internal/models"
 	service "route256/cart/internal/service/cart"
 	"route256/loms/pkg/api/loms/v1"
 
@@ -18,6 +20,7 @@ func NewLomsClient(conn *grpc.ClientConn) *LomsClient {
 	}
 }
 
+// Function OrderCreate create order with items for user.
 func (c *LomsClient) OrderCreate(ctx context.Context, user int64, items []*loms.Item) (int64, error) {
 	res, err := c.client.OrderCreate(ctx, &loms.OrderCreateRequest{
 		User:  user,
@@ -27,6 +30,20 @@ func (c *LomsClient) OrderCreate(ctx context.Context, user int64, items []*loms.
 		return 0, err
 	}
 	return res.OrderID, nil
+}
+
+// Function StocksInfo requests information about available stocks for specified SKU.
+func (c *LomsClient) StocksInfo(ctx context.Context, SKU models.SKU) (int64, error) {
+	req := &loms.StocksInfoRequest{
+		Sku: uint32(SKU),
+	}
+
+	res, err := c.client.StocksInfo(ctx, req)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get stock info: %w", err)
+	}
+
+	return int64(res.Count), nil
 }
 
 var _ service.ILomsService = (*LomsClient)(nil)

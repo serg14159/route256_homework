@@ -1,5 +1,5 @@
 ### add 1 sku to cart
-POST http://localhost:8082/user/31337/cart/1002
+POST http://localhost:8082/user/31337/cart/1076963
 Content-Type: application/json
 
 {
@@ -8,7 +8,7 @@ Content-Type: application/json
 ### expected {} 200 OK; must add 1 item
 
 ### add 5 sku to cart
-POST http://localhost:8082/user/31337/cart/1003
+POST http://localhost:8082/user/31337/cart/1076963
 Content-Type: application/json
 
 {
