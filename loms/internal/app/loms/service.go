@@ -23,11 +23,11 @@ type ILomsService interface {
 
 type Service struct {
 	pb.UnimplementedLomsServer
-	lomsService ILomsService
+	LomsService ILomsService
 }
 
 func NewService(lomsService ILomsService) *Service {
-	return &Service{lomsService: lomsService}
+	return &Service{LomsService: lomsService}
 }
 
 func errorToStatus(err error) error {

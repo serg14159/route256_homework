@@ -16,7 +16,7 @@ func (s *Service) StocksInfo(ctx context.Context, req *pb.StocksInfoRequest) (*p
 		return nil, errorToStatus(err)
 	}
 
-	stocksInfoResponse, err := s.lomsService.StocksInfo(ctx, stocksInfoRequest)
+	stocksInfoResponse, err := s.LomsService.StocksInfo(ctx, stocksInfoRequest)
 	if err != nil {
 		return nil, errorToStatus(err)
 	}

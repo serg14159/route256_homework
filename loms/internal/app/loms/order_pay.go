@@ -16,7 +16,7 @@ func (s *Service) OrderPay(ctx context.Context, req *pb.OrderPayRequest) (*pb.Or
 		return nil, errorToStatus(err)
 	}
 
-	err = s.lomsService.OrderPay(ctx, orderPayRequest)
+	err = s.LomsService.OrderPay(ctx, orderPayRequest)
 	if err != nil {
 		return nil, err
 	}

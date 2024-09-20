@@ -16,7 +16,7 @@ func (s *Service) OrderCreate(ctx context.Context, req *pb.OrderCreateRequest) (
 		return nil, errorToStatus(err)
 	}
 
-	orderCreateResponse, err := s.lomsService.OrderCreate(ctx, orderCreateRequest)
+	orderCreateResponse, err := s.LomsService.OrderCreate(ctx, orderCreateRequest)
 	if err != nil {
 		return nil, errorToStatus(err)
 	}

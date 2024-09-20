@@ -162,7 +162,7 @@ test_all: cyclomatic_complexity cognitive_complexity test coverage
 
 .PHONY: test
 test:
-	go test $(shell go list ./... | grep -v /mock) -coverprofile=coverage.out
+	go test $(shell go list ./... | grep -vE '/(mock|pkg/api/loms|vendor-proto)') -coverprofile=coverage.out
 
 .PHONY: coverage
 coverage:

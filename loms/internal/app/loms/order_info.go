@@ -16,7 +16,7 @@ func (s *Service) OrderInfo(ctx context.Context, req *pb.OrderInfoRequest) (*pb.
 		return nil, errorToStatus(err)
 	}
 
-	orderInfoResponse, err := s.lomsService.OrderInfo(ctx, orderInfoRequest)
+	orderInfoResponse, err := s.LomsService.OrderInfo(ctx, orderInfoRequest)
 	if err != nil {
 		return nil, errorToStatus(err)
 	}
