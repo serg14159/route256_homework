@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"route256/cart/internal/models"
 	internal_errors "route256/cart/internal/pkg/errors"
+	"route256/loms/pkg/api/loms/v1"
 )
 
 type ICartRepository interface {
@@ -18,15 +19,21 @@ type IProductService interface {
 	GetProduct(ctx context.Context, SKU models.SKU) (*models.GetProductResponse, error)
 }
 
+type ILomsService interface {
+	OrderCreate(ctx context.Context, user int64, items []*loms.Item) (int64, error)
+}
+
 type CartService struct {
 	repository     ICartRepository
 	productService IProductService
+	lomsService    ILomsService
 }
 
-func NewService(repository ICartRepository, productService IProductService) *CartService {
+func NewService(repository ICartRepository, productService IProductService, lomsService ILomsService) *CartService {
 	return &CartService{
 		repository:     repository,
 		productService: productService,
+		lomsService:    lomsService,
 	}
 }
 
@@ -112,4 +119,26 @@ func (s *CartService) GetCart(ctx context.Context, UID models.UID) ([]models.Car
 	}
 
 	return items, totalPrice, nil
+}
+
+func (s *CartService) Checkout(ctx context.Context, UID models.UID) (int64, error) {
+	items, _, err := s.GetCart(ctx, UID)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get cart items: %w", err)
+	}
+
+	lomsItems := make([]*loms.Item, 0, len(items))
+	for _, item := range items {
+		lomsItems = append(lomsItems, &loms.Item{
+			Sku:   uint32(item.SKU),
+			Count: uint32(item.Count),
+		})
+	}
+
+	orderID, err := s.lomsService.OrderCreate(ctx, int64(UID), lomsItems)
+	if err != nil {
+		return 0, fmt.Errorf("failed to create order: %w", err)
+	}
+
+	return orderID, nil
 }
