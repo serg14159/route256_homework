@@ -7,7 +7,6 @@ package mock
 import (
 	"context"
 	"route256/cart/internal/models"
-	"route256/loms/pkg/api/loms/v1"
 	"sync"
 	mm_atomic "sync/atomic"
 	mm_time "time"
@@ -20,9 +19,9 @@ type ILomsServiceMock struct {
 	t          minimock.Tester
 	finishOnce sync.Once
 
-	funcOrderCreate          func(ctx context.Context, user int64, items []*loms.Item) (i1 int64, err error)
+	funcOrderCreate          func(ctx context.Context, user int64, items []models.CartItem) (i1 int64, err error)
 	funcOrderCreateOrigin    string
-	inspectFuncOrderCreate   func(ctx context.Context, user int64, items []*loms.Item)
+	inspectFuncOrderCreate   func(ctx context.Context, user int64, items []models.CartItem)
 	afterOrderCreateCounter  uint64
 	beforeOrderCreateCounter uint64
 	OrderCreateMock          mILomsServiceMockOrderCreate
@@ -82,14 +81,14 @@ type ILomsServiceMockOrderCreateExpectation struct {
 type ILomsServiceMockOrderCreateParams struct {
 	ctx   context.Context
 	user  int64
-	items []*loms.Item
+	items []models.CartItem
 }
 
 // ILomsServiceMockOrderCreateParamPtrs contains pointers to parameters of the ILomsService.OrderCreate
 type ILomsServiceMockOrderCreateParamPtrs struct {
 	ctx   *context.Context
 	user  *int64
-	items *[]*loms.Item
+	items *[]models.CartItem
 }
 
 // ILomsServiceMockOrderCreateResults contains results of the ILomsService.OrderCreate
@@ -117,7 +116,7 @@ func (mmOrderCreate *mILomsServiceMockOrderCreate) Optional() *mILomsServiceMock
 }
 
 // Expect sets up expected params for ILomsService.OrderCreate
-func (mmOrderCreate *mILomsServiceMockOrderCreate) Expect(ctx context.Context, user int64, items []*loms.Item) *mILomsServiceMockOrderCreate {
+func (mmOrderCreate *mILomsServiceMockOrderCreate) Expect(ctx context.Context, user int64, items []models.CartItem) *mILomsServiceMockOrderCreate {
 	if mmOrderCreate.mock.funcOrderCreate != nil {
 		mmOrderCreate.mock.t.Fatalf("ILomsServiceMock.OrderCreate mock is already set by Set")
 	}
@@ -188,7 +187,7 @@ func (mmOrderCreate *mILomsServiceMockOrderCreate) ExpectUserParam2(user int64) 
 }
 
 // ExpectItemsParam3 sets up expected param items for ILomsService.OrderCreate
-func (mmOrderCreate *mILomsServiceMockOrderCreate) ExpectItemsParam3(items []*loms.Item) *mILomsServiceMockOrderCreate {
+func (mmOrderCreate *mILomsServiceMockOrderCreate) ExpectItemsParam3(items []models.CartItem) *mILomsServiceMockOrderCreate {
 	if mmOrderCreate.mock.funcOrderCreate != nil {
 		mmOrderCreate.mock.t.Fatalf("ILomsServiceMock.OrderCreate mock is already set by Set")
 	}
@@ -211,7 +210,7 @@ func (mmOrderCreate *mILomsServiceMockOrderCreate) ExpectItemsParam3(items []*lo
 }
 
 // Inspect accepts an inspector function that has same arguments as the ILomsService.OrderCreate
-func (mmOrderCreate *mILomsServiceMockOrderCreate) Inspect(f func(ctx context.Context, user int64, items []*loms.Item)) *mILomsServiceMockOrderCreate {
+func (mmOrderCreate *mILomsServiceMockOrderCreate) Inspect(f func(ctx context.Context, user int64, items []models.CartItem)) *mILomsServiceMockOrderCreate {
 	if mmOrderCreate.mock.inspectFuncOrderCreate != nil {
 		mmOrderCreate.mock.t.Fatalf("Inspect function is already set for ILomsServiceMock.OrderCreate")
 	}
@@ -236,7 +235,7 @@ func (mmOrderCreate *mILomsServiceMockOrderCreate) Return(i1 int64, err error) *
 }
 
 // Set uses given function f to mock the ILomsService.OrderCreate method
-func (mmOrderCreate *mILomsServiceMockOrderCreate) Set(f func(ctx context.Context, user int64, items []*loms.Item) (i1 int64, err error)) *ILomsServiceMock {
+func (mmOrderCreate *mILomsServiceMockOrderCreate) Set(f func(ctx context.Context, user int64, items []models.CartItem) (i1 int64, err error)) *ILomsServiceMock {
 	if mmOrderCreate.defaultExpectation != nil {
 		mmOrderCreate.mock.t.Fatalf("Default expectation is already set for the ILomsService.OrderCreate method")
 	}
@@ -252,7 +251,7 @@ func (mmOrderCreate *mILomsServiceMockOrderCreate) Set(f func(ctx context.Contex
 
 // When sets expectation for the ILomsService.OrderCreate which will trigger the result defined by the following
 // Then helper
-func (mmOrderCreate *mILomsServiceMockOrderCreate) When(ctx context.Context, user int64, items []*loms.Item) *ILomsServiceMockOrderCreateExpectation {
+func (mmOrderCreate *mILomsServiceMockOrderCreate) When(ctx context.Context, user int64, items []models.CartItem) *ILomsServiceMockOrderCreateExpectation {
 	if mmOrderCreate.mock.funcOrderCreate != nil {
 		mmOrderCreate.mock.t.Fatalf("ILomsServiceMock.OrderCreate mock is already set by Set")
 	}
@@ -294,7 +293,7 @@ func (mmOrderCreate *mILomsServiceMockOrderCreate) invocationsDone() bool {
 }
 
 // OrderCreate implements mm_service.ILomsService
-func (mmOrderCreate *ILomsServiceMock) OrderCreate(ctx context.Context, user int64, items []*loms.Item) (i1 int64, err error) {
+func (mmOrderCreate *ILomsServiceMock) OrderCreate(ctx context.Context, user int64, items []models.CartItem) (i1 int64, err error) {
 	mm_atomic.AddUint64(&mmOrderCreate.beforeOrderCreateCounter, 1)
 	defer mm_atomic.AddUint64(&mmOrderCreate.afterOrderCreateCounter, 1)
 

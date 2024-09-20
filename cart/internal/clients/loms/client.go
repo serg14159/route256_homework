@@ -21,14 +21,23 @@ func NewLomsClient(conn *grpc.ClientConn) *LomsClient {
 }
 
 // Function OrderCreate create order with items for user.
-func (c *LomsClient) OrderCreate(ctx context.Context, user int64, items []*loms.Item) (int64, error) {
+func (c *LomsClient) OrderCreate(ctx context.Context, user int64, items []models.CartItem) (int64, error) {
+	lomsItems := make([]*loms.Item, 0, len(items))
+	for _, item := range items {
+		lomsItems = append(lomsItems, &loms.Item{
+			Sku:   uint32(item.SKU),
+			Count: uint32(item.Count),
+		})
+	}
+
 	res, err := c.client.OrderCreate(ctx, &loms.OrderCreateRequest{
 		User:  user,
-		Items: items,
+		Items: lomsItems,
 	})
 	if err != nil {
 		return 0, err
 	}
+
 	return res.OrderID, nil
 }
 

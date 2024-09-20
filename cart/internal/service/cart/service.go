@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"route256/cart/internal/models"
 	internal_errors "route256/cart/internal/pkg/errors"
-	"route256/loms/pkg/api/loms/v1"
 )
 
 type ICartRepository interface {
@@ -20,7 +19,7 @@ type IProductService interface {
 }
 
 type ILomsService interface {
-	OrderCreate(ctx context.Context, user int64, items []*loms.Item) (int64, error)
+	OrderCreate(ctx context.Context, user int64, items []models.CartItem) (int64, error)
 	StocksInfo(ctx context.Context, SKU models.SKU) (int64, error)
 }
 
@@ -132,22 +131,19 @@ func (s *CartService) GetCart(ctx context.Context, UID models.UID) ([]models.Car
 }
 
 func (s *CartService) Checkout(ctx context.Context, UID models.UID) (int64, error) {
-	items, _, err := s.GetCart(ctx, UID)
+	cartItems, err := s.repository.GetItemsByUserID(ctx, UID)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get cart items: %w", err)
 	}
 
-	lomsItems := make([]*loms.Item, 0, len(items))
-	for _, item := range items {
-		lomsItems = append(lomsItems, &loms.Item{
-			Sku:   uint32(item.SKU),
-			Count: uint32(item.Count),
-		})
-	}
-
-	orderID, err := s.lomsService.OrderCreate(ctx, int64(UID), lomsItems)
+	orderID, err := s.lomsService.OrderCreate(ctx, int64(UID), cartItems)
 	if err != nil {
 		return 0, fmt.Errorf("failed to create order: %w", err)
+	}
+
+	err = s.repository.DeleteItemsByUserID(ctx, UID)
+	if err != nil {
+		return 0, fmt.Errorf("failed to delete items by user ID: %w", err)
 	}
 
 	return orderID, nil

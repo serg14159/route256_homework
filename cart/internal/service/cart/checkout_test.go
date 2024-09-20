@@ -9,7 +9,6 @@ import (
 	"route256/cart/internal/models"
 	internal_errors "route256/cart/internal/pkg/errors"
 	"route256/cart/internal/service/cart/mock"
-	"route256/loms/pkg/api/loms/v1"
 
 	"github.com/stretchr/testify/require"
 )
@@ -32,13 +31,8 @@ func TestCartService_Checkout_Table(t *testing.T) {
 					{SKU: 1002, Count: 3},
 				}
 				cartRepoMock.GetItemsByUserIDMock.When(ctx, models.UID(1)).Then(items, nil)
-				productServiceMock.GetProductMock.When(ctx, models.SKU(1001)).Then(&models.GetProductResponse{Name: "Product1", Price: 100}, nil)
-				productServiceMock.GetProductMock.When(ctx, models.SKU(1002)).Then(&models.GetProductResponse{Name: "Product2", Price: 200}, nil)
-				lomsItems := []*loms.Item{
-					{Sku: 1001, Count: 2},
-					{Sku: 1002, Count: 3},
-				}
-				lomsServiceMock.OrderCreateMock.When(ctx, int64(1), lomsItems).Then(int64(2), nil)
+				lomsServiceMock.OrderCreateMock.When(ctx, int64(1), items).Then(int64(2), nil)
+				cartRepoMock.DeleteItemsByUserIDMock.When(ctx, models.UID(1)).Then(nil)
 			},
 			expectedOrder: 2,
 			expectedErr:   nil,
@@ -62,11 +56,7 @@ func TestCartService_Checkout_Table(t *testing.T) {
 					{SKU: 1003, Count: 1},
 				}
 				cartRepoMock.GetItemsByUserIDMock.When(ctx, models.UID(3)).Then(items, nil)
-				productServiceMock.GetProductMock.When(ctx, models.SKU(1003)).Then(&models.GetProductResponse{Name: "Product3", Price: 300}, nil)
-				lomsItems := []*loms.Item{
-					{Sku: 1003, Count: 1},
-				}
-				lomsServiceMock.OrderCreateMock.When(ctx, int64(3), lomsItems).Then(int64(0), errors.New("order create error"))
+				lomsServiceMock.OrderCreateMock.When(ctx, int64(3), items).Then(int64(0), errors.New("order create error"))
 			},
 			expectedOrder: 0,
 			expectedErr:   internal_errors.ErrInternalServerError,
