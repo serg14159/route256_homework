@@ -18,7 +18,7 @@ func TestLomsService_OrderInfo_Table(t *testing.T) {
 	tests := []struct {
 		name          string
 		req           *models.OrderInfoRequest
-		setupMocks    func(orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, req *models.OrderInfoRequest)
+		setupMocks    func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, req *models.OrderInfoRequest)
 		expectedResp  *models.OrderInfoResponse
 		expectedErr   error
 		errorContains string
@@ -28,13 +28,13 @@ func TestLomsService_OrderInfo_Table(t *testing.T) {
 			req: &models.OrderInfoRequest{
 				OrderID: 1,
 			},
-			setupMocks: func(orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, req *models.OrderInfoRequest) {
+			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, req *models.OrderInfoRequest) {
 				order := models.Order{
 					Status: models.OrderStatusNew,
 					UserID: 1,
 					Items:  []models.Item{{SKU: 1001, Count: 2}},
 				}
-				orderRepoMock.GetByOrderIDMock.Expect(req.OrderID).Return(order, nil)
+				orderRepoMock.GetByIDMock.Expect(ctx, models.OID(req.OrderID)).Return(order, nil)
 			},
 			expectedResp: &models.OrderInfoResponse{
 				Status: models.OrderStatusNew,
@@ -49,7 +49,7 @@ func TestLomsService_OrderInfo_Table(t *testing.T) {
 			req: &models.OrderInfoRequest{
 				OrderID: 0,
 			},
-			setupMocks: func(orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, req *models.OrderInfoRequest) {
+			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, req *models.OrderInfoRequest) {
 			},
 			expectedResp:  nil,
 			expectedErr:   internal_errors.ErrBadRequest,
@@ -60,8 +60,8 @@ func TestLomsService_OrderInfo_Table(t *testing.T) {
 			req: &models.OrderInfoRequest{
 				OrderID: 2,
 			},
-			setupMocks: func(orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, req *models.OrderInfoRequest) {
-				orderRepoMock.GetByOrderIDMock.Expect(req.OrderID).Return(models.Order{}, errors.New("db error"))
+			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, req *models.OrderInfoRequest) {
+				orderRepoMock.GetByIDMock.Expect(ctx, models.OID(req.OrderID)).Return(models.Order{}, errors.New("db error"))
 			},
 			expectedResp:  nil,
 			expectedErr:   internal_errors.ErrInternalServerError,
@@ -70,14 +70,16 @@ func TestLomsService_OrderInfo_Table(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
+			ctx := context.Background()
 			orderRepoMock, stockRepoMock, svc := setup(t)
 
-			tt.setupMocks(orderRepoMock, stockRepoMock, tt.req)
+			tt.setupMocks(ctx, orderRepoMock, stockRepoMock, tt.req)
 
-			resp, err := svc.OrderInfo(context.Background(), tt.req)
+			resp, err := svc.OrderInfo(ctx, tt.req)
 			if tt.expectedErr != nil {
 				require.Error(t, err)
 				require.True(t, errors.Is(err, tt.expectedErr) || (tt.errorContains != "" && strings.Contains(err.Error(), tt.errorContains)),
@@ -87,6 +89,9 @@ func TestLomsService_OrderInfo_Table(t *testing.T) {
 				require.NoError(t, err)
 				require.Equal(t, tt.expectedResp, resp)
 			}
+
+			orderRepoMock.MinimockFinish()
+			stockRepoMock.MinimockFinish()
 		})
 	}
 }

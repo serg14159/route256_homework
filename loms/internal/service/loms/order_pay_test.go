@@ -18,7 +18,7 @@ func TestLomsService_OrderPay_Table(t *testing.T) {
 	tests := []struct {
 		name          string
 		req           *models.OrderPayRequest
-		setupMocks    func(orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, req *models.OrderPayRequest)
+		setupMocks    func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, req *models.OrderPayRequest)
 		expectedErr   error
 		errorContains string
 	}{
@@ -27,15 +27,15 @@ func TestLomsService_OrderPay_Table(t *testing.T) {
 			req: &models.OrderPayRequest{
 				OrderID: 1,
 			},
-			setupMocks: func(orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, req *models.OrderPayRequest) {
+			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, req *models.OrderPayRequest) {
 				order := models.Order{
 					Status: models.OrderStatusAwaitingPayment,
 					UserID: 1,
 					Items:  []models.Item{{SKU: 1001, Count: 2}},
 				}
-				orderRepoMock.GetByOrderIDMock.Expect(req.OrderID).Return(order, nil)
-				stockRepoMock.ReserveRemoveItemsMock.Expect(order.Items).Return(nil)
-				orderRepoMock.SetOrderStatusMock.Expect(req.OrderID, models.OrderStatusPayed).Return(nil)
+				orderRepoMock.GetByIDMock.Expect(ctx, models.OID(req.OrderID)).Return(order, nil)
+				stockRepoMock.RemoveReservedItemsMock.Expect(ctx, order.Items).Return(nil)
+				orderRepoMock.SetStatusMock.Expect(ctx, models.OID(req.OrderID), models.OrderStatusPayed).Return(nil)
 			},
 			expectedErr:   nil,
 			errorContains: "",
@@ -45,7 +45,7 @@ func TestLomsService_OrderPay_Table(t *testing.T) {
 			req: &models.OrderPayRequest{
 				OrderID: 0,
 			},
-			setupMocks: func(orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, req *models.OrderPayRequest) {
+			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, req *models.OrderPayRequest) {
 			},
 			expectedErr:   internal_errors.ErrBadRequest,
 			errorContains: "orderID must be greater than zero",
@@ -55,8 +55,8 @@ func TestLomsService_OrderPay_Table(t *testing.T) {
 			req: &models.OrderPayRequest{
 				OrderID: 2,
 			},
-			setupMocks: func(orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, req *models.OrderPayRequest) {
-				orderRepoMock.GetByOrderIDMock.Expect(req.OrderID).Return(models.Order{}, errors.New("db error"))
+			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, req *models.OrderPayRequest) {
+				orderRepoMock.GetByIDMock.Expect(ctx, models.OID(req.OrderID)).Return(models.Order{}, errors.New("db error"))
 			},
 			expectedErr:   internal_errors.ErrInternalServerError,
 			errorContains: "failed to get order",
@@ -66,13 +66,13 @@ func TestLomsService_OrderPay_Table(t *testing.T) {
 			req: &models.OrderPayRequest{
 				OrderID: 3,
 			},
-			setupMocks: func(orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, req *models.OrderPayRequest) {
+			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, req *models.OrderPayRequest) {
 				order := models.Order{
 					Status: models.OrderStatusNew,
 					UserID: 1,
 					Items:  []models.Item{{SKU: 1002, Count: 1}},
 				}
-				orderRepoMock.GetByOrderIDMock.Expect(req.OrderID).Return(order, nil)
+				orderRepoMock.GetByIDMock.Expect(ctx, models.OID(req.OrderID)).Return(order, nil)
 			},
 			expectedErr:   internal_errors.ErrInvalidOrderStatus,
 			errorContains: "order is not in awaiting payment status",
@@ -82,32 +82,33 @@ func TestLomsService_OrderPay_Table(t *testing.T) {
 			req: &models.OrderPayRequest{
 				OrderID: 4,
 			},
-			setupMocks: func(orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, req *models.OrderPayRequest) {
+			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, req *models.OrderPayRequest) {
 				order := models.Order{
 					Status: models.OrderStatusAwaitingPayment,
 					UserID: 1,
 					Items:  []models.Item{{SKU: 1003, Count: 3}},
 				}
-				orderRepoMock.GetByOrderIDMock.Expect(req.OrderID).Return(order, nil)
-				stockRepoMock.ReserveRemoveItemsMock.Expect(order.Items).Return(errors.New("reserve remove error"))
+				orderRepoMock.GetByIDMock.Expect(ctx, models.OID(req.OrderID)).Return(order, nil)
+				stockRepoMock.RemoveReservedItemsMock.Expect(ctx, order.Items).Return(errors.New("reserve remove error"))
 			},
 			expectedErr:   internal_errors.ErrInternalServerError,
 			errorContains: "failed to remove reserved stock",
 		},
 		{
-			name: "error setting order status to paid",
+			name: "error setting order status to payed",
 			req: &models.OrderPayRequest{
 				OrderID: 5,
 			},
-			setupMocks: func(orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, req *models.OrderPayRequest) {
+			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, req *models.OrderPayRequest) {
 				order := models.Order{
 					Status: models.OrderStatusAwaitingPayment,
 					UserID: 1,
 					Items:  []models.Item{{SKU: 1004, Count: 4}},
 				}
-				orderRepoMock.GetByOrderIDMock.Expect(req.OrderID).Return(order, nil)
-				stockRepoMock.ReserveRemoveItemsMock.Expect(order.Items).Return(nil)
-				orderRepoMock.SetOrderStatusMock.Expect(req.OrderID, models.OrderStatusPayed).Return(errors.New("set status paid error"))
+				orderRepoMock.GetByIDMock.Expect(ctx, models.OID(req.OrderID)).Return(order, nil)
+				stockRepoMock.RemoveReservedItemsMock.Expect(ctx, order.Items).Return(nil)
+				orderRepoMock.SetStatusMock.Expect(ctx, models.OID(req.OrderID), models.OrderStatusPayed).Return(errors.New("set status payed error"))
+				stockRepoMock.RollbackRemoveReservedMock.Expect(order.Items)
 			},
 			expectedErr:   internal_errors.ErrInternalServerError,
 			errorContains: "failed to set order status to payed",
@@ -115,14 +116,16 @@ func TestLomsService_OrderPay_Table(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
+			ctx := context.Background()
 			orderRepoMock, stockRepoMock, svc := setup(t)
 
-			tt.setupMocks(orderRepoMock, stockRepoMock, tt.req)
+			tt.setupMocks(ctx, orderRepoMock, stockRepoMock, tt.req)
 
-			err := svc.OrderPay(context.Background(), tt.req)
+			err := svc.OrderPay(ctx, tt.req)
 			if tt.expectedErr != nil {
 				require.Error(t, err)
 				require.True(t, errors.Is(err, tt.expectedErr) || (tt.errorContains != "" && strings.Contains(err.Error(), tt.errorContains)),
@@ -130,6 +133,9 @@ func TestLomsService_OrderPay_Table(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 			}
+
+			orderRepoMock.MinimockFinish()
+			stockRepoMock.MinimockFinish()
 		})
 	}
 }

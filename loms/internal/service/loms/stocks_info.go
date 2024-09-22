@@ -15,7 +15,7 @@ func (s *LomsService) StocksInfo(ctx context.Context, req *models.StocksInfoRequ
 	}
 
 	// Get available stock by SKU
-	count, err := s.stockRepository.GetAvailableStockBySKU(req.SKU)
+	count, err := s.stockRepository.GetAvailableStockBySKU(ctx, req.SKU)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get available stock for SKU %d: %w", req.SKU, err)
 	}

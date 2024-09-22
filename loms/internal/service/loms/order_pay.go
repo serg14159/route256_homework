@@ -17,7 +17,7 @@ func (s *LomsService) OrderPay(ctx context.Context, req *models.OrderPayRequest)
 	}
 
 	// Get info about order
-	order, err := s.orderRepository.GetByOrderID(req.OrderID)
+	order, err := s.orderRepository.GetByID(ctx, req.OrderID)
 	if err != nil {
 		return fmt.Errorf("failed to get order: %w", err)
 	}
@@ -28,14 +28,15 @@ func (s *LomsService) OrderPay(ctx context.Context, req *models.OrderPayRequest)
 	}
 
 	// Remove reserve stock
-	err = s.stockRepository.ReserveRemoveItems(order.Items)
+	err = s.stockRepository.RemoveReservedItems(ctx, order.Items)
 	if err != nil {
 		return fmt.Errorf("failed to remove reserved stock: %w", err)
 	}
 
 	// Set order status "payed"
-	err = s.orderRepository.SetOrderStatus(req.OrderID, models.OrderStatusPayed)
+	err = s.orderRepository.SetStatus(ctx, req.OrderID, models.OrderStatusPayed)
 	if err != nil {
+		s.stockRepository.RollbackRemoveReserved(order.Items)
 		return fmt.Errorf("failed to set order status to payed: %w", err)
 	}
 

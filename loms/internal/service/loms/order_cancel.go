@@ -14,19 +14,19 @@ func (s *LomsService) OrderCancel(ctx context.Context, req *models.OrderCancelRe
 		return fmt.Errorf("orderID must be greater than zero: %w", internal_errors.ErrBadRequest)
 	}
 	// Get order by orderID
-	order, err := s.orderRepository.GetByOrderID(req.OrderID)
+	order, err := s.orderRepository.GetByID(ctx, req.OrderID)
 	if err != nil {
 		return fmt.Errorf("failed to get order: %w", err)
 	}
 
 	// Reserve сancel
-	err = s.stockRepository.ReserveCancelItems(order.Items)
+	err = s.stockRepository.CancelReservedItems(ctx, order.Items)
 	if err != nil {
 		return fmt.Errorf("failed to cancel stock reservation: %w", err)
 	}
 
 	// Set order status "cancelled"
-	err = s.orderRepository.SetOrderStatus(models.OID(req.OrderID), models.OrderStatusCancelled)
+	err = s.orderRepository.SetStatus(ctx, models.OID(req.OrderID), models.OrderStatusCancelled)
 	if err != nil {
 		return fmt.Errorf("failed to update order status: %w", err)
 	}

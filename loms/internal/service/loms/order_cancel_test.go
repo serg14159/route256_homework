@@ -19,7 +19,7 @@ func TestLomsService_OrderCancel_Table(t *testing.T) {
 	tests := []struct {
 		name          string
 		req           *models.OrderCancelRequest
-		setupMocks    func(orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, req *models.OrderCancelRequest)
+		setupMocks    func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, req *models.OrderCancelRequest)
 		expectedErr   error
 		errorContains string
 	}{
@@ -28,15 +28,15 @@ func TestLomsService_OrderCancel_Table(t *testing.T) {
 			req: &models.OrderCancelRequest{
 				OrderID: 1,
 			},
-			setupMocks: func(orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, req *models.OrderCancelRequest) {
+			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, req *models.OrderCancelRequest) {
 				order := models.Order{
 					Status: models.OrderStatusNew,
 					UserID: 1,
 					Items:  []models.Item{{SKU: 1001, Count: 2}},
 				}
-				orderRepoMock.GetByOrderIDMock.Expect(req.OrderID).Return(order, nil)
-				stockRepoMock.ReserveCancelItemsMock.Expect(order.Items).Return(nil)
-				orderRepoMock.SetOrderStatusMock.Expect(models.OID(req.OrderID), models.OrderStatusCancelled).Return(nil)
+				orderRepoMock.GetByIDMock.Expect(ctx, models.OID(req.OrderID)).Return(order, nil)
+				stockRepoMock.CancelReservedItemsMock.Expect(ctx, order.Items).Return(nil)
+				orderRepoMock.SetStatusMock.Expect(ctx, models.OID(req.OrderID), models.OrderStatusCancelled).Return(nil)
 			},
 			expectedErr:   nil,
 			errorContains: "",
@@ -46,7 +46,7 @@ func TestLomsService_OrderCancel_Table(t *testing.T) {
 			req: &models.OrderCancelRequest{
 				OrderID: 0,
 			},
-			setupMocks: func(orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, req *models.OrderCancelRequest) {
+			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, req *models.OrderCancelRequest) {
 			},
 			expectedErr:   internal_errors.ErrBadRequest,
 			errorContains: "orderID must be greater than zero",
@@ -56,8 +56,8 @@ func TestLomsService_OrderCancel_Table(t *testing.T) {
 			req: &models.OrderCancelRequest{
 				OrderID: 2,
 			},
-			setupMocks: func(orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, req *models.OrderCancelRequest) {
-				orderRepoMock.GetByOrderIDMock.Expect(req.OrderID).Return(models.Order{}, errors.New("db error"))
+			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, req *models.OrderCancelRequest) {
+				orderRepoMock.GetByIDMock.Expect(ctx, models.OID(req.OrderID)).Return(models.Order{}, errors.New("db error"))
 			},
 			expectedErr:   internal_errors.ErrInternalServerError,
 			errorContains: "failed to get order",
@@ -67,14 +67,14 @@ func TestLomsService_OrderCancel_Table(t *testing.T) {
 			req: &models.OrderCancelRequest{
 				OrderID: 3,
 			},
-			setupMocks: func(orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, req *models.OrderCancelRequest) {
+			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, req *models.OrderCancelRequest) {
 				order := models.Order{
 					Status: models.OrderStatusNew,
 					UserID: 1,
 					Items:  []models.Item{{SKU: 1003, Count: 1}},
 				}
-				orderRepoMock.GetByOrderIDMock.Expect(req.OrderID).Return(order, nil)
-				stockRepoMock.ReserveCancelItemsMock.Expect(order.Items).Return(errors.New("reserve cancel error"))
+				orderRepoMock.GetByIDMock.Expect(ctx, models.OID(req.OrderID)).Return(order, nil)
+				stockRepoMock.CancelReservedItemsMock.Expect(ctx, order.Items).Return(errors.New("reserve cancel error"))
 			},
 			expectedErr:   internal_errors.ErrInternalServerError,
 			errorContains: "failed to cancel stock reservation",
@@ -84,15 +84,15 @@ func TestLomsService_OrderCancel_Table(t *testing.T) {
 			req: &models.OrderCancelRequest{
 				OrderID: 4,
 			},
-			setupMocks: func(orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, req *models.OrderCancelRequest) {
+			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, req *models.OrderCancelRequest) {
 				order := models.Order{
 					Status: models.OrderStatusNew,
 					UserID: 1,
 					Items:  []models.Item{{SKU: 1004, Count: 5}},
 				}
-				orderRepoMock.GetByOrderIDMock.Expect(req.OrderID).Return(order, nil)
-				stockRepoMock.ReserveCancelItemsMock.Expect(order.Items).Return(nil)
-				orderRepoMock.SetOrderStatusMock.Expect(models.OID(req.OrderID), models.OrderStatusCancelled).Return(errors.New("update status error"))
+				orderRepoMock.GetByIDMock.Expect(ctx, models.OID(req.OrderID)).Return(order, nil)
+				stockRepoMock.CancelReservedItemsMock.Expect(ctx, order.Items).Return(nil)
+				orderRepoMock.SetStatusMock.Expect(ctx, models.OID(req.OrderID), models.OrderStatusCancelled).Return(errors.New("update status error"))
 			},
 			expectedErr:   internal_errors.ErrInternalServerError,
 			errorContains: "failed to update order status",
@@ -100,14 +100,16 @@ func TestLomsService_OrderCancel_Table(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
+			ctx := context.Background()
 			orderRepoMock, stockRepoMock, service := setup(t)
 
-			tt.setupMocks(orderRepoMock, stockRepoMock, tt.req)
+			tt.setupMocks(ctx, orderRepoMock, stockRepoMock, tt.req)
 
-			err := service.OrderCancel(context.Background(), tt.req)
+			err := service.OrderCancel(ctx, tt.req)
 			if tt.expectedErr != nil {
 				require.Error(t, err)
 				require.True(t, errors.Is(err, tt.expectedErr) || (tt.errorContains != "" && strings.Contains(err.Error(), tt.errorContains)),
@@ -115,6 +117,9 @@ func TestLomsService_OrderCancel_Table(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 			}
+
+			orderRepoMock.MinimockFinish()
+			stockRepoMock.MinimockFinish()
 		})
 	}
 }

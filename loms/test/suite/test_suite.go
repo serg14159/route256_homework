@@ -48,8 +48,10 @@ func (s *TSuite) SetupSuite() {
 	s.orderRepo = repo_order.NewOrderRepository()
 	s.stockRepo = repo_stock.NewStockRepository()
 
+	ctx := context.Background()
+
 	// Load stocks
-	err := s.stockRepo.LoadStocks(stockFilePath)
+	err := s.stockRepo.LoadStocks(ctx, stockFilePath)
 	if err != nil {
 		log.Fatalf("LoadStocks from %s, err: %v", stockFilePath, err)
 	}
@@ -81,7 +83,6 @@ func (s *TSuite) SetupSuite() {
 	}()
 
 	// Init GRPC connect with bufconn
-	ctx := context.Background()
 	conn, err := grpc.DialContext(ctx, "bufnet",
 		grpc.WithContextDialer(s.bufDialer),
 		grpc.WithInsecure(),
@@ -94,8 +95,8 @@ func (s *TSuite) SetupSuite() {
 	s.client = pb.NewLomsClient(conn)
 }
 
-// bufDialer return connection via bufconn
-func (s *TSuite) bufDialer(context.Context, string) (net.Conn, error) {
+// bufDialer returns a connection via bufconn
+func (s *TSuite) bufDialer(ctx context.Context, address string) (net.Conn, error) {
 	return s.listener.Dial()
 }
 
@@ -136,24 +137,24 @@ func (s *TSuite) TestOrderCancel_Success() {
 		Status: models.OrderStatusNew,
 	}
 
-	orderID, err := s.orderRepo.CreateOrder(order)
+	orderID, err := s.orderRepo.Create(ctx, order)
 	require.NoError(s.T(), err)
 	require.Greater(s.T(), orderID, models.OID(0))
 
 	// ReserveItems
-	err = s.stockRepo.ReserveItems(order.Items)
+	err = s.stockRepo.ReserveItems(ctx, order.Items)
 	require.NoError(s.T(), err)
 
 	// Check available stock
-	availableSKU1, err := s.stockRepo.GetAvailableStockBySKU(1076963)
+	availableSKU1, err := s.stockRepo.GetAvailableStockBySKU(ctx, 1076963)
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), uint64(178), availableSKU1) // 200 - 20 - 2 = 178
 
-	availableSKU2, err := s.stockRepo.GetAvailableStockBySKU(1148162)
+	availableSKU2, err := s.stockRepo.GetAvailableStockBySKU(ctx, 1148162)
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), uint64(217), availableSKU2) // 250 - 30 - 3 = 217
 
-	availableSKU3, err := s.stockRepo.GetAvailableStockBySKU(1002)
+	availableSKU3, err := s.stockRepo.GetAvailableStockBySKU(ctx, 1002)
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), uint64(179), availableSKU3) // 200 - 20 - 1 = 179
 
@@ -167,20 +168,20 @@ func (s *TSuite) TestOrderCancel_Success() {
 	require.NotNil(s.T(), cancelResp)
 
 	// Check order status
-	updatedOrder, err := s.orderRepo.GetByOrderID(orderID)
+	updatedOrder, err := s.orderRepo.GetByID(ctx, orderID)
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), models.OrderStatusCancelled, updatedOrder.Status)
 
-	// // Check available stock free
-	finalAvailableSKU1, err := s.stockRepo.GetAvailableStockBySKU(1076963)
+	// Check available stock after cancellation
+	finalAvailableSKU1, err := s.stockRepo.GetAvailableStockBySKU(ctx, 1076963)
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), uint64(180), finalAvailableSKU1) // 200 - 20 = 180
 
-	finalAvailableSKU2, err := s.stockRepo.GetAvailableStockBySKU(1148162)
+	finalAvailableSKU2, err := s.stockRepo.GetAvailableStockBySKU(ctx, 1148162)
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), uint64(220), finalAvailableSKU2) // 250 - 30 = 220
 
-	finalAvailableSKU3, err := s.stockRepo.GetAvailableStockBySKU(1002)
+	finalAvailableSKU3, err := s.stockRepo.GetAvailableStockBySKU(ctx, 1002)
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), uint64(180), finalAvailableSKU3) // 200 - 20 = 180
 }
@@ -217,22 +218,22 @@ func (s *TSuite) TestOrderCreate_Success() {
 	orderID := models.OID(res.OrderID)
 
 	// Check order status
-	createdOrder, err := s.orderRepo.GetByOrderID(orderID)
+	createdOrder, err := s.orderRepo.GetByID(ctx, orderID)
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), models.OrderStatusAwaitingPayment, createdOrder.Status)
 	require.Equal(s.T(), models.UID(1), createdOrder.UserID)
 	require.Len(s.T(), createdOrder.Items, 3)
 
-	// Check reserve Stock
-	availableSKU1, err := s.stockRepo.GetAvailableStockBySKU(1076963)
+	// Check reserved Stock
+	availableSKU1, err := s.stockRepo.GetAvailableStockBySKU(ctx, 1076963)
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), uint64(178), availableSKU1) // 200 - 20 - 2 = 178
 
-	availableSKU2, err := s.stockRepo.GetAvailableStockBySKU(1148162)
+	availableSKU2, err := s.stockRepo.GetAvailableStockBySKU(ctx, 1148162)
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), uint64(217), availableSKU2) // 250 - 30 - 3 = 217
 
-	availableSKU3, err := s.stockRepo.GetAvailableStockBySKU(1002)
+	availableSKU3, err := s.stockRepo.GetAvailableStockBySKU(ctx, 1002)
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), uint64(179), availableSKU3) // 200 - 20 - 1 = 179
 }
@@ -261,12 +262,12 @@ func (s *TSuite) TestOrderInfo_Success() {
 		Status: models.OrderStatusNew,
 	}
 
-	orderID, err := s.orderRepo.CreateOrder(order)
+	orderID, err := s.orderRepo.Create(ctx, order)
 	require.NoError(s.T(), err)
 	require.Greater(s.T(), orderID, models.OID(0))
 
 	// Reserve
-	err = s.stockRepo.ReserveItems(order.Items)
+	err = s.stockRepo.ReserveItems(ctx, order.Items)
 	require.NoError(s.T(), err)
 
 	// Send OrderInfoRequest
@@ -312,16 +313,16 @@ func (s *TSuite) TestOrderPay_Success() {
 		Status: models.OrderStatusNew,
 	}
 
-	orderID, err := s.orderRepo.CreateOrder(order)
+	orderID, err := s.orderRepo.Create(ctx, order)
 	require.NoError(s.T(), err)
 	require.Greater(s.T(), orderID, models.OID(0))
 
 	// Reserve
-	err = s.stockRepo.ReserveItems(order.Items)
+	err = s.stockRepo.ReserveItems(ctx, order.Items)
 	require.NoError(s.T(), err)
 
 	// Set status AwaitingPayment
-	err = s.orderRepo.SetOrderStatus(orderID, models.OrderStatusAwaitingPayment)
+	err = s.orderRepo.SetStatus(ctx, orderID, models.OrderStatusAwaitingPayment)
 	require.NoError(s.T(), err)
 
 	// Send OrderPayRequest
@@ -329,19 +330,18 @@ func (s *TSuite) TestOrderPay_Success() {
 		OrderID: int64(orderID),
 	}
 
-	payRes, err := s.client.OrderPay(ctx, payReq)
+	_, err = s.client.OrderPay(ctx, payReq)
 	require.NoError(s.T(), err)
-	require.NotNil(s.T(), payRes)
 
 	// Check status
-	updatedOrder, err := s.orderRepo.GetByOrderID(orderID)
+	updatedOrder, err := s.orderRepo.GetByID(ctx, orderID)
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), models.OrderStatusPayed, updatedOrder.Status)
 
-	// Check reserve stock free
-	availableSKU1, err := s.stockRepo.GetAvailableStockBySKU(1005)
+	// Check available stock free
+	availableSKU1, err := s.stockRepo.GetAvailableStockBySKU(ctx, 1005)
 	require.NoError(s.T(), err)
-	require.Equal(s.T(), uint64(295), availableSKU1) // 350 - 50 - 5
+	require.Equal(s.T(), uint64(295), availableSKU1) // 350 - 50 - 5 = 295
 }
 
 // TestStocksInfo_Success
