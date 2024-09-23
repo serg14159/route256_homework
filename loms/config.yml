@@ -1,0 +1,32 @@
+project:
+  name: Loms
+  debug: true
+  environment: development
+
+grpc:
+  host: 0.0.0.0
+  port: 50051
+  maxConnectionIdle: 5 # Minutes
+  timeout: 15 # Seconds
+  maxConnectionAge: 5 # Minutes
+
+gateway:
+  host: 0.0.0.0
+  port: 50050
+  allowedCorsOrigins:
+    - "http://localhost:50052"
+    - "http://0.0.0.0:50052"
+    - "http://127.0.0.1:50052"
+
+swagger:
+  host: 0.0.0.0
+  gtAddr: 0.0.0.0
+  port: 50052
+  filepath: "api/openapiv2/loms.swagger.json"
+  dist: "./swagger/dist"
+
+data:
+  stockFilePath: "data/stock-data.json"
+
+
+  

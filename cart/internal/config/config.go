@@ -74,11 +74,26 @@ func (ps *ProductService) GetMaxRetries() int {
 	return ps.MaxRetries
 }
 
+// LomsService - contains parameters for server address and port
+type LomsService struct {
+	Host string `yaml:"host" mapstructure:"host"`
+	Port string `yaml:"port" mapstructure:"port"`
+}
+
+func (l *LomsService) GetPort() string {
+	return l.Port
+}
+
+func (l *LomsService) GetHost() string {
+	return l.Host
+}
+
 // Config - contains all configuration parameters in config package
 type Config struct {
 	Project        Project        `yaml:"project" mapstructure:"project"`
 	Server         Server         `yaml:"server" mapstructure:"server"`
 	ProductService ProductService `yaml:"productService" mapstructure:"productService"`
+	LomsService    LomsService    `yaml:"lomsService" mapstructure:"lomsService"`
 }
 
 func NewConfig() *Config {
@@ -131,6 +146,9 @@ func setDefaultValues() {
 	viper.SetDefault("productService.apiuri", "http://route256.pavl.uk:8080")
 	viper.SetDefault("productService.token", "testtoken")
 	viper.SetDefault("productService.maxRetries", "3")
+	// LomsService
+	viper.SetDefault("lomsService.host", "0.0.0.0")
+	viper.SetDefault("lomsService.port", "50051")
 }
 
 func (c *Config) bindEnvVariables() error {
@@ -143,6 +161,8 @@ func (c *Config) bindEnvVariables() error {
 		"productService.apiuri":     "PRODUCT_SERVICE_APIURI",
 		"productService.token":      "PRODUCT_SERVICE_TOKEN",
 		"productService.maxRetries": "PRODUCT_SERVICE_MAX_RETRIES",
+		"lomsService.host":          "LOMS_SERVICE_HOST",
+		"lomsService.port":          "LOMS_SERVICE_PORT",
 	}
 
 	for key, env := range envVars {

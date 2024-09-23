@@ -1,0 +1,93 @@
+syntax = "proto3";
+
+package loms;
+
+option go_package = "pkg/api/loms/v1;loms";
+
+import "google/protobuf/empty.proto";
+import "validate/validate.proto";
+import "google/api/annotations.proto";
+import "protoc-gen-openapiv2/options/annotations.proto";
+
+// Service
+service Loms {
+    rpc OrderCreate(OrderCreateRequest) returns (OrderCreateResponse) {
+        option (google.api.http) = {
+            post: "/v1/order/create"
+            body: "*"
+        };
+    }
+    rpc OrderInfo(OrderInfoRequest) returns (OrderInfoResponse) {
+        option (google.api.http) = {
+            get: "/v1/order/info/{orderID}"
+        };
+    }
+    rpc OrderPay(OrderPayRequest) returns (OrderPayResponse) {
+        option (google.api.http) = {
+            post: "/v1/order/pay"
+            body: "*"
+        };
+    }
+    rpc OrderCancel(OrderCancelRequest) returns (OrderCancelResponse) {
+        option (google.api.http) = {
+            post: "/v1/order/cancel"
+            body: "*"
+        };
+    }
+    rpc StocksInfo(StocksInfoRequest) returns (StocksInfoResponse) {
+        option (google.api.http) = {
+            get: "/v1/stocks/info/{sku}"
+        };
+    }
+}
+
+message Item {
+    uint32 sku = 1 [(validate.rules).uint32.gt = 0];
+    uint32 count = 2 [(validate.rules).uint32.gt = 0];
+}
+
+// OrderCreate
+message OrderCreateRequest {
+    int64 user = 1 [(validate.rules).int64.gt = 0];
+    repeated Item items = 2 [(validate.rules).message.required = true];
+}
+
+message OrderCreateResponse {
+    int64 orderID = 1;
+}
+
+// OrderInfo
+message OrderInfoRequest {
+    int64 orderID = 1 [(validate.rules).int64.gt = 0];
+}
+
+message OrderInfoResponse {
+    string status = 1;
+    int64 user = 2 [(validate.rules).int64.gt = 0];
+    repeated Item items = 3;
+}
+
+// OrderPay
+message OrderPayRequest {
+    int64 orderID = 1 [(validate.rules).int64.gt = 0];
+}
+
+message OrderPayResponse {
+}
+
+// OrderCancel
+message OrderCancelRequest {
+    int64 orderID = 1 [(validate.rules).int64.gt = 0];
+}
+
+message OrderCancelResponse {
+}
+
+message StocksInfoRequest {
+    uint32 sku = 1 [(validate.rules).uint32.gt = 0];
+}
+
+message StocksInfoResponse {
+    uint64 count = 1;
+}
+

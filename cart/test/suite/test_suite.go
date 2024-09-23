@@ -10,11 +10,12 @@ import (
 	"time"
 
 	"route256/cart/internal/app/server"
+	loms_service "route256/cart/internal/clients/loms"
+	"route256/cart/internal/clients/product_service"
 	"route256/cart/internal/models"
-	"route256/cart/internal/pkg/cart/repository"
-	"route256/cart/internal/pkg/cart/service"
-	"route256/cart/internal/pkg/clients/product_service"
 	internal_errors "route256/cart/internal/pkg/errors"
+	repository "route256/cart/internal/repository/cart"
+	service "route256/cart/internal/service/cart"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -51,6 +52,7 @@ type TSuite struct {
 	service        *service.CartService
 	server         *server.Server
 	productService *product_service.Client
+	lomsService    *loms_service.LomsClient
 	serverURL      string
 	cancelFunc     context.CancelFunc
 }
@@ -65,7 +67,7 @@ func (s *TSuite) SetupTest() {
 	s.productService = product_service.NewClient(clientCfg)
 
 	// Cart service.
-	s.service = service.NewService(s.repo, s.productService)
+	s.service = service.NewService(s.repo, s.productService, s.lomsService)
 
 	// Server configuration
 	cfg := &Config{}

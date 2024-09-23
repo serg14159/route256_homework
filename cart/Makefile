@@ -23,7 +23,7 @@ test_all: cyclomatic_complexity cognitive_complexity test coverage
 
 .PHONY: test
 test:
-	go test $(shell go list ./... | grep -v /mock) -coverprofile=coverage.out
+	go test $(shell go list ./... | grep -vE '/(mock|vendor-proto)') -coverprofile=coverage.out
 
 .PHONY: coverage
 coverage:
@@ -36,8 +36,8 @@ test_bench:
 # lint
 .PHONY: cognitive_complexity
 cognitive_complexity:
-	gocognit -over 10 -ignore "_test.go|Godeps|mock/" .
+	gocognit -over 10 -ignore "_test.go|Godeps|mock/|pkg/api/loms|vendor-proto/" .
 
 .PHONY:	cyclomatic_complexity
 cyclomatic_complexity:
-	gocyclo -over 10 --ignore "_test.go|Godeps|mock/" .
+	gocyclo -over 10 --ignore "_test.go|Godeps|mock/|pkg/api/loms|vendor-proto/" .

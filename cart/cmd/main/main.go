@@ -3,18 +3,23 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"os"
 	"os/signal"
 	"route256/cart/internal/app/server"
+	"route256/cart/internal/clients/product_service"
 	"route256/cart/internal/config"
-	"route256/cart/internal/pkg/cart/repository"
-	"route256/cart/internal/pkg/cart/service"
-	"route256/cart/internal/pkg/clients/product_service"
+	repository "route256/cart/internal/repository/cart"
+	service "route256/cart/internal/service/cart"
 	"time"
 
 	"log"
 
 	"github.com/joho/godotenv"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+
+	loms_service "route256/cart/internal/clients/loms"
 )
 
 const quitChannelBufferSize = 1
@@ -47,13 +52,23 @@ func main() {
 	// Product service client
 	productService := product_service.NewClient(&cfg.ProductService)
 
+	// Loms service client
+	lomsAddr := fmt.Sprintf("%s:%s", cfg.LomsService.Host, cfg.LomsService.Port)
+	connGrpc, err := grpc.NewClient(lomsAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Printf("Did not connect: %v", err)
+	}
+	defer connGrpc.Close()
+
+	loms := loms_service.NewLomsClient(connGrpc)
+
 	// Service
-	cartService := service.NewService(cartRepository, productService)
+	cartService := service.NewService(cartRepository, productService, loms)
 
 	// Server
 	s := server.NewServer(&cfg.Server, cartService)
 
-	err := s.Run()
+	err = s.Run()
 	if err != nil {
 		log.Printf("Failed to start server, err:%s", err)
 	}

@@ -51,6 +51,15 @@ type GetCartResponse struct {
 	TotalPrice uint32             `json:"total_price"`
 }
 
+// Checkout
+type CheckoutRequest struct {
+	User int64 `json:"user"`
+}
+
+type CheckoutResponse struct {
+	OrderID int64 `json:"orderID"`
+}
+
 // Product service.
 type GetProductRequest struct {
 	Token string `json:"token"`

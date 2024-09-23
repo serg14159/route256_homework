@@ -19,6 +19,7 @@ type ICartService interface {
 	DelProduct(ctx context.Context, UID models.UID, SKU models.SKU) error
 	DelCart(ctx context.Context, UID models.UID) error
 	GetCart(ctx context.Context, UID models.UID) ([]models.CartItemResponse, uint32, error)
+	Checkout(ctx context.Context, UID models.UID) (int64, error)
 }
 
 type Server struct {
@@ -49,6 +50,7 @@ func (s *Server) Run() error {
 	mux.HandleFunc("DELETE /user/{user_id}/cart/{sku_id}", s.DelProduct)
 	mux.HandleFunc("DELETE /user/{user_id}/cart", s.DelCart)
 	mux.HandleFunc("GET /user/{user_id}/cart", s.GetCart)
+	mux.HandleFunc("POST /user/{user_id}/checkout", s.Checkout)
 
 	logMux := server_middleware.NewLogMux(mux)
 
