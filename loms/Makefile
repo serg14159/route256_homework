@@ -127,7 +127,7 @@ openapiv2:
 	       --openapiv2_opt logtostderr=true \
 	       $(PROTO_FILE)
 
-# tidy
+# Tidy
 .PHONY: tidy
 tidy:
 	go mod tidy
@@ -137,17 +137,17 @@ tidy:
 serve-swagger:
 	bin/swagger serve api/openapiv2/loms.swagger.json
 
-# run
+# Run
 .PHONY: run
 run:
 	go run cmd/main/main.go
 
-# build
+# Build
 .PHONY: build
 build:
 	go build -o cart cmd/main/main.go
 
-# docker
+# Docker
 .PHONY: docker_build
 docker_build:
 	docker build -t cart:latest .
@@ -156,7 +156,7 @@ docker_build:
 docker_run:
 	docker run -p 8082:8082 cart:latest
 
-# tests
+# Tests
 .PHONY: test_all
 test_all: cyclomatic_complexity cognitive_complexity test coverage
 
@@ -172,7 +172,7 @@ coverage:
 test_bench:
 	go test -bench=. ./...
 	
-# lint
+# Lint
 .PHONY: cognitive_complexity
 cognitive_complexity:
 	gocognit -over 10 -ignore "_test.go|Godeps|mock/|pkg/api/loms|vendor-proto/" .
@@ -180,3 +180,34 @@ cognitive_complexity:
 .PHONY:	cyclomatic_complexity
 cyclomatic_complexity:
 	gocyclo -over 10 --ignore "_test.go|Godeps|mock/|pkg/api/loms|vendor-proto/" .
+
+
+# Migrations
+.PHONY: install-goose
+install-goose:
+	$(info Installing binary dependencies...)
+	GOBIN=$(LOCAL_BIN) go install github.com/pressly/goose/v3/cmd/goose@v3.22.1
+
+.PHONY: create_migration_create_orders_table
+create_migration_create_orders_table:
+	bin/goose -dir migrations create create_orders_table sql
+
+.PHONY: create_migration_create_items_table
+create_migration_create_items_table:
+	bin/goose -dir migrations create create_items_table sql
+
+.PHONY: create_migration_create_stocks_table
+create_migration_create_stocks_table:
+	bin/goose -dir migrations create create_stocks_table sql
+
+.PHONY: create_migration_insert_initial_stocks_data
+create_migration_insert_initial_stocks_data:
+	bin/goose -dir migrations create insert_initial_stocks_data sql
+
+.PHONY: migrations_up
+migrations_up:
+	bin/goose -dir migrations postgres "postgresql://user:password@127.0.0.1:5432/route256?sslmode=disable" up
+
+.PHONY: migrations_down
+migrations_down:
+	bin/goose -dir migrations postgres "postgresql://user:password@127.0.0.1:5432/route256?sslmode=disable" down
