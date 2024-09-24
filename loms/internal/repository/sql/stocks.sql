@@ -1,3 +1,8 @@
+-- name: GetStockBySKU :one
+SELECT sku, total_count, reserved
+FROM stocks
+WHERE sku = $1;
+
 -- name: GetAvailableStockBySKU :one
 SELECT total_count - reserved AS available
 FROM stocks
