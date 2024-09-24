@@ -2,6 +2,7 @@ package loms
 
 import (
 	"context"
+	"errors"
 	"route256/loms/internal/models"
 	internal_errors "route256/loms/internal/pkg/errors"
 	pb "route256/loms/pkg/api/loms/v1"
@@ -32,11 +33,13 @@ func NewService(lomsService ILomsService) *Service {
 
 func errorToStatus(err error) error {
 	var st *status.Status
-	switch err {
-	case internal_errors.ErrNotFound:
+	switch {
+	case errors.Is(err, internal_errors.ErrNotFound):
 		st = status.New(codes.NotFound, "not found")
-	case internal_errors.ErrBadRequest:
+	case errors.Is(err, internal_errors.ErrBadRequest):
 		st = status.New(codes.InvalidArgument, "invalid argument")
+	case errors.Is(err, internal_errors.ErrPreconditionFailed):
+		st = status.New(codes.FailedPrecondition, "precondition failed")
 	default:
 		st = status.New(codes.Internal, "internal server error")
 	}

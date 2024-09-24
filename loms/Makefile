@@ -145,16 +145,16 @@ run:
 # Build
 .PHONY: build
 build:
-	go build -o cart cmd/main/main.go
+	go build -o loms cmd/main/main.go
 
 # Docker
 .PHONY: docker_build
 docker_build:
-	docker build -t cart:latest .
+	docker build -t loms:latest .
 
 .PHONY: docker_run
 docker_run:
-	docker run -p 8082:8082 cart:latest
+	docker run -p 8082:8082 loms:latest
 
 # Tests
 .PHONY: test_all

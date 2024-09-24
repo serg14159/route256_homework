@@ -15,7 +15,7 @@ func (s *LomsService) OrderInfo(ctx context.Context, req *models.OrderInfoReques
 	}
 
 	// Get info about order
-	order, err := s.orderRepository.GetByOrderID(req.OrderID)
+	order, err := s.orderRepository.GetByID(ctx, req.OrderID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get order: %w", err)
 	}

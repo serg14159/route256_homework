@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"fmt"
 	"route256/loms/internal/models"
 	internal_errors "route256/loms/internal/pkg/errors"
@@ -26,8 +27,8 @@ func NewOrderRepository() *OrderRepository {
 	}
 }
 
-// Function CreateOrder add new order to repository and returns unique orderID.
-func (r *OrderRepository) CreateOrder(order models.Order) (models.OID, error) {
+// Function Create add new order to repository and returns unique orderID.
+func (r *OrderRepository) Create(ctx context.Context, order models.Order) (models.OID, error) {
 	// Validate input data
 	err := validateOrder(order)
 	if err != nil {
@@ -47,8 +48,8 @@ func (r *OrderRepository) CreateOrder(order models.Order) (models.OID, error) {
 	return orderID, nil
 }
 
-// Function GetByOrderID return order by orderID.
-func (r *OrderRepository) GetByOrderID(orderID models.OID) (models.Order, error) {
+// Function GetByID return order by orderID.
+func (r *OrderRepository) GetByID(ctx context.Context, orderID models.OID) (models.Order, error) {
 	// Validate input data
 	if orderID < 1 {
 		return models.Order{}, fmt.Errorf("orderID must be greater than zero: %w", internal_errors.ErrBadRequest)
@@ -66,15 +67,15 @@ func (r *OrderRepository) GetByOrderID(orderID models.OID) (models.Order, error)
 	return order, nil
 }
 
-// Function SetOrderStatus update status of existing order.
-func (r *OrderRepository) SetOrderStatus(orderID models.OID, status models.OrderStatus) error {
+// Function SetStatus update status of existing order.
+func (r *OrderRepository) SetStatus(ctx context.Context, orderID models.OID, status models.OrderStatus) error {
 	// Validate input data
 	if orderID < 1 {
 		return fmt.Errorf("orderID must be greater than zero: %w", internal_errors.ErrBadRequest)
 	}
 
 	if !isValidOrderStatus(status) {
-		return fmt.Errorf("invalid order status: %w", internal_errors.ErrBadRequest)
+		return fmt.Errorf("invalid order status: %w", internal_errors.ErrPreconditionFailed)
 	}
 
 	r.mu.Lock()
@@ -83,7 +84,7 @@ func (r *OrderRepository) SetOrderStatus(orderID models.OID, status models.Order
 	// Get order by orderID
 	order, exists := r.storage[orderID]
 	if !exists {
-		return fmt.Errorf("order with orderID not found: %w", internal_errors.ErrBadRequest)
+		return fmt.Errorf("order with orderID not found: %w", internal_errors.ErrPreconditionFailed)
 	}
 
 	// Update order status

@@ -23,15 +23,15 @@ func (s *LomsService) OrderCreate(ctx context.Context, req *models.OrderCreateRe
 	}
 
 	// Save order
-	orderID, err := s.orderRepository.CreateOrder(order)
+	orderID, err := s.orderRepository.Create(ctx, order)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create order: %w", err)
 	}
 
 	// Reserve stocks
-	err = s.stockRepository.ReserveItems(order.Items)
+	err = s.stockRepository.ReserveItems(ctx, order.Items)
 	if err != nil {
-		setStatusErr := s.orderRepository.SetOrderStatus(orderID, models.OrderStatusFailed)
+		setStatusErr := s.orderRepository.SetStatus(ctx, orderID, models.OrderStatusFailed)
 		if setStatusErr != nil {
 			return nil, fmt.Errorf("failed to set order status failed: %w", setStatusErr)
 		}
@@ -39,7 +39,7 @@ func (s *LomsService) OrderCreate(ctx context.Context, req *models.OrderCreateRe
 	}
 
 	// Set status "awaiting payment"
-	err = s.orderRepository.SetOrderStatus(orderID, models.OrderStatusAwaitingPayment)
+	err = s.orderRepository.SetStatus(ctx, orderID, models.OrderStatusAwaitingPayment)
 	if err != nil {
 		return nil, fmt.Errorf("failed to set order status awaiting payment: %w", err)
 	}

@@ -18,7 +18,7 @@ func TestLomsService_OrderCreate_Table(t *testing.T) {
 	tests := []struct {
 		name          string
 		req           *models.OrderCreateRequest
-		setupMocks    func(orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, req *models.OrderCreateRequest)
+		setupMocks    func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, req *models.OrderCreateRequest)
 		expectedResp  *models.OrderCreateResponse
 		expectedErr   error
 		errorContains string
@@ -31,15 +31,15 @@ func TestLomsService_OrderCreate_Table(t *testing.T) {
 					{SKU: 1001, Count: 2},
 				},
 			},
-			setupMocks: func(orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, req *models.OrderCreateRequest) {
+			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, req *models.OrderCreateRequest) {
 				order := models.Order{
 					Status: models.OrderStatusNew,
 					UserID: int64(req.User),
 					Items:  req.Items,
 				}
-				orderRepoMock.CreateOrderMock.Expect(order).Return(int64(1), nil)
-				stockRepoMock.ReserveItemsMock.Expect(req.Items).Return(nil)
-				orderRepoMock.SetOrderStatusMock.Expect(int64(1), models.OrderStatusAwaitingPayment).Return(nil)
+				orderRepoMock.CreateMock.Expect(ctx, order).Return(int64(1), nil)
+				stockRepoMock.ReserveItemsMock.Expect(ctx, req.Items).Return(nil)
+				orderRepoMock.SetStatusMock.Expect(ctx, models.OID(1), models.OrderStatusAwaitingPayment).Return(nil)
 			},
 			expectedResp: &models.OrderCreateResponse{
 				OrderID: 1,
@@ -55,7 +55,7 @@ func TestLomsService_OrderCreate_Table(t *testing.T) {
 					{SKU: 1001, Count: 2},
 				},
 			},
-			setupMocks: func(orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, req *models.OrderCreateRequest) {
+			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, req *models.OrderCreateRequest) {
 			},
 			expectedResp:  nil,
 			expectedErr:   internal_errors.ErrBadRequest,
@@ -67,7 +67,7 @@ func TestLomsService_OrderCreate_Table(t *testing.T) {
 				User:  1,
 				Items: []models.Item{},
 			},
-			setupMocks: func(orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, req *models.OrderCreateRequest) {
+			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, req *models.OrderCreateRequest) {
 			},
 			expectedResp:  nil,
 			expectedErr:   internal_errors.ErrBadRequest,
@@ -81,7 +81,7 @@ func TestLomsService_OrderCreate_Table(t *testing.T) {
 					{SKU: 0, Count: 2},
 				},
 			},
-			setupMocks: func(orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, req *models.OrderCreateRequest) {
+			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, req *models.OrderCreateRequest) {
 			},
 			expectedResp:  nil,
 			expectedErr:   internal_errors.ErrBadRequest,
@@ -95,7 +95,7 @@ func TestLomsService_OrderCreate_Table(t *testing.T) {
 					{SKU: 1001, Count: 0},
 				},
 			},
-			setupMocks: func(orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, req *models.OrderCreateRequest) {
+			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, req *models.OrderCreateRequest) {
 			},
 			expectedResp:  nil,
 			expectedErr:   internal_errors.ErrBadRequest,
@@ -109,13 +109,13 @@ func TestLomsService_OrderCreate_Table(t *testing.T) {
 					{SKU: 1002, Count: 1},
 				},
 			},
-			setupMocks: func(orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, req *models.OrderCreateRequest) {
+			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, req *models.OrderCreateRequest) {
 				order := models.Order{
 					Status: models.OrderStatusNew,
 					UserID: int64(req.User),
 					Items:  req.Items,
 				}
-				orderRepoMock.CreateOrderMock.Expect(order).Return(int64(0), errors.New("create order error"))
+				orderRepoMock.CreateMock.Expect(ctx, order).Return(int64(0), errors.New("create order error"))
 			},
 			expectedResp:  nil,
 			expectedErr:   internal_errors.ErrInternalServerError,
@@ -129,15 +129,15 @@ func TestLomsService_OrderCreate_Table(t *testing.T) {
 					{SKU: 1003, Count: 3},
 				},
 			},
-			setupMocks: func(orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, req *models.OrderCreateRequest) {
+			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, req *models.OrderCreateRequest) {
 				order := models.Order{
 					Status: models.OrderStatusNew,
 					UserID: int64(req.User),
 					Items:  req.Items,
 				}
-				orderRepoMock.CreateOrderMock.Expect(order).Return(int64(2), nil)
-				stockRepoMock.ReserveItemsMock.Expect(req.Items).Return(errors.New("reserve items error"))
-				orderRepoMock.SetOrderStatusMock.Expect(int64(2), models.OrderStatusFailed).Return(nil)
+				orderRepoMock.CreateMock.Expect(ctx, order).Return(int64(2), nil)
+				stockRepoMock.ReserveItemsMock.Expect(ctx, req.Items).Return(errors.New("reserve items error"))
+				orderRepoMock.SetStatusMock.Expect(ctx, models.OID(2), models.OrderStatusFailed).Return(nil)
 			},
 			expectedResp:  nil,
 			expectedErr:   internal_errors.ErrInternalServerError,
@@ -151,16 +151,16 @@ func TestLomsService_OrderCreate_Table(t *testing.T) {
 					{SKU: 1004, Count: 4},
 				},
 			},
-			setupMocks: func(orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, req *models.OrderCreateRequest) {
+			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, req *models.OrderCreateRequest) {
 				order := models.Order{
 					Status: models.OrderStatusNew,
 					UserID: int64(req.User),
 					Items:  req.Items,
 				}
 
-				orderRepoMock.CreateOrderMock.Expect(order).Return(int64(3), nil)
-				stockRepoMock.ReserveItemsMock.Expect(req.Items).Return(errors.New("reserve items error"))
-				orderRepoMock.SetOrderStatusMock.Expect(int64(3), models.OrderStatusFailed).Return(errors.New("set status failed"))
+				orderRepoMock.CreateMock.Expect(ctx, order).Return(int64(3), nil)
+				stockRepoMock.ReserveItemsMock.Expect(ctx, req.Items).Return(errors.New("reserve items error"))
+				orderRepoMock.SetStatusMock.Expect(ctx, models.OID(3), models.OrderStatusFailed).Return(errors.New("set status failed"))
 			},
 			expectedResp:  nil,
 			expectedErr:   internal_errors.ErrInternalServerError,
@@ -174,15 +174,15 @@ func TestLomsService_OrderCreate_Table(t *testing.T) {
 					{SKU: 1005, Count: 5},
 				},
 			},
-			setupMocks: func(orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, req *models.OrderCreateRequest) {
+			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, req *models.OrderCreateRequest) {
 				order := models.Order{
 					Status: models.OrderStatusNew,
 					UserID: int64(req.User),
 					Items:  req.Items,
 				}
-				orderRepoMock.CreateOrderMock.Expect(order).Return(int64(4), nil)
-				stockRepoMock.ReserveItemsMock.Expect(req.Items).Return(nil)
-				orderRepoMock.SetOrderStatusMock.Expect(int64(4), models.OrderStatusAwaitingPayment).Return(errors.New("set status awaiting payment error"))
+				orderRepoMock.CreateMock.Expect(ctx, order).Return(int64(4), nil)
+				stockRepoMock.ReserveItemsMock.Expect(ctx, req.Items).Return(nil)
+				orderRepoMock.SetStatusMock.Expect(ctx, models.OID(4), models.OrderStatusAwaitingPayment).Return(errors.New("set status awaiting payment error"))
 			},
 			expectedResp:  nil,
 			expectedErr:   internal_errors.ErrInternalServerError,
@@ -191,14 +191,16 @@ func TestLomsService_OrderCreate_Table(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
+			ctx := context.Background()
 			orderRepoMock, stockRepoMock, svc := setup(t)
 
-			tt.setupMocks(orderRepoMock, stockRepoMock, tt.req)
+			tt.setupMocks(ctx, orderRepoMock, stockRepoMock, tt.req)
 
-			resp, err := svc.OrderCreate(context.Background(), tt.req)
+			resp, err := svc.OrderCreate(ctx, tt.req)
 			if tt.expectedErr != nil {
 				require.Error(t, err)
 				require.True(t, errors.Is(err, tt.expectedErr) || (tt.errorContains != "" && strings.Contains(err.Error(), tt.errorContains)),
@@ -208,6 +210,9 @@ func TestLomsService_OrderCreate_Table(t *testing.T) {
 				require.NoError(t, err)
 				require.Equal(t, tt.expectedResp, resp)
 			}
+
+			orderRepoMock.MinimockFinish()
+			stockRepoMock.MinimockFinish()
 		})
 	}
 }

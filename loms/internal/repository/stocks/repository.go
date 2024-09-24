@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -28,7 +29,7 @@ func NewStockRepository() *StockRepository {
 }
 
 // Function LoadStocks loads data in StockRepository from the specified file.
-func (r *StockRepository) LoadStocks(filePath string) error {
+func (r *StockRepository) LoadStocks(ctx context.Context, filePath string) error {
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return fmt.Errorf("failed to read stock data file: %w", err)
@@ -50,11 +51,37 @@ func (r *StockRepository) LoadStocks(filePath string) error {
 	return nil
 }
 
-// Function GetAvailableStockBySKU returns the available stock for specified SKU.
-func (r *StockRepository) GetAvailableStockBySKU(SKU models.SKU) (uint64, error) {
-	// Validate input data
+// Function for validate SKU.
+func (r *StockRepository) validateSKU(SKU models.SKU) error {
 	if SKU < 1 {
-		return 0, fmt.Errorf("SKU must be greater than zero: %w", internal_errors.ErrBadRequest)
+		return fmt.Errorf("SKU must be greater than zero: %w", internal_errors.ErrBadRequest)
+	}
+	return nil
+}
+
+// Function for validate items.
+func (r *StockRepository) validateItems(items []models.Item) error {
+	for _, item := range items {
+		if err := r.validateSKU(item.SKU); err != nil {
+			return err
+		}
+		if item.Count < 1 {
+			return fmt.Errorf("count must be greater than zero: %w", internal_errors.ErrBadRequest)
+		}
+	}
+	return nil
+}
+
+// Function computeAvailableStock calculate available stock.
+func (r *StockRepository) computeAvailableStock(stock models.Stock) uint64 {
+	return stock.TotalCount - stock.Reserved
+}
+
+// Function GetAvailableStockBySKU returns the available stock for specified SKU.
+func (r *StockRepository) GetAvailableStockBySKU(ctx context.Context, SKU models.SKU) (uint64, error) {
+	// Validate input data
+	if err := r.validateSKU(SKU); err != nil {
+		return 0, err
 	}
 
 	r.mu.Lock()
@@ -66,17 +93,15 @@ func (r *StockRepository) GetAvailableStockBySKU(SKU models.SKU) (uint64, error)
 		return 0, internal_errors.ErrNotFound
 	}
 
-	available := stock.TotalCount - stock.Reserved
+	available := r.computeAvailableStock(stock)
 	return available, nil
 }
 
 // Function ReserveItems reserves the specified count of products in the provided array of items.
-func (r *StockRepository) ReserveItems(items []models.Item) error {
+func (r *StockRepository) ReserveItems(ctx context.Context, items []models.Item) error {
 	// Validate input data
-	for _, item := range items {
-		if item.SKU < 1 || item.Count < 1 {
-			return fmt.Errorf("SKU and count must be greater than zero: %w", internal_errors.ErrBadRequest)
-		}
+	if err := r.validateItems(items); err != nil {
+		return err
 	}
 
 	r.mu.Lock()
@@ -89,14 +114,14 @@ func (r *StockRepository) ReserveItems(items []models.Item) error {
 	for _, item := range items {
 		stock, exists := r.stocks[item.SKU]
 		if !exists {
-			r.cancelReservations(reservedItems)
+			r.rollbackReservations(reservedItems)
 			return fmt.Errorf("not found stock for SKU %d: %w", item.SKU, internal_errors.ErrNotFound)
 		}
 
 		// Check available
-		available := stock.TotalCount - stock.Reserved
+		available := r.computeAvailableStock(stock)
 		if available < uint64(item.Count) {
-			r.cancelReservations(reservedItems)
+			r.rollbackReservations(reservedItems)
 			return fmt.Errorf("not enough stock for SKU %d: %w", item.SKU, internal_errors.ErrPreconditionFailed)
 		}
 
@@ -112,7 +137,7 @@ func (r *StockRepository) ReserveItems(items []models.Item) error {
 }
 
 // Function cancelReservations rolls back all previously successful reservations.
-func (r *StockRepository) cancelReservations(reservedItems []models.Item) {
+func (r *StockRepository) rollbackReservations(reservedItems []models.Item) {
 	for _, item := range reservedItems {
 		stock := r.stocks[item.SKU]
 		stock.Reserved -= uint64(item.Count)
@@ -120,13 +145,11 @@ func (r *StockRepository) cancelReservations(reservedItems []models.Item) {
 	}
 }
 
-// Function ReserveRemoveItems removes reserved stock for product.
-func (r *StockRepository) ReserveRemoveItems(items []models.Item) error {
+// Function RemoveReservedItems removes reserved stock for product.
+func (r *StockRepository) RemoveReservedItems(ctx context.Context, items []models.Item) error {
 	// Validate input data
-	for _, item := range items {
-		if item.SKU < 1 || item.Count < 1 {
-			return fmt.Errorf("SKU and count must be greater than zero: %w", internal_errors.ErrBadRequest)
-		}
+	if err := r.validateItems(items); err != nil {
+		return err
 	}
 
 	r.mu.Lock()
@@ -139,13 +162,13 @@ func (r *StockRepository) ReserveRemoveItems(items []models.Item) error {
 	for _, item := range items {
 		stock, exists := r.stocks[item.SKU]
 		if !exists {
-			r.cancelReserveRemove(removedItems)
+			r.RollbackRemoveReserved(removedItems)
 			return fmt.Errorf("not found stock for SKU %d: %w", item.SKU, internal_errors.ErrNotFound)
 		}
 
 		// Check
 		if stock.Reserved < uint64(item.Count) {
-			r.cancelReserveRemove(removedItems)
+			r.RollbackRemoveReserved(removedItems)
 			return fmt.Errorf("not enough reserved stock for SKU %d: %w", item.SKU, internal_errors.ErrPreconditionFailed)
 		}
 
@@ -161,8 +184,8 @@ func (r *StockRepository) ReserveRemoveItems(items []models.Item) error {
 	return nil
 }
 
-// Function cancelReserveRemove rolls back all previously successful remove from reserved stock.
-func (r *StockRepository) cancelReserveRemove(removedItems []models.Item) {
+// Function RollbackRemoveReserved rolls back all previously successful remove from reserved stock.
+func (r *StockRepository) RollbackRemoveReserved(removedItems []models.Item) {
 	for _, item := range removedItems {
 		stock := r.stocks[item.SKU]
 		stock.Reserved += uint64(item.Count)
@@ -171,13 +194,11 @@ func (r *StockRepository) cancelReserveRemove(removedItems []models.Item) {
 	}
 }
 
-// Function ReserveCancelItems cancels reservation and makes the stock available again.
-func (r *StockRepository) ReserveCancelItems(items []models.Item) error {
+// Function CancelReservedItems cancels reservation and makes the stock available again.
+func (r *StockRepository) CancelReservedItems(ctx context.Context, items []models.Item) error {
 	// Validate input data
-	for _, item := range items {
-		if item.SKU < 1 || item.Count < 1 {
-			return fmt.Errorf("SKU and count must be greater than zero: %w", internal_errors.ErrBadRequest)
-		}
+	if err := r.validateItems(items); err != nil {
+		return err
 	}
 
 	r.mu.Lock()
@@ -190,13 +211,13 @@ func (r *StockRepository) ReserveCancelItems(items []models.Item) error {
 	for _, item := range items {
 		stock, exists := r.stocks[item.SKU]
 		if !exists {
-			r.cancelReserveCancel(cancelledItems)
+			r.rollbackCancelReservation(cancelledItems)
 			return fmt.Errorf("not found stock for SKU %d: %w", item.SKU, internal_errors.ErrNotFound)
 		}
 
 		// Check
 		if stock.Reserved < uint64(item.Count) {
-			r.cancelReserveCancel(cancelledItems)
+			r.rollbackCancelReservation(cancelledItems)
 			return fmt.Errorf("not enough reserved stock to cancel for SKU %d: %w", item.SKU, internal_errors.ErrPreconditionFailed)
 		}
 
@@ -211,8 +232,8 @@ func (r *StockRepository) ReserveCancelItems(items []models.Item) error {
 	return nil
 }
 
-// Function cancelReserveCancel rolls back all previously successful cancel of reserved stock
-func (r *StockRepository) cancelReserveCancel(cancelledItems []models.Item) {
+// Function rollbackCancelReservation rolls back all previously successful cancel of reserved stock
+func (r *StockRepository) rollbackCancelReservation(cancelledItems []models.Item) {
 	for _, item := range cancelledItems {
 		stock := r.stocks[item.SKU]
 		stock.Reserved += uint64(item.Count)

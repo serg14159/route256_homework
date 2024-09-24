@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	loms "route256/loms/internal/app/loms"
@@ -44,8 +45,9 @@ func main() {
 	repoOrder := repo_order.NewOrderRepository()
 
 	// Repository stocks
+	ctx := context.Background()
 	repoStocks := repo_stocks.NewStockRepository()
-	repoStocks.LoadStocks(cfg.Data.GetStockFilePath())
+	repoStocks.LoadStocks(ctx, cfg.Data.GetStockFilePath())
 
 	// Loms usecase
 	lomsUsecaseService := loms_usecase.NewService(repoOrder, repoStocks)

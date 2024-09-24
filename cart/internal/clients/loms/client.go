@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"route256/cart/internal/models"
-	service "route256/cart/internal/service/cart"
 	"route256/loms/pkg/api/loms/v1"
 
 	"google.golang.org/grpc"
@@ -54,5 +53,3 @@ func (c *LomsClient) StocksInfo(ctx context.Context, SKU models.SKU) (int64, err
 
 	return int64(res.Count), nil
 }
-
-var _ service.ILomsService = (*LomsClient)(nil)
