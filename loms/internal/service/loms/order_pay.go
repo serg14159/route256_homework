@@ -36,7 +36,7 @@ func (s *LomsService) OrderPay(ctx context.Context, req *models.OrderPayRequest)
 	// Set order status "payed"
 	err = s.orderRepository.SetStatus(ctx, req.OrderID, models.OrderStatusPayed)
 	if err != nil {
-		s.stockRepository.RollbackRemoveReserved(order.Items)
+		//s.stockRepository.RollbackRemoveReserved(order.Items)
 		return fmt.Errorf("failed to set order status to payed: %w", err)
 	}
 

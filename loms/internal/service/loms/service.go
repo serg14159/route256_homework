@@ -16,7 +16,7 @@ type IStockRepository interface {
 	ReserveItems(ctx context.Context, items []models.Item) error
 	RemoveReservedItems(ctx context.Context, items []models.Item) error
 	CancelReservedItems(ctx context.Context, items []models.Item) error
-	RollbackRemoveReserved(removedItems []models.Item)
+	//RollbackRemoveReserved(removedItems []models.Item)
 }
 
 type LomsService struct {

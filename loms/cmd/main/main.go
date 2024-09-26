@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"os"
 	loms "route256/loms/internal/app/loms"
 	repo_order "route256/loms/internal/repository/orders"
 	repo_stocks "route256/loms/internal/repository/stocks"
@@ -13,6 +14,8 @@ import (
 	"route256/loms/internal/server"
 
 	"log"
+
+	db "route256/loms/internal/pkg/db"
 
 	"github.com/joho/godotenv"
 )
@@ -41,13 +44,20 @@ func main() {
 	// Cfg
 	fmt.Printf("cfg: %v", cfg)
 
+	// DB connect
+	ctx := context.Background()
+	conn, err := db.NewConnect(ctx, &cfg.Database)
+	if err != nil {
+		log.Printf("Failed connect to database, err:%s", err)
+		os.Exit(1)
+	}
+	defer conn.Close(ctx)
+
 	// Repository order
-	repoOrder := repo_order.NewOrderRepository()
+	repoOrder := repo_order.NewOrderRepository(conn)
 
 	// Repository stocks
-	ctx := context.Background()
-	repoStocks := repo_stocks.NewStockRepository()
-	repoStocks.LoadStocks(ctx, cfg.Data.GetStockFilePath())
+	repoStocks := repo_stocks.NewStockRepository(conn)
 
 	// Loms usecase
 	lomsUsecaseService := loms_usecase.NewService(repoOrder, repoStocks)
