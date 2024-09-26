@@ -53,6 +53,9 @@ func main() {
 	}
 	defer conn.Close(ctx)
 
+	// TxManager
+	txManager := db.NewTransactionManager(conn)
+
 	// Repository order
 	repoOrder := repo_order.NewOrderRepository(conn)
 
@@ -60,7 +63,7 @@ func main() {
 	repoStocks := repo_stocks.NewStockRepository(conn)
 
 	// Loms usecase
-	lomsUsecaseService := loms_usecase.NewService(repoOrder, repoStocks)
+	lomsUsecaseService := loms_usecase.NewService(repoOrder, repoStocks, txManager)
 
 	// Loms
 	controller := loms.NewService(lomsUsecaseService)

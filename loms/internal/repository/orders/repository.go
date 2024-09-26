@@ -24,59 +24,67 @@ func NewOrderRepository(conn *pgx.Conn) *OrderRepository {
 	}
 }
 
-// Function Create add new order to repository and returns unique orderID.
-func (r *OrderRepository) Create(ctx context.Context, order models.Order) (models.OID, error) {
+// Create adds a new order to repository and returns unique orderID.
+func (r *OrderRepository) Create(ctx context.Context, tx *pgx.Tx, order models.Order) (models.OID, error) {
 	// Validate input data
 	if err := validateOrder(order); err != nil {
 		return 0, err
 	}
 
-	var createdOrder *sqlc.Order
+	// Check transaction
+	var q sqlc.Querier
+	if tx != nil {
+		q = sqlc.New(*tx)
+	} else {
+		q = r.queries
+	}
 
-	// Begin transaction
-	err := pgx.BeginFunc(ctx, r.conn, func(tx pgx.Tx) error {
-		// Linked queries to a transaction
-		q := sqlc.New(tx)
+	// Create order
+	createdOrder, err := q.CreateOrder(ctx, &sqlc.CreateOrderParams{
+		UserID: order.UserID,
+		Status: string(order.Status),
+	})
+	if err != nil {
+		return 0, fmt.Errorf("failed to create order: %w", err)
+	}
 
-		var err error
-		createdOrder, err = q.CreateOrder(ctx, &sqlc.CreateOrderParams{
-			UserID: order.UserID,
-			Status: string(order.Status),
+	for _, item := range order.Items {
+		_, err := q.CreateOrderItem(ctx, &sqlc.CreateOrderItemParams{
+			OrderID: &createdOrder.ID,
+			Sku:     int32(item.SKU),
+			Count:   int16(item.Count),
 		})
 		if err != nil {
-			return fmt.Errorf("failed to create order: %w", err)
+			return 0, fmt.Errorf("failed to create order item: %w", err)
 		}
+	}
 
-		for _, item := range order.Items {
-			_, err := q.CreateOrderItem(ctx, &sqlc.CreateOrderItemParams{
-				OrderID: &createdOrder.ID,
-				Sku:     int32(item.SKU),
-				Count:   int16(item.Count),
-			})
-			if err != nil {
-				return fmt.Errorf("failed to create order item: %w", err)
-			}
-		}
-		return nil
-	})
-	return models.OID(createdOrder.ID), err
+	return models.OID(createdOrder.ID), nil
 }
 
 // Function GetByID return order by orderID.
-func (r *OrderRepository) GetByID(ctx context.Context, orderID models.OID) (models.Order, error) {
+func (r *OrderRepository) GetByID(ctx context.Context, tx *pgx.Tx, orderID models.OID) (models.Order, error) {
 	// Validate input data
 	if orderID < 1 {
 		return models.Order{}, fmt.Errorf("orderID must be greater than zero: %w", internal_errors.ErrBadRequest)
 	}
 
+	// Check transaction
+	var q sqlc.Querier
+	if tx != nil {
+		q = sqlc.New(*tx)
+	} else {
+		q = r.queries
+	}
+
 	// Get order
-	order, err := r.queries.GetOrderByID(ctx, orderID)
+	order, err := q.GetOrderByID(ctx, orderID)
 	if err != nil {
 		return models.Order{}, internal_errors.ErrNotFound
 	}
 
 	// Get items
-	items, err := r.queries.GetOrderItems(ctx, &orderID)
+	items, err := q.GetOrderItems(ctx, &orderID)
 	if err != nil {
 		return models.Order{}, fmt.Errorf("failed to get order items: %w", err)
 	}
@@ -97,8 +105,8 @@ func (r *OrderRepository) GetByID(ctx context.Context, orderID models.OID) (mode
 	}, nil
 }
 
-// Function SetStatus update status of existing order.
-func (r *OrderRepository) SetStatus(ctx context.Context, orderID models.OID, status models.OrderStatus) error {
+// SetStatus updates the status of an existing order.
+func (r *OrderRepository) SetStatus(ctx context.Context, tx *pgx.Tx, orderID models.OID, status models.OrderStatus) error {
 	// Validate input data
 	if orderID < 1 {
 		return fmt.Errorf("orderID must be greater than zero: %w", internal_errors.ErrBadRequest)
@@ -108,8 +116,16 @@ func (r *OrderRepository) SetStatus(ctx context.Context, orderID models.OID, sta
 		return fmt.Errorf("invalid order status: %w", internal_errors.ErrPreconditionFailed)
 	}
 
+	// Check transaction
+	var q sqlc.Querier
+	if tx != nil {
+		q = sqlc.New(*tx)
+	} else {
+		q = r.queries
+	}
+
 	// Update order status
-	err := r.queries.SetOrderStatus(ctx, &sqlc.SetOrderStatusParams{
+	err := q.SetOrderStatus(ctx, &sqlc.SetOrderStatusParams{
 		ID:     orderID,
 		Status: string(status),
 	})
@@ -120,7 +136,7 @@ func (r *OrderRepository) SetStatus(ctx context.Context, orderID models.OID, sta
 	return nil
 }
 
-// Function validateOrder validate the order.
+// validateOrder validate the order.
 func validateOrder(order models.Order) error {
 	if order.UserID < 1 {
 		return fmt.Errorf("userID must be greater than zero: %w", internal_errors.ErrBadRequest)
@@ -139,7 +155,7 @@ func validateOrder(order models.Order) error {
 	return nil
 }
 
-// Function isValidOrderStatus check status is valid.
+// isValidOrderStatus check status is valid.
 func isValidOrderStatus(status models.OrderStatus) bool {
 	switch status {
 	case models.OrderStatusNew,
