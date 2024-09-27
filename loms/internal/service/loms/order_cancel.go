@@ -17,7 +17,7 @@ func (s *LomsService) OrderCancel(ctx context.Context, req *models.OrderCancelRe
 	}
 
 	// Use WithTx for transaction
-	err := s.txManager.WithTx(ctx, func(ctx context.Context, tx *pgx.Tx) error {
+	err := s.txManager.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		// Get order by orderID
 		order, err := s.orderRepository.GetByID(ctx, tx, req.OrderID)
 		if err != nil {

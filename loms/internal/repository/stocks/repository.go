@@ -63,7 +63,7 @@ func (r *StockRepository) GetAvailableStockBySKU(ctx context.Context, SKU models
 }
 
 // ReserveItems reserves the specified count of products in the provided array of items.
-func (r *StockRepository) ReserveItems(ctx context.Context, tx *pgx.Tx, items []models.Item) error {
+func (r *StockRepository) ReserveItems(ctx context.Context, tx pgx.Tx, items []models.Item) error {
 	// Validate input data
 	if err := r.validateItems(items); err != nil {
 		return err
@@ -72,7 +72,7 @@ func (r *StockRepository) ReserveItems(ctx context.Context, tx *pgx.Tx, items []
 	// Check transaction
 	var q sqlc.Querier
 	if tx != nil {
-		q = sqlc.New(*tx)
+		q = sqlc.New(tx)
 	} else {
 		q = r.queries
 	}
@@ -104,7 +104,7 @@ func (r *StockRepository) ReserveItems(ctx context.Context, tx *pgx.Tx, items []
 }
 
 // RemoveReservedItems removes reserved stock for product.
-func (r *StockRepository) RemoveReservedItems(ctx context.Context, tx *pgx.Tx, items []models.Item) error {
+func (r *StockRepository) RemoveReservedItems(ctx context.Context, tx pgx.Tx, items []models.Item) error {
 	// Validate input data
 	if err := r.validateItems(items); err != nil {
 		return err
@@ -113,7 +113,7 @@ func (r *StockRepository) RemoveReservedItems(ctx context.Context, tx *pgx.Tx, i
 	// Check transaction
 	var q sqlc.Querier
 	if tx != nil {
-		q = sqlc.New(*tx)
+		q = sqlc.New(tx)
 	} else {
 		q = r.queries
 	}
@@ -145,7 +145,7 @@ func (r *StockRepository) RemoveReservedItems(ctx context.Context, tx *pgx.Tx, i
 }
 
 // CancelReservedItems cancels reservation and makes the stock available again.
-func (r *StockRepository) CancelReservedItems(ctx context.Context, tx *pgx.Tx, items []models.Item) error {
+func (r *StockRepository) CancelReservedItems(ctx context.Context, tx pgx.Tx, items []models.Item) error {
 	// Validate input data
 	if err := r.validateItems(items); err != nil {
 		return err
@@ -154,7 +154,7 @@ func (r *StockRepository) CancelReservedItems(ctx context.Context, tx *pgx.Tx, i
 	// Check transaction
 	var q sqlc.Querier
 	if tx != nil {
-		q = sqlc.New(*tx)
+		q = sqlc.New(tx)
 	} else {
 		q = r.queries
 	}

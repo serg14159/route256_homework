@@ -25,7 +25,7 @@ func NewOrderRepository(conn *pgx.Conn) *OrderRepository {
 }
 
 // Create adds a new order to repository and returns unique orderID.
-func (r *OrderRepository) Create(ctx context.Context, tx *pgx.Tx, order models.Order) (models.OID, error) {
+func (r *OrderRepository) Create(ctx context.Context, tx pgx.Tx, order models.Order) (models.OID, error) {
 	// Validate input data
 	if err := validateOrder(order); err != nil {
 		return 0, err
@@ -34,7 +34,7 @@ func (r *OrderRepository) Create(ctx context.Context, tx *pgx.Tx, order models.O
 	// Check transaction
 	var q sqlc.Querier
 	if tx != nil {
-		q = sqlc.New(*tx)
+		q = sqlc.New(tx)
 	} else {
 		q = r.queries
 	}
@@ -63,7 +63,7 @@ func (r *OrderRepository) Create(ctx context.Context, tx *pgx.Tx, order models.O
 }
 
 // Function GetByID return order by orderID.
-func (r *OrderRepository) GetByID(ctx context.Context, tx *pgx.Tx, orderID models.OID) (models.Order, error) {
+func (r *OrderRepository) GetByID(ctx context.Context, tx pgx.Tx, orderID models.OID) (models.Order, error) {
 	// Validate input data
 	if orderID < 1 {
 		return models.Order{}, fmt.Errorf("orderID must be greater than zero: %w", internal_errors.ErrBadRequest)
@@ -72,7 +72,7 @@ func (r *OrderRepository) GetByID(ctx context.Context, tx *pgx.Tx, orderID model
 	// Check transaction
 	var q sqlc.Querier
 	if tx != nil {
-		q = sqlc.New(*tx)
+		q = sqlc.New(tx)
 	} else {
 		q = r.queries
 	}
@@ -106,7 +106,7 @@ func (r *OrderRepository) GetByID(ctx context.Context, tx *pgx.Tx, orderID model
 }
 
 // SetStatus updates the status of an existing order.
-func (r *OrderRepository) SetStatus(ctx context.Context, tx *pgx.Tx, orderID models.OID, status models.OrderStatus) error {
+func (r *OrderRepository) SetStatus(ctx context.Context, tx pgx.Tx, orderID models.OID, status models.OrderStatus) error {
 	// Validate input data
 	if orderID < 1 {
 		return fmt.Errorf("orderID must be greater than zero: %w", internal_errors.ErrBadRequest)
@@ -119,7 +119,7 @@ func (r *OrderRepository) SetStatus(ctx context.Context, tx *pgx.Tx, orderID mod
 	// Check transaction
 	var q sqlc.Querier
 	if tx != nil {
-		q = sqlc.New(*tx)
+		q = sqlc.New(tx)
 	} else {
 		q = r.queries
 	}

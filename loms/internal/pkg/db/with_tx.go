@@ -9,7 +9,7 @@ import (
 )
 
 // WithTxFunc type of function for performs a function inside a transaction
-type WithTxFunc func(ctx context.Context, tx *pgx.Tx) error
+type WithTxFunc func(ctx context.Context, tx pgx.Tx) error
 
 // TransactionManager
 type TransactionManager struct {
@@ -28,7 +28,7 @@ func (tm *TransactionManager) WithTx(ctx context.Context, fn service.WithTxFunc)
 		return fmt.Errorf("conn.Begin() err: %w", err)
 	}
 
-	if err := fn(ctx, &tx); err != nil {
+	if err := fn(ctx, tx); err != nil {
 		if rbErr := tx.Rollback(ctx); rbErr != nil {
 			return fmt.Errorf("tx.Rollback() err: %w", err)
 		}
