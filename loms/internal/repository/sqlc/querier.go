@@ -10,10 +10,10 @@ import (
 
 type Querier interface {
 	CancelReservedItems(ctx context.Context, arg *CancelReservedItemsParams) error
-	CreateOrder(ctx context.Context, arg *CreateOrderParams) (*Order, error)
+	CreateOrder(ctx context.Context, arg *CreateOrderParams) (*CreateOrderRow, error)
 	CreateOrderItem(ctx context.Context, arg *CreateOrderItemParams) (int64, error)
 	GetAvailableStockBySKU(ctx context.Context, sku int32) (int32, error)
-	GetOrderByID(ctx context.Context, id int64) (*Order, error)
+	GetOrderByID(ctx context.Context, id int64) (*GetOrderByIDRow, error)
 	GetOrderItems(ctx context.Context, orderID *int64) ([]*Item, error)
 	GetStockBySKU(ctx context.Context, sku int32) (*Stock, error)
 	RemoveReservedItems(ctx context.Context, arg *RemoveReservedItemsParams) error

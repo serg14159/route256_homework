@@ -42,7 +42,7 @@ func (r *OrderRepository) Create(ctx context.Context, tx pgx.Tx, order models.Or
 	// Create order
 	createdOrder, err := q.CreateOrder(ctx, &sqlc.CreateOrderParams{
 		UserID: order.UserID,
-		Status: string(order.Status),
+		Name:   string(order.Status),
 	})
 	if err != nil {
 		return 0, fmt.Errorf("failed to create order: %w", err)
@@ -126,8 +126,8 @@ func (r *OrderRepository) SetStatus(ctx context.Context, tx pgx.Tx, orderID mode
 
 	// Update order status
 	err := q.SetOrderStatus(ctx, &sqlc.SetOrderStatusParams{
-		ID:     orderID,
-		Status: string(status),
+		ID:   orderID,
+		Name: string(status),
 	})
 	if err != nil {
 		return fmt.Errorf("failed to set order status: %w", err)

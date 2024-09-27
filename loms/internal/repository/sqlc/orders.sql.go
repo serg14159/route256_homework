@@ -7,22 +7,31 @@ package sqlc
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createOrder = `-- name: CreateOrder :one
-INSERT INTO orders (user_id, status)
-VALUES ($1, $2)
-RETURNING id, user_id, status, created_at
+INSERT INTO orders (user_id, status_id)
+VALUES ($1, (SELECT id FROM statuses st WHERE st.name = $2))
+RETURNING id, user_id, (SELECT name FROM statuses st WHERE st.id = orders.status_id) AS status, created_at
 `
 
 type CreateOrderParams struct {
 	UserID int64
-	Status string
+	Name   string
 }
 
-func (q *Queries) CreateOrder(ctx context.Context, arg *CreateOrderParams) (*Order, error) {
-	row := q.db.QueryRow(ctx, createOrder, arg.UserID, arg.Status)
-	var i Order
+type CreateOrderRow struct {
+	ID        int64
+	UserID    int64
+	Status    string
+	CreatedAt pgtype.Timestamptz
+}
+
+func (q *Queries) CreateOrder(ctx context.Context, arg *CreateOrderParams) (*CreateOrderRow, error) {
+	row := q.db.QueryRow(ctx, createOrder, arg.UserID, arg.Name)
+	var i CreateOrderRow
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
@@ -52,14 +61,22 @@ func (q *Queries) CreateOrderItem(ctx context.Context, arg *CreateOrderItemParam
 }
 
 const getOrderByID = `-- name: GetOrderByID :one
-SELECT id, user_id, status, created_at
-FROM orders
-WHERE id = $1
+SELECT o.id, o.user_id, s.name AS status, o.created_at
+FROM orders o
+JOIN statuses s ON o.status_id = s.id
+WHERE o.id = $1
 `
 
-func (q *Queries) GetOrderByID(ctx context.Context, id int64) (*Order, error) {
+type GetOrderByIDRow struct {
+	ID        int64
+	UserID    int64
+	Status    string
+	CreatedAt pgtype.Timestamptz
+}
+
+func (q *Queries) GetOrderByID(ctx context.Context, id int64) (*GetOrderByIDRow, error) {
 	row := q.db.QueryRow(ctx, getOrderByID, id)
-	var i Order
+	var i GetOrderByIDRow
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
@@ -102,16 +119,16 @@ func (q *Queries) GetOrderItems(ctx context.Context, orderID *int64) ([]*Item, e
 
 const setOrderStatus = `-- name: SetOrderStatus :exec
 UPDATE orders
-SET status = $2
-WHERE id = $1
+SET status_id = (SELECT id FROM statuses st WHERE st.name = $2)
+WHERE orders.id = $1
 `
 
 type SetOrderStatusParams struct {
-	ID     int64
-	Status string
+	ID   int64
+	Name string
 }
 
 func (q *Queries) SetOrderStatus(ctx context.Context, arg *SetOrderStatusParams) error {
-	_, err := q.db.Exec(ctx, setOrderStatus, arg.ID, arg.Status)
+	_, err := q.db.Exec(ctx, setOrderStatus, arg.ID, arg.Name)
 	return err
 }

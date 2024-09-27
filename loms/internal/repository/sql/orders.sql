@@ -1,17 +1,19 @@
 -- name: CreateOrder :one
-INSERT INTO orders (user_id, status)
-VALUES ($1, $2)
-RETURNING id, user_id, status, created_at;
+INSERT INTO orders (user_id, status_id)
+VALUES ($1, (SELECT id FROM statuses st WHERE st.name = $2))
+RETURNING id, user_id, (SELECT name FROM statuses st WHERE st.id = orders.status_id) AS status, created_at;
+
 
 -- name: GetOrderByID :one
-SELECT id, user_id, status, created_at
-FROM orders
-WHERE id = $1;
+SELECT o.id, o.user_id, s.name AS status, o.created_at
+FROM orders o
+JOIN statuses s ON o.status_id = s.id
+WHERE o.id = $1;
 
 -- name: SetOrderStatus :exec
 UPDATE orders
-SET status = $2
-WHERE id = $1;
+SET status_id = (SELECT id FROM statuses st WHERE st.name = $2)
+WHERE orders.id = $1;
 
 -- name: CreateOrderItem :one
 INSERT INTO items (order_id, sku, count)

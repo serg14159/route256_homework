@@ -188,6 +188,14 @@ install-goose:
 	$(info Installing binary dependencies...)
 	GOBIN=$(LOCAL_BIN) go install github.com/pressly/goose/v3/cmd/goose@v3.22.1
 
+.PHONY: create_migration_create_statuses_table
+create_migration_create_statuses_table:
+	bin/goose -dir migrations create create_statuses_table sql
+
+.PHONY: create_migration_insert_initial_statuses_data
+create_migration_insert_initial_statuses_data:
+	bin/goose -dir migrations create insert_initial_statuses_data sql
+
 .PHONY: create_migration_create_orders_table
 create_migration_create_orders_table:
 	bin/goose -dir migrations create create_orders_table sql
@@ -211,3 +219,7 @@ migrations_up:
 .PHONY: migrations_down
 migrations_down:
 	bin/goose -dir migrations postgres "postgresql://user:password@127.0.0.1:5432/route256?sslmode=disable" down
+
+.PHONY: sqlc_generate
+sqlc_generate:
+	sqlc generate
