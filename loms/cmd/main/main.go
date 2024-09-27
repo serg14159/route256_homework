@@ -21,6 +21,7 @@ import (
 )
 
 func main() {
+	// Load environment
 	_ = godotenv.Load()
 
 	// Read flag

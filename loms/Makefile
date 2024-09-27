@@ -214,11 +214,16 @@ create_migration_insert_initial_stocks_data:
 
 .PHONY: migrations_up
 migrations_up:
-	bin/goose -dir migrations postgres "postgresql://user:password@127.0.0.1:5432/route256?sslmode=disable" up
+	bin/goose -dir migrations postgres "postgres://user:password@localhost:5434/postgres?sslmode=disable" up
 
 .PHONY: migrations_down
 migrations_down:
-	bin/goose -dir migrations postgres "postgresql://user:password@127.0.0.1:5432/route256?sslmode=disable" down
+	bin/goose -dir migrations postgres "postgres://user:password@localhost:5434/postgres?sslmode=disable" down
+
+.PHONY: migrate
+migrate:
+	go run cmd/migration/main.go
+
 
 .PHONY: sqlc_generate
 sqlc_generate:

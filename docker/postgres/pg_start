@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -Eeo pipefail
+
+chown postgres:postgres /var/lib/postgresql/data
+chmod 0700 /var/lib/postgresql/data
+
+/usr/local/bin/docker-entrypoint.sh postgres \
+    -c wal_level=replica \
+    -c hot_standby=on \
+    -c max_wal_senders=10 \
+    -c max_replication_slots=10 \
+    -c hot_standby_feedback=on \
+    -c listen_addresses='*' \
+    -c log_statement='all' \
+    -c log_connections=on \
+    -c log_disconnections=on \
+    -c log_duration=on
