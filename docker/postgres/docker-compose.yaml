@@ -94,6 +94,11 @@ services:
       - postgres_replica
     networks:
       - pg-network
+    healthcheck:
+      test: ["CMD", "/opt/bitnami/scripts/pgpool/healthcheck.sh"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 networks:
   pg-network:
