@@ -40,6 +40,8 @@ type TSuite struct {
 	lomsService *loms.Service
 }
 
+const DSN = "postgres://user:password@localhost:5434/postgres?sslmode=disable"
+
 // SetupSuite
 func (s *TSuite) SetupSuite() {
 	// Init bufconn listener
@@ -47,7 +49,7 @@ func (s *TSuite) SetupSuite() {
 
 	// DB connection
 	dbConn, err := db.NewConnect(context.Background(), &config.Database{
-		DSN: "postgres://user:password@localhost:5432/route256",
+		DSN: DSN,
 	})
 	require.NoError(s.T(), err)
 

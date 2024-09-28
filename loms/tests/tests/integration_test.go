@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	t_suite "route256/loms/test/suite"
+	t_suite "route256/loms/tests/suite"
 )
 
 func TestIntegrationSuite(t *testing.T) {
