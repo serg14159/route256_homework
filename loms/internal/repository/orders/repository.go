@@ -33,12 +33,7 @@ func (r *OrderRepository) Create(ctx context.Context, tx pgx.Tx, order models.Or
 	}
 
 	// Check transaction
-	var q sqlc.Querier
-	if tx != nil {
-		q = sqlc.New(tx)
-	} else {
-		q = r.queries
-	}
+	q := r.getQuerier(tx)
 
 	// Create order
 	createdOrder, err := q.CreateOrder(ctx, &sqlc.CreateOrderParams{
@@ -71,12 +66,7 @@ func (r *OrderRepository) GetByID(ctx context.Context, tx pgx.Tx, orderID models
 	}
 
 	// Check transaction
-	var q sqlc.Querier
-	if tx != nil {
-		q = sqlc.New(tx)
-	} else {
-		q = r.queries
-	}
+	q := r.getQuerier(tx)
 
 	// Get order
 	order, err := q.GetOrderByID(ctx, orderID)
@@ -118,12 +108,7 @@ func (r *OrderRepository) SetStatus(ctx context.Context, tx pgx.Tx, orderID mode
 	}
 
 	// Check transaction
-	var q sqlc.Querier
-	if tx != nil {
-		q = sqlc.New(tx)
-	} else {
-		q = r.queries
-	}
+	q := r.getQuerier(tx)
 
 	// Update order status
 	err := q.SetOrderStatus(ctx, &sqlc.SetOrderStatusParams{
@@ -168,4 +153,12 @@ func isValidOrderStatus(status models.OrderStatus) bool {
 	default:
 		return false
 	}
+}
+
+// getQuerier returns sqlc.Querier based on provided transaction.
+func (r *OrderRepository) getQuerier(tx pgx.Tx) sqlc.Querier {
+	if tx != nil {
+		return sqlc.New(tx)
+	}
+	return r.queries
 }

@@ -26,27 +26,6 @@ func NewStockRepository(pool *pgxpool.Pool) *StockRepository {
 	}
 }
 
-// validateSKU function for validate SKU.
-func (r *StockRepository) validateSKU(SKU models.SKU) error {
-	if SKU < 1 {
-		return fmt.Errorf("SKU must be greater than zero: %w", internal_errors.ErrBadRequest)
-	}
-	return nil
-}
-
-// validateItems function for validate items.
-func (r *StockRepository) validateItems(items []models.Item) error {
-	for _, item := range items {
-		if err := r.validateSKU(item.SKU); err != nil {
-			return err
-		}
-		if item.Count < 1 {
-			return fmt.Errorf("count must be greater than zero: %w", internal_errors.ErrBadRequest)
-		}
-	}
-	return nil
-}
-
 // GetAvailableStockBySKU returns the available stock for specified SKU.
 func (r *StockRepository) GetAvailableStockBySKU(ctx context.Context, SKU models.SKU) (uint64, error) {
 	// Validate input data
@@ -71,12 +50,7 @@ func (r *StockRepository) ReserveItems(ctx context.Context, tx pgx.Tx, items []m
 	}
 
 	// Check transaction
-	var q sqlc.Querier
-	if tx != nil {
-		q = sqlc.New(tx)
-	} else {
-		q = r.queries
-	}
+	q := r.getQuerier(tx)
 
 	// Reserve
 	for _, item := range items {
@@ -112,12 +86,7 @@ func (r *StockRepository) RemoveReservedItems(ctx context.Context, tx pgx.Tx, it
 	}
 
 	// Check transaction
-	var q sqlc.Querier
-	if tx != nil {
-		q = sqlc.New(tx)
-	} else {
-		q = r.queries
-	}
+	q := r.getQuerier(tx)
 
 	// Remove reserved items
 	for _, item := range items {
@@ -153,12 +122,7 @@ func (r *StockRepository) CancelReservedItems(ctx context.Context, tx pgx.Tx, it
 	}
 
 	// Check transaction
-	var q sqlc.Querier
-	if tx != nil {
-		q = sqlc.New(tx)
-	} else {
-		q = r.queries
-	}
+	q := r.getQuerier(tx)
 
 	// Cancel reserved items
 	for _, item := range items {
@@ -184,4 +148,33 @@ func (r *StockRepository) CancelReservedItems(ctx context.Context, tx pgx.Tx, it
 	}
 
 	return nil
+}
+
+// validateSKU function for validate SKU.
+func (r *StockRepository) validateSKU(SKU models.SKU) error {
+	if SKU < 1 {
+		return fmt.Errorf("SKU must be greater than zero: %w", internal_errors.ErrBadRequest)
+	}
+	return nil
+}
+
+// validateItems function for validate items.
+func (r *StockRepository) validateItems(items []models.Item) error {
+	for _, item := range items {
+		if err := r.validateSKU(item.SKU); err != nil {
+			return err
+		}
+		if item.Count < 1 {
+			return fmt.Errorf("count must be greater than zero: %w", internal_errors.ErrBadRequest)
+		}
+	}
+	return nil
+}
+
+// getQuerier returns sqlc.Querier based on provided transaction.
+func (r *StockRepository) getQuerier(tx pgx.Tx) sqlc.Querier {
+	if tx != nil {
+		return sqlc.New(tx)
+	}
+	return r.queries
 }
