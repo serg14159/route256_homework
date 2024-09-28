@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Config interface {
@@ -12,18 +12,18 @@ type Config interface {
 }
 
 // NewConnect create new connection to DB.
-func NewConnect(ctx context.Context, cfg Config) (*pgx.Conn, error) {
-	conn, err := pgx.Connect(ctx, cfg.GetDSN())
+func NewConnect(ctx context.Context, cfg Config) (*pgxpool.Pool, error) {
+	pool, err := pgxpool.New(ctx, cfg.GetDSN())
 	if err != nil {
-		return nil, fmt.Errorf("pgx.Connect() err: %w", err)
+		return nil, fmt.Errorf("pgxpool.New() err: %w", err)
 	}
 
-	// Check connect
-	err = conn.Ping(ctx)
+	// Проверка соединения
+	err = pool.Ping(ctx)
 	if err != nil {
-		conn.Close(ctx)
-		return nil, fmt.Errorf("conn.Ping() err: %w", err)
+		pool.Close()
+		return nil, fmt.Errorf("pool.Ping() err: %w", err)
 	}
 
-	return conn, nil
+	return pool, nil
 }

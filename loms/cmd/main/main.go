@@ -47,21 +47,21 @@ func main() {
 
 	// DB connect
 	ctx := context.Background()
-	conn, err := db.NewConnect(ctx, &cfg.Database)
+	pool, err := db.NewConnect(ctx, &cfg.Database)
 	if err != nil {
 		log.Printf("Failed connect to database, err:%s", err)
 		os.Exit(1)
 	}
-	defer conn.Close(ctx)
+	defer pool.Close()
 
 	// TxManager
-	txManager := db.NewTransactionManager(conn)
+	txManager := db.NewTransactionManager(pool)
 
 	// Repository order
-	repoOrder := repo_order.NewOrderRepository(conn)
+	repoOrder := repo_order.NewOrderRepository(pool)
 
 	// Repository stocks
-	repoStocks := repo_stocks.NewStockRepository(conn)
+	repoStocks := repo_stocks.NewStockRepository(pool)
 
 	// Loms usecase
 	lomsUsecaseService := loms_usecase.NewService(repoOrder, repoStocks, txManager)

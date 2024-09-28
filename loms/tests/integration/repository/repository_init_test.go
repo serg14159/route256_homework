@@ -10,23 +10,24 @@ import (
 	"route256/loms/tests/integration/repository/migrations"
 
 	_ "github.com/jackc/pgx/v4/stdlib"
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/pressly/goose/v3"
 )
 
-var connTests *pgx.Conn
+var connTests *pgxpool.Pool
 
 const DSN = "postgres://user:password@localhost:5434/postgres_test?sslmode=disable"
 
 func TestMain(m *testing.M) {
 	// DB connect for tests
 	ctx := context.Background()
-	conn, err := pgx.Connect(ctx, DSN)
+
+	pool, err := pgxpool.New(ctx, DSN)
 	if err != nil {
 		panic(err)
 	}
-	connTests = conn
-	defer connTests.Close(ctx)
+	connTests = pool
+	defer connTests.Close()
 
 	// DB connect for goose
 	connGoose, err := sql.Open("pgx", DSN)

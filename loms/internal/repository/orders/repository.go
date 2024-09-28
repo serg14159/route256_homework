@@ -8,19 +8,20 @@ import (
 	"route256/loms/internal/repository/sqlc"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // OrderRepository
 type OrderRepository struct {
 	queries sqlc.Querier
-	conn    *pgx.Conn
+	pool    *pgxpool.Pool
 }
 
 // Function NewOrderRepository creates a new instance of OrderRepository.
-func NewOrderRepository(conn *pgx.Conn) *OrderRepository {
+func NewOrderRepository(pool *pgxpool.Pool) *OrderRepository {
 	return &OrderRepository{
-		queries: sqlc.New(conn),
-		conn:    conn,
+		queries: sqlc.New(pool),
+		pool:    pool,
 	}
 }
 
