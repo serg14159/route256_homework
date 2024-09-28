@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Function for tests the DeleteItem method of repository.
+// TestRepository_DeleteItem function for tests the DeleteItem method of repository.
 func TestRepository_DeleteItem(t *testing.T) {
 	// Init test data
 	tests := []struct {

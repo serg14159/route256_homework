@@ -9,7 +9,7 @@ import (
 	pb "route256/loms/pkg/api/loms/v1"
 )
 
-// Function OrderInfo implements the GRPC OrderInfo method.
+// OrderInfo implements the GRPC OrderInfo method.
 func (s *Service) OrderInfo(ctx context.Context, req *pb.OrderInfoRequest) (*pb.OrderInfoResponse, error) {
 	orderInfoRequest, err := toModelOrderInfoRequest(req)
 	if err != nil {
@@ -23,6 +23,7 @@ func (s *Service) OrderInfo(ctx context.Context, req *pb.OrderInfoRequest) (*pb.
 	return toPbOrderInfoResponse(orderInfoResponse), nil
 }
 
+// toModelOrderInfoRequest convert request.
 func toModelOrderInfoRequest(req *pb.OrderInfoRequest) (*models.OrderInfoRequest, error) {
 	if req == nil {
 		return nil, fmt.Errorf("invalid input data: %w", internal_errors.ErrBadRequest)
@@ -33,6 +34,7 @@ func toModelOrderInfoRequest(req *pb.OrderInfoRequest) (*models.OrderInfoRequest
 	}, nil
 }
 
+// toPbOrderInfoResponse convert response.
 func toPbOrderInfoResponse(res *models.OrderInfoResponse) *pb.OrderInfoResponse {
 	if res == nil {
 		return &pb.OrderInfoResponse{}

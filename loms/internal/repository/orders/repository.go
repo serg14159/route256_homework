@@ -11,13 +11,13 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// OrderRepository
+// OrderRepository.
 type OrderRepository struct {
 	queries sqlc.Querier
 	pool    *pgxpool.Pool
 }
 
-// Function NewOrderRepository creates a new instance of OrderRepository.
+// NewOrderRepository creates a new instance of OrderRepository.
 func NewOrderRepository(pool *pgxpool.Pool) *OrderRepository {
 	return &OrderRepository{
 		queries: sqlc.New(pool),
@@ -63,7 +63,7 @@ func (r *OrderRepository) Create(ctx context.Context, tx pgx.Tx, order models.Or
 	return models.OID(createdOrder.ID), nil
 }
 
-// Function GetByID return order by orderID.
+// GetByID return order by orderID.
 func (r *OrderRepository) GetByID(ctx context.Context, tx pgx.Tx, orderID models.OID) (models.Order, error) {
 	// Validate input data
 	if orderID < 1 {

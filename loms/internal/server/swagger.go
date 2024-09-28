@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-// Function for create swagger server.
+// createSwaggerServer create swagger server.
 func createSwaggerServer(gatewayAddr, swaggerAddr, swaggerPath string, swaggerDir string) (*http.Server, error) {
 	originalSwagger, err := os.ReadFile(swaggerPath)
 	if err != nil {
@@ -53,6 +53,7 @@ func createSwaggerServer(gatewayAddr, swaggerAddr, swaggerPath string, swaggerDi
 	return gatewayServer, nil
 }
 
+// injectHost
 func injectHost(swaggerBytes []byte, host string) ([]byte, error) {
 	parsedSwagger := map[string]interface{}{}
 	err := json.Unmarshal(swaggerBytes, &parsedSwagger)

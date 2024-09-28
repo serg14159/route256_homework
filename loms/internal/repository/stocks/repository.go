@@ -47,7 +47,7 @@ func (r *StockRepository) validateItems(items []models.Item) error {
 	return nil
 }
 
-// Function GetAvailableStockBySKU returns the available stock for specified SKU.
+// GetAvailableStockBySKU returns the available stock for specified SKU.
 func (r *StockRepository) GetAvailableStockBySKU(ctx context.Context, SKU models.SKU) (uint64, error) {
 	// Validate input data
 	if err := r.validateSKU(SKU); err != nil {

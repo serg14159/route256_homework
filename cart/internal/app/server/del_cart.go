@@ -5,7 +5,7 @@ import (
 	"strconv"
 )
 
-// Function handler for delete user cart.
+// DelCart handler for delete user cart.
 func (s *Server) DelCart(w http.ResponseWriter, r *http.Request) {
 	rawUID := r.PathValue("user_id")
 	UID, err := strconv.ParseInt(rawUID, 10, 64)

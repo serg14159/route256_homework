@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Function for tests the OrderCancel method of LomsService.
+// Test function for StocksInfo method of LomsService.
 func TestLomsService_StocksInfo_Table(t *testing.T) {
 	tests := []struct {
 		name          string

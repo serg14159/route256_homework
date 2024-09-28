@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Test function for tests the OrderCreate method of LomsService.
+// Test function for OrderCreate method of LomsService.
 func TestLomsService_OrderCreate_Table(t *testing.T) {
 	tests := []struct {
 		name          string

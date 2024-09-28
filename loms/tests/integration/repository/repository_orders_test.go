@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Test for CreateOrder
+// Test for CreateOrder.
 func TestCreateOrder(t *testing.T) {
 	orderRepo := ordersRepository.NewOrderRepository(connTests)
 
@@ -27,7 +27,7 @@ func TestCreateOrder(t *testing.T) {
 	require.Greater(t, orderID, int64(0))
 }
 
-// Test for GetOrderByID
+// Test for GetOrderByID.
 func TestGetOrderByID(t *testing.T) {
 	orderRepo := ordersRepository.NewOrderRepository(connTests)
 
@@ -41,7 +41,7 @@ func TestGetOrderByID(t *testing.T) {
 	require.Equal(t, order.Items[0].SKU, models.SKU(1))
 }
 
-// Test for SetOrderStatus
+// Test for SetOrderStatus.
 func TestSetOrderStatus(t *testing.T) {
 	orderRepo := ordersRepository.NewOrderRepository(connTests)
 

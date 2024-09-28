@@ -51,7 +51,7 @@ type GetCartResponse struct {
 	TotalPrice uint32             `json:"total_price"`
 }
 
-// Checkout
+// Checkout.
 type CheckoutRequest struct {
 	User int64 `json:"user"`
 }

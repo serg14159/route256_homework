@@ -19,7 +19,7 @@ func NewLomsClient(conn *grpc.ClientConn) *LomsClient {
 	}
 }
 
-// Function OrderCreate create order with items for user.
+// OrderCreate create order with items for user.
 func (c *LomsClient) OrderCreate(ctx context.Context, user int64, items []models.CartItem) (int64, error) {
 	lomsItems := make([]*loms.Item, 0, len(items))
 	for _, item := range items {
@@ -40,7 +40,7 @@ func (c *LomsClient) OrderCreate(ctx context.Context, user int64, items []models
 	return res.OrderID, nil
 }
 
-// Function StocksInfo requests information about available stocks for specified SKU.
+// StocksInfo requests information about available stocks for specified SKU.
 func (c *LomsClient) StocksInfo(ctx context.Context, SKU models.SKU) (int64, error) {
 	req := &loms.StocksInfoRequest{
 		Sku: uint32(SKU),

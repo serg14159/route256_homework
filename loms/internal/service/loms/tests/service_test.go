@@ -12,16 +12,7 @@ import (
 
 var ErrRepository = errors.New("repository error")
 
-// Custom matcher function for any context and transaction.
-// func MockAnyContext() context.Context {
-// 	return context.Background()
-// }
-
-// func MockAnyTx() *mock.TxMock {
-// 	return mock.NewTxMock(minimock.NewController(nil))
-// }
-
-// Function for setup initializes the mocks and the CartService for the tests.
+// setup function for setup initializes the mocks and the CartService for the tests.
 func setup(t *testing.T) (*mock.IOrderRepositoryMock, *mock.IStockRepositoryMock, *mock.ITxManagerMock, *service.LomsService) {
 	ctrl := minimock.NewController(t)
 

@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestRepository_GetItemsByUserID function for tests the GetItemsByUserID method of repository.
 func TestRepository_GetItemsByUserID(t *testing.T) {
 	// Init test data
 	tests := []struct {

@@ -8,7 +8,7 @@ import (
 	pb "route256/loms/pkg/api/loms/v1"
 )
 
-// Function OrderCancel implements the gRPC OrderCancel method.
+// OrderCancel implements the gRPC OrderCancel method.
 func (s *Service) OrderCancel(ctx context.Context, req *pb.OrderCancelRequest) (*pb.OrderCancelResponse, error) {
 	log.Printf("OrderCancel called with OrderID: %d", req.OrderID)
 	defer log.Printf("OrderCancel finished with OrderID: %d", req.OrderID)

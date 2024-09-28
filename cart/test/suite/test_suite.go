@@ -57,7 +57,7 @@ type TSuite struct {
 	cancelFunc     context.CancelFunc
 }
 
-// Function SetupTest.
+// SetupTest.
 func (s *TSuite) SetupTest() {
 	// Repository
 	s.repo = repository.NewCartRepository()
@@ -94,7 +94,7 @@ func (s *TSuite) SetupTest() {
 	s.serverURL = "http://" + cfg.GetHost() + ":" + cfg.GetPort()
 }
 
-// Function TearDownTest stop server after test.
+// TearDownTest stop server after test.
 func (s *TSuite) TearDownTest() {
 	// Stop server.
 	s.cancelFunc()
@@ -104,7 +104,7 @@ func (s *TSuite) TearDownTest() {
 	require.NoError(s.T(), err)
 }
 
-// Function TestDeleteProductFromCart.
+// TestDeleteProductFromCart.
 func (s *TSuite) TestDeleteProductFromCart() {
 	ctx := context.Background()
 	// Add item to cart
@@ -131,7 +131,7 @@ func (s *TSuite) TestDeleteProductFromCart() {
 	require.True(s.T(), errors.Is(err, internal_errors.ErrNotFound), "error not ErrNotFound")
 }
 
-// Function TestGetCart
+// TestGetCart
 func (s *TSuite) TestGetCart() {
 	// Add item to cart
 	UID := models.UID(31337)

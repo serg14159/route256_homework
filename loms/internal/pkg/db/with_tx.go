@@ -9,7 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// WithTxFunc type of function for performs a function inside a transaction
+// WithTxFunc type of function for performs a function inside a transaction.
 type WithTxFunc func(ctx context.Context, tx pgx.Tx) error
 
 // TransactionManager

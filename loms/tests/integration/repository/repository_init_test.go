@@ -18,6 +18,7 @@ var connTests *pgxpool.Pool
 
 const DSN = "postgres://user:password@localhost:5434/postgres_test?sslmode=disable"
 
+// TestMain
 func TestMain(m *testing.M) {
 	// DB connect for tests
 	ctx := context.Background()

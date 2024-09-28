@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Function for tests the GetCart method of CartService.
+// TestCartService_GetCart_Table function for tests the GetCart method of CartService.
 func TestCartService_GetCart_Table(t *testing.T) {
 	tests := []struct {
 		name          string

@@ -17,7 +17,7 @@ type RetryMiddleware struct {
 	MaxRetries int
 }
 
-// Function for retry request.
+// RoundTrip function for retry request.
 func (r *RetryMiddleware) RoundTrip(req *http.Request) (*http.Response, error) {
 	if r.Transport == nil {
 		r.Transport = http.DefaultTransport

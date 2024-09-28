@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Test for OrderInfo method of LomsService.
+// Test function for OrderInfo method of LomsService.
 func TestLomsService_OrderInfo_Table(t *testing.T) {
 	tests := []struct {
 		name          string

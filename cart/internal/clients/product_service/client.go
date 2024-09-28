@@ -24,7 +24,7 @@ type Client struct {
 	cfg    IConfig
 }
 
-// Function for creates a new client.
+// NewClient function for creates a new client.
 func NewClient(cfg IConfig) *Client {
 	return &Client{
 		cfg: cfg,
@@ -37,7 +37,7 @@ func NewClient(cfg IConfig) *Client {
 	}
 }
 
-// Function for executes a request to the Product Service using a client with retries.
+// GetProduct function for executes a request to the Product Service using a client with retries.
 func (c *Client) GetProduct(ctx context.Context, SKU models.SKU) (*models.GetProductResponse, error) {
 	reqBody := models.GetProductRequest{
 		Token: c.cfg.GetToken(),

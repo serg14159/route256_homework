@@ -7,7 +7,7 @@ import (
 	internal_errors "route256/loms/internal/pkg/errors"
 )
 
-// Function StocksInfo.
+// StocksInfo function.
 func (s *LomsService) StocksInfo(ctx context.Context, req *models.StocksInfoRequest) (*models.StocksInfoResponse, error) {
 	// Validate input data
 	if req.SKU < 1 {

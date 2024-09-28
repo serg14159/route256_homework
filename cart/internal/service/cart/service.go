@@ -29,6 +29,7 @@ type CartService struct {
 	lomsService    ILomsService
 }
 
+// NewService return instance of CartService.
 func NewService(repository ICartRepository, productService IProductService, lomsService ILomsService) *CartService {
 	return &CartService{
 		repository:     repository,
@@ -37,7 +38,7 @@ func NewService(repository ICartRepository, productService IProductService, loms
 	}
 }
 
-// Function for add product into cart.
+// AddProduct function for add product into cart.
 func (s *CartService) AddProduct(ctx context.Context, UID models.UID, SKU models.SKU, Count uint16) error {
 	if UID < 1 || SKU < 1 || Count < 1 {
 		return fmt.Errorf("UID, SKU and Count must be greater than zero: %w", internal_errors.ErrBadRequest)
@@ -70,7 +71,7 @@ func (s *CartService) AddProduct(ctx context.Context, UID models.UID, SKU models
 	return nil
 }
 
-// Function for delete product from cart.
+// DelProduct function for delete product from cart.
 func (s *CartService) DelProduct(ctx context.Context, UID models.UID, SKU models.SKU) error {
 	if UID < 1 || SKU < 1 {
 		return fmt.Errorf("UID and SKU must be greater than zero: %w", internal_errors.ErrBadRequest)
@@ -84,7 +85,7 @@ func (s *CartService) DelProduct(ctx context.Context, UID models.UID, SKU models
 	return nil
 }
 
-// Function for delete user cart.
+// DelCart function for delete user cart.
 func (s *CartService) DelCart(ctx context.Context, UID models.UID) error {
 	if UID < 1 {
 		return fmt.Errorf("UID must be greater than zero: %w", internal_errors.ErrBadRequest)
@@ -98,7 +99,7 @@ func (s *CartService) DelCart(ctx context.Context, UID models.UID) error {
 	return nil
 }
 
-// Function for get user cart.
+// GetCart function for get user cart.
 func (s *CartService) GetCart(ctx context.Context, UID models.UID) ([]models.CartItemResponse, uint32, error) {
 	if UID < 1 {
 		return nil, 0, fmt.Errorf("UID must be greater than zero: %w", internal_errors.ErrBadRequest)
@@ -130,6 +131,7 @@ func (s *CartService) GetCart(ctx context.Context, UID models.UID) ([]models.Car
 	return items, totalPrice, nil
 }
 
+// Checkout function for create order.
 func (s *CartService) Checkout(ctx context.Context, UID models.UID) (int64, error) {
 	cartItems, err := s.repository.GetItemsByUserID(ctx, UID)
 	if err != nil {

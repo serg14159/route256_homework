@@ -11,7 +11,7 @@ import (
 
 var ErrRepository = errors.New("repository error")
 
-// Function for setup initializes the mocks and the CartService for the tests.
+// setup function for setup initializes the mocks and the CartService for the tests.
 func setup(t *testing.T) (*mock.ICartRepositoryMock, *mock.IProductServiceMock, *mock.ILomsServiceMock, *CartService) {
 	ctrl := minimock.NewController(t)
 

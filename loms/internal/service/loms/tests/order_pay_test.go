@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Test for OrderPay method of LomsService.
+// Test function for OrderPay method of LomsService.
 func TestLomsService_OrderPay_Table(t *testing.T) {
 	tests := []struct {
 		name          string

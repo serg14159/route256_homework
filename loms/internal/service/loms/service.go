@@ -32,6 +32,7 @@ type LomsService struct {
 	txManager       ITxManager
 }
 
+// NewService return instance of LomsService.
 func NewService(orderRepository IOrderRepository, stockRepository IStockRepository, txManager ITxManager) *LomsService {
 	return &LomsService{
 		orderRepository: orderRepository,

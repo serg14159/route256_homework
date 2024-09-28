@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Test for GetAvailableStockBySKU
+// Test for GetAvailableStockBySKU.
 func TestGetAvailableStockBySKU(t *testing.T) {
 	stockRepo := repository.NewStockRepository(connTests)
 
@@ -19,7 +19,7 @@ func TestGetAvailableStockBySKU(t *testing.T) {
 	require.Equal(t, uint64(90), availableStock)
 }
 
-// Test for ReserveItems
+// Test for ReserveItems.
 func TestReserveItems(t *testing.T) {
 	stockRepo := repository.NewStockRepository(connTests)
 
@@ -44,7 +44,7 @@ func TestReserveItems(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// Test for RemoveReservedItems
+// Test for RemoveReservedItems.
 func TestRemoveReservedItems(t *testing.T) {
 	stockRepo := repository.NewStockRepository(connTests)
 
@@ -69,7 +69,7 @@ func TestRemoveReservedItems(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// Test for CancelReservedItems
+// Test for CancelReservedItems.
 func TestCancelReservedItems(t *testing.T) {
 	stockRepo := repository.NewStockRepository(connTests)
 

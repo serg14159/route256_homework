@@ -12,7 +12,7 @@ const (
 	numItems = 1000000
 )
 
-// Function BenchmarkAddItem measures performance AddItem method.
+// BenchmarkAddItem measures performance AddItem method.
 func BenchmarkAddItem(b *testing.B) {
 	repo := NewCartRepository()
 
@@ -27,7 +27,7 @@ func BenchmarkAddItem(b *testing.B) {
 	}
 }
 
-// Function BenchmarkDeleteItem measures performance DeleteItem method.
+// BenchmarkDeleteItem measures performance DeleteItem method.
 func BenchmarkDeleteItem(b *testing.B) {
 	repo := NewCartRepository()
 	for i := 0; i < numItems; i++ {
@@ -46,7 +46,7 @@ func BenchmarkDeleteItem(b *testing.B) {
 	}
 }
 
-// Function BenchmarkGetItemsByUserID measures performance GetItemsByUserID method.
+// BenchmarkGetItemsByUserID measures performance GetItemsByUserID method.
 func BenchmarkGetItemsByUserID(b *testing.B) {
 	repo := NewCartRepository()
 	for i := 0; i < numItems; i++ {
@@ -65,7 +65,7 @@ func BenchmarkGetItemsByUserID(b *testing.B) {
 	}
 }
 
-// Function BenchmarkDeleteItemsByUserID measures performance DeleteItemsByUserID method.
+// BenchmarkDeleteItemsByUserID measures performance DeleteItemsByUserID method.
 func BenchmarkDeleteItemsByUserID(b *testing.B) {
 	repo := NewCartRepository()
 	for i := 0; i < numItems; i++ {
