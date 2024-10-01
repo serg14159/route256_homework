@@ -4,8 +4,12 @@ import (
 	"context"
 	"fmt"
 	"route256/cart/internal/models"
+	"route256/cart/internal/pkg/errgroup"
 	internal_errors "route256/cart/internal/pkg/errors"
+	"sync"
 )
+
+const getCartGoroutineLimit = 10
 
 type ICartRepository interface {
 	AddItem(ctx context.Context, UID models.UID, item models.CartItem) error
@@ -110,22 +114,44 @@ func (s *CartService) GetCart(ctx context.Context, UID models.UID) ([]models.Car
 		return nil, 0, err
 	}
 
-	var items []models.CartItemResponse
-	var totalPrice uint32
+	var (
+		items      = make([]models.CartItemResponse, len(cartItems))
+		totalPrice uint32
+		mu         sync.Mutex
+	)
 
-	for _, item := range cartItems {
-		product, err := s.productService.GetProduct(ctx, item.SKU)
-		if err != nil {
-			return nil, 0, fmt.Errorf("get product err: %w", err)
-		}
+	sem := make(chan struct{}, getCartGoroutineLimit)
 
-		items = append(items, models.CartItemResponse{
-			SKU:   item.SKU,
-			Name:  product.Name,
-			Count: item.Count,
-			Price: product.Price,
+	g, ctx := errgroup.WithContext(ctx)
+
+	for i, item := range cartItems {
+		i, item := i, item
+
+		sem <- struct{}{}
+
+		g.Go(func() error {
+			defer func() { <-sem }()
+
+			product, err := s.productService.GetProduct(ctx, item.SKU)
+			if err != nil {
+				return err
+			}
+
+			items[i] = models.CartItemResponse{
+				SKU:   item.SKU,
+				Name:  product.Name,
+				Count: item.Count,
+				Price: product.Price,
+			}
+			mu.Lock()
+			totalPrice += uint32(item.Count) * product.Price
+			mu.Unlock()
+			return nil
 		})
-		totalPrice += uint32(item.Count) * product.Price
+	}
+
+	if err := g.Wait(); err != nil {
+		return nil, 0, err
 	}
 
 	return items, totalPrice, nil

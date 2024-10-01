@@ -4,14 +4,61 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"route256/cart/internal/http/client_middleware"
 	"route256/cart/internal/models"
+	"sync"
+	"time"
 
 	internal_errors "route256/cart/internal/pkg/errors"
 )
+
+const (
+	RateLimiterTokens   = 10
+	RateLimiterInterval = time.Second
+)
+
+type RateLimiter struct {
+	tokens chan struct{}
+	mu     sync.Mutex
+}
+
+func NewRateLimiter(rate int, interval time.Duration) *RateLimiter {
+	rl := &RateLimiter{
+		tokens: make(chan struct{}, rate),
+	}
+
+	ticker := time.NewTicker(interval)
+	go func() {
+		defer ticker.Stop()
+		for range ticker.C {
+			rl.mu.Lock()
+		loop:
+			for i := 0; i < rate; i++ {
+				select {
+				case rl.tokens <- struct{}{}:
+				default:
+					break loop
+				}
+			}
+			rl.mu.Unlock()
+		}
+	}()
+
+	return rl
+}
+
+func (rl *RateLimiter) Wait(ctx context.Context) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-rl.tokens:
+		return nil
+	}
+}
 
 type IConfig interface {
 	GetURI() string
@@ -20,12 +67,14 @@ type IConfig interface {
 }
 
 type Client struct {
-	client *http.Client
-	cfg    IConfig
+	client      *http.Client
+	cfg         IConfig
+	rateLimiter *RateLimiter
 }
 
 // NewClient function for creates a new client.
 func NewClient(cfg IConfig) *Client {
+	rateLimiter := NewRateLimiter(RateLimiterTokens, RateLimiterInterval)
 	return &Client{
 		cfg: cfg,
 		client: &http.Client{
@@ -34,11 +83,16 @@ func NewClient(cfg IConfig) *Client {
 				Transport:  http.DefaultTransport,
 			},
 		},
+		rateLimiter: rateLimiter,
 	}
 }
 
 // GetProduct function for executes a request to the Product Service using a client with retries.
 func (c *Client) GetProduct(ctx context.Context, SKU models.SKU) (*models.GetProductResponse, error) {
+	if err := c.rateLimiter.Wait(ctx); err != nil {
+		return nil, err
+	}
+
 	reqBody := models.GetProductRequest{
 		Token: c.cfg.GetToken(),
 		SKU:   uint32(SKU),
@@ -51,7 +105,7 @@ func (c *Client) GetProduct(ctx context.Context, SKU models.SKU) (*models.GetPro
 
 	uri := c.cfg.GetURI() + "/get_product"
 
-	req, err := http.NewRequest("POST", uri, bytes.NewBuffer(jsonData))
+	req, err := http.NewRequestWithContext(ctx, "POST", uri, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w, %w", err, internal_errors.ErrInternalServerError)
 	}
@@ -60,6 +114,9 @@ func (c *Client) GetProduct(ctx context.Context, SKU models.SKU) (*models.GetPro
 
 	resp, err := c.client.Do(req)
 	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			return nil, fmt.Errorf("request canceled: %w", err)
+		}
 		return nil, err
 	}
 	defer resp.Body.Close()
