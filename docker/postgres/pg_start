@@ -3,9 +3,13 @@ set -Eeo pipefail
 
 chown postgres:postgres /var/lib/postgresql/data
 chmod 0700 /var/lib/postgresql/data
+chown -R postgres:postgres /archive
 
+echo "Starting PostgreSQL without synchronous replication..."
 /usr/local/bin/docker-entrypoint.sh postgres \
     -c wal_level=replica \
+    -c archive_mode=on \
+    -c archive_command='test ! -f /archive/%f && cp %p /archive/%f' \
     -c hot_standby=on \
     -c max_wal_senders=10 \
     -c max_replication_slots=10 \
@@ -14,4 +18,30 @@ chmod 0700 /var/lib/postgresql/data
     -c log_statement='all' \
     -c log_connections=on \
     -c log_disconnections=on \
-    -c log_duration=on
+    -c log_duration=on \
+    -c synchronous_commit=off
+
+echo "Waiting for PostgreSQL to be ready..."
+until pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"; do
+  sleep 1
+done
+
+echo "Restarting PostgreSQL with synchronous replication enabled..."
+pg_ctl stop -m fast
+/usr/local/bin/docker-entrypoint.sh postgres \
+    -c wal_level=replica \
+    -c archive_mode=on \
+    -c archive_command='test ! -f /archive/%f && cp %p /archive/%f' \
+    -c hot_standby=on \
+    -c max_wal_senders=10 \
+    -c max_replication_slots=10 \
+    -c hot_standby_feedback=on \
+    -c listen_addresses='*' \
+    -c log_statement='all' \
+    -c log_connections=on \
+    -c log_disconnections=on \
+    -c log_duration=on \
+    -c synchronous_commit=on \
+    -c synchronous_standby_names='*'
+
+echo "PostgreSQL is running with synchronous replication."
