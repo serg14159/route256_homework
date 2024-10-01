@@ -11,4 +11,5 @@ var (
 	ErrInternalServerError = errors.New("internal server error")
 
 	ErrInvalidOrderStatus = errors.New("invalid order status")
+	ErrStockReservation   = errors.New("stock reservation failed")
 )

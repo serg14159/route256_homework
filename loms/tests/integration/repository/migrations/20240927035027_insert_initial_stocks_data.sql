@@ -12,5 +12,5 @@ INSERT INTO stocks (sku, total_count, reserved) VALUES
 
 -- +goose Down
 -- +goose StatementBegin
---DELETE FROM stocks WHERE sku IN (1076963, 1148162, 773297411, 1002, 1003, 1004, 1005);
+DELETE FROM stocks WHERE sku IN (1076963, 1148162, 773297411, 1002, 1003, 1004, 1005);
 -- +goose StatementEnd

@@ -6,5 +6,5 @@ VALUES (1, 1, 5);
 
 -- +goose Down
 -- +goose StatementBegin
---DELETE FROM items WHERE order_id IN 1;
+DELETE FROM items WHERE order_id IN (1);
 -- +goose StatementEnd

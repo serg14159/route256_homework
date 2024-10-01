@@ -7,5 +7,5 @@ INSERT INTO stocks (sku, total_count, reserved) VALUES
 
 -- +goose Down
 -- +goose StatementBegin
---DELETE FROM stocks WHERE sku IN (1, 2);
+DELETE FROM stocks WHERE sku IN (1, 2);
 -- +goose StatementEnd

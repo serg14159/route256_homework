@@ -17,29 +17,33 @@ import (
 // Test function for OrderCreate method of LomsService.
 func TestLomsService_OrderCreate_Table(t *testing.T) {
 	tests := []struct {
-		name          string
-		req           *models.OrderCreateRequest
-		setupMocks    func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, txManagerMock *mock.ITxManagerMock, txMock *mock.TxMock, req *models.OrderCreateRequest)
+		name       string
+		req        *models.OrderCreateRequest
+		setupMocks func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock,
+			txManagerMock *mock.ITxManagerMock, txMock *mock.TxMock, req *models.OrderCreateRequest)
 		expectedResp  *models.OrderCreateResponse
 		expectedErr   error
 		errorContains string
 	}{
 		{
-			name: "successful create order",
+			name: "successful order creation",
 			req: &models.OrderCreateRequest{
 				User: 1,
 				Items: []models.Item{
 					{SKU: 1001, Count: 2},
 				},
 			},
-			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, txManagerMock *mock.ITxManagerMock, txMock *mock.TxMock, req *models.OrderCreateRequest) {
+			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock,
+				stockRepoMock *mock.IStockRepositoryMock, txManagerMock *mock.ITxManagerMock,
+				txMock *mock.TxMock, req *models.OrderCreateRequest) {
+
 				order := models.Order{
 					Status: models.OrderStatusNew,
-					UserID: int64(req.User),
+					UserID: req.User,
 					Items:  req.Items,
 				}
 
-				orderRepoMock.CreateMock.Expect(ctx, txMock, order).Return(int64(1), nil)
+				orderRepoMock.CreateMock.Expect(ctx, txMock, order).Return(models.OID(1), nil)
 				stockRepoMock.ReserveItemsMock.Expect(ctx, txMock, req.Items).Return(nil)
 				orderRepoMock.SetStatusMock.Expect(ctx, txMock, models.OID(1), models.OrderStatusAwaitingPayment).Return(nil)
 
@@ -61,7 +65,9 @@ func TestLomsService_OrderCreate_Table(t *testing.T) {
 					{SKU: 1001, Count: 2},
 				},
 			},
-			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, txManagerMock *mock.ITxManagerMock, txMock *mock.TxMock, req *models.OrderCreateRequest) {
+			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock,
+				stockRepoMock *mock.IStockRepositoryMock, txManagerMock *mock.ITxManagerMock,
+				txMock *mock.TxMock, req *models.OrderCreateRequest) {
 			},
 			expectedResp:  nil,
 			expectedErr:   internal_errors.ErrBadRequest,
@@ -73,7 +79,9 @@ func TestLomsService_OrderCreate_Table(t *testing.T) {
 				User:  1,
 				Items: []models.Item{},
 			},
-			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, txManagerMock *mock.ITxManagerMock, txMock *mock.TxMock, req *models.OrderCreateRequest) {
+			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock,
+				stockRepoMock *mock.IStockRepositoryMock, txManagerMock *mock.ITxManagerMock,
+				txMock *mock.TxMock, req *models.OrderCreateRequest) {
 			},
 			expectedResp:  nil,
 			expectedErr:   internal_errors.ErrBadRequest,
@@ -87,7 +95,9 @@ func TestLomsService_OrderCreate_Table(t *testing.T) {
 					{SKU: 0, Count: 2},
 				},
 			},
-			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, txManagerMock *mock.ITxManagerMock, txMock *mock.TxMock, req *models.OrderCreateRequest) {
+			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock,
+				stockRepoMock *mock.IStockRepositoryMock, txManagerMock *mock.ITxManagerMock,
+				txMock *mock.TxMock, req *models.OrderCreateRequest) {
 			},
 			expectedResp:  nil,
 			expectedErr:   internal_errors.ErrBadRequest,
@@ -101,104 +111,118 @@ func TestLomsService_OrderCreate_Table(t *testing.T) {
 					{SKU: 1001, Count: 0},
 				},
 			},
-			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, txManagerMock *mock.ITxManagerMock, txMock *mock.TxMock, req *models.OrderCreateRequest) {
+			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock,
+				stockRepoMock *mock.IStockRepositoryMock, txManagerMock *mock.ITxManagerMock,
+				txMock *mock.TxMock, req *models.OrderCreateRequest) {
 			},
 			expectedResp:  nil,
 			expectedErr:   internal_errors.ErrBadRequest,
 			errorContains: "count must be greater than zero",
 		},
 		{
-			name: "error create order",
+			name: "error creating order",
 			req: &models.OrderCreateRequest{
 				User: 1,
 				Items: []models.Item{
 					{SKU: 1002, Count: 1},
 				},
 			},
-			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, txManagerMock *mock.ITxManagerMock, txMock *mock.TxMock, req *models.OrderCreateRequest) {
+			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock,
+				stockRepoMock *mock.IStockRepositoryMock, txManagerMock *mock.ITxManagerMock,
+				txMock *mock.TxMock, req *models.OrderCreateRequest) {
+
 				order := models.Order{
 					Status: models.OrderStatusNew,
-					UserID: int64(req.User),
+					UserID: req.User,
 					Items:  req.Items,
 				}
-				orderRepoMock.CreateMock.Expect(ctx, txMock, order).Return(int64(0), errors.New("create order error"))
-
+				orderRepoMock.CreateMock.Expect(ctx, txMock, order).Return(models.OID(0), errors.New("create order error"))
 				txManagerMock.WithTxMock.Set(func(ctx context.Context, fn service.WithTxFunc) error {
 					return fn(ctx, txMock)
 				})
 			},
 			expectedResp:  nil,
-			expectedErr:   internal_errors.ErrInternalServerError,
+			expectedErr:   errors.New("failed to create order"),
 			errorContains: "failed to create order",
 		},
 		{
-			name: "error reservation",
+			name: "error reserving stocks",
 			req: &models.OrderCreateRequest{
 				User: 1,
 				Items: []models.Item{
 					{SKU: 1003, Count: 3},
 				},
 			},
-			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, txManagerMock *mock.ITxManagerMock, txMock *mock.TxMock, req *models.OrderCreateRequest) {
+			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock,
+				stockRepoMock *mock.IStockRepositoryMock, txManagerMock *mock.ITxManagerMock,
+				txMock *mock.TxMock, req *models.OrderCreateRequest) {
+
 				order := models.Order{
 					Status: models.OrderStatusNew,
-					UserID: int64(req.User),
+					UserID: req.User,
 					Items:  req.Items,
 				}
-				orderRepoMock.CreateMock.Expect(ctx, txMock, order).Return(int64(2), nil)
+
+				orderRepoMock.CreateMock.Expect(ctx, txMock, order).Return(models.OID(2), nil)
 				stockRepoMock.ReserveItemsMock.Expect(ctx, txMock, req.Items).Return(errors.New("reserve items error"))
-				orderRepoMock.SetStatusMock.Expect(ctx, txMock, models.OID(2), models.OrderStatusFailed).Return(nil)
+				orderRepoMock.SetStatusMock.Expect(ctx, nil, models.OID(2), models.OrderStatusFailed).Return(nil)
 
 				txManagerMock.WithTxMock.Set(func(ctx context.Context, fn service.WithTxFunc) error {
 					return fn(ctx, txMock)
 				})
 			},
 			expectedResp:  nil,
-			expectedErr:   internal_errors.ErrInternalServerError,
+			expectedErr:   internal_errors.ErrStockReservation,
 			errorContains: "failed to reserve stock",
 		},
 		{
-			name: "status update error after failed reservation",
+			name: "error setting status after failed reservation",
 			req: &models.OrderCreateRequest{
 				User: 1,
 				Items: []models.Item{
 					{SKU: 1004, Count: 4},
 				},
 			},
-			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, txManagerMock *mock.ITxManagerMock, txMock *mock.TxMock, req *models.OrderCreateRequest) {
+			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock,
+				stockRepoMock *mock.IStockRepositoryMock, txManagerMock *mock.ITxManagerMock,
+				txMock *mock.TxMock, req *models.OrderCreateRequest) {
+
 				order := models.Order{
 					Status: models.OrderStatusNew,
-					UserID: int64(req.User),
+					UserID: req.User,
 					Items:  req.Items,
 				}
 
-				orderRepoMock.CreateMock.Expect(ctx, txMock, order).Return(int64(3), nil)
+				orderRepoMock.CreateMock.Expect(ctx, txMock, order).Return(models.OID(3), nil)
 				stockRepoMock.ReserveItemsMock.Expect(ctx, txMock, req.Items).Return(errors.New("reserve items error"))
-				orderRepoMock.SetStatusMock.Expect(ctx, txMock, models.OID(3), models.OrderStatusFailed).Return(errors.New("set status failed"))
+				orderRepoMock.SetStatusMock.Expect(ctx, nil, models.OID(3), models.OrderStatusFailed).Return(errors.New("set status failed"))
 
 				txManagerMock.WithTxMock.Set(func(ctx context.Context, fn service.WithTxFunc) error {
 					return fn(ctx, txMock)
 				})
 			},
 			expectedResp:  nil,
-			expectedErr:   internal_errors.ErrInternalServerError,
-			errorContains: "failed to set order status failed",
+			expectedErr:   errors.New("set status failed"),
+			errorContains: "set status failed",
 		},
 		{
-			name: "status update error after successful reservation",
+			name: "error setting status after successful reservation",
 			req: &models.OrderCreateRequest{
 				User: 1,
 				Items: []models.Item{
 					{SKU: 1005, Count: 5},
 				},
 			},
-			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, txManagerMock *mock.ITxManagerMock, txMock *mock.TxMock, req *models.OrderCreateRequest) {
+			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock,
+				stockRepoMock *mock.IStockRepositoryMock, txManagerMock *mock.ITxManagerMock,
+				txMock *mock.TxMock, req *models.OrderCreateRequest) {
+
 				order := models.Order{
 					Status: models.OrderStatusNew,
-					UserID: int64(req.User),
+					UserID: req.User,
 					Items:  req.Items,
 				}
-				orderRepoMock.CreateMock.Expect(ctx, txMock, order).Return(int64(4), nil)
+				orderRepoMock.CreateMock.Expect(ctx, txMock, order).Return(models.OID(4), nil)
 				stockRepoMock.ReserveItemsMock.Expect(ctx, txMock, req.Items).Return(nil)
 				orderRepoMock.SetStatusMock.Expect(ctx, txMock, models.OID(4), models.OrderStatusAwaitingPayment).Return(errors.New("set status awaiting payment error"))
 
@@ -207,8 +231,8 @@ func TestLomsService_OrderCreate_Table(t *testing.T) {
 				})
 			},
 			expectedResp:  nil,
-			expectedErr:   internal_errors.ErrInternalServerError,
-			errorContains: "failed to set order status awaiting payment",
+			expectedErr:   errors.New("failed to set order status 'awaiting_payment'"),
+			errorContains: "failed to set order status",
 		},
 	}
 
