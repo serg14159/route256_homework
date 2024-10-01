@@ -1,4 +1,4 @@
-package service
+package service_test
 
 import (
 	"context"
@@ -12,45 +12,34 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestCartService_DelProduct_Table function for tests the DelProduct method of CartService.
-func TestCartService_DelProduct_Table(t *testing.T) {
+// TestCartService_DelCart_Table function for tests the DelCart method of CartService.
+func TestCartService_DelCart_Table(t *testing.T) {
 	tests := []struct {
 		name          string
 		UID           models.UID
-		SKU           models.SKU
 		setupMocks    func(ctx context.Context, repoMock *mock.ICartRepositoryMock)
 		expectedErr   error
 		errorContains string
 	}{
 		{
-			name: "successful delete",
+			name: "successful delete cart",
 			UID:  1,
-			SKU:  100,
 			setupMocks: func(ctx context.Context, repoMock *mock.ICartRepositoryMock) {
-				repoMock.DeleteItemMock.When(ctx, models.UID(1), models.SKU(100)).Then(nil)
+				repoMock.DeleteItemsByUserIDMock.When(ctx, models.UID(1)).Then(nil)
+			},
+			expectedErr: nil,
+		},
+		{
+			name: "delete empty cart",
+			UID:  5,
+			setupMocks: func(ctx context.Context, repoMock *mock.ICartRepositoryMock) {
+				repoMock.DeleteItemsByUserIDMock.When(ctx, models.UID(5)).Then(nil)
 			},
 			expectedErr: nil,
 		},
 		{
 			name: "bad request with UID 0",
 			UID:  0,
-			SKU:  100,
-			setupMocks: func(ctx context.Context, repoMock *mock.ICartRepositoryMock) {
-			},
-			expectedErr: internal_errors.ErrBadRequest,
-		},
-		{
-			name: "bad request with SKU 0",
-			UID:  1,
-			SKU:  0,
-			setupMocks: func(ctx context.Context, repoMock *mock.ICartRepositoryMock) {
-			},
-			expectedErr: internal_errors.ErrBadRequest,
-		},
-		{
-			name: "bad request with UID 0 and SKU 0",
-			UID:  0,
-			SKU:  0,
 			setupMocks: func(ctx context.Context, repoMock *mock.ICartRepositoryMock) {
 			},
 			expectedErr: internal_errors.ErrBadRequest,
@@ -58,9 +47,8 @@ func TestCartService_DelProduct_Table(t *testing.T) {
 		{
 			name: "repository error",
 			UID:  1,
-			SKU:  100,
 			setupMocks: func(ctx context.Context, repoMock *mock.ICartRepositoryMock) {
-				repoMock.DeleteItemMock.When(ctx, models.UID(1), models.SKU(100)).Then(ErrRepository)
+				repoMock.DeleteItemsByUserIDMock.When(ctx, models.UID(1)).Then(ErrRepository)
 			},
 			expectedErr: ErrRepository,
 		},
@@ -75,7 +63,7 @@ func TestCartService_DelProduct_Table(t *testing.T) {
 
 			tt.setupMocks(ctx, repoMock)
 
-			err := service.DelProduct(ctx, tt.UID, tt.SKU)
+			err := service.DelCart(ctx, tt.UID)
 
 			if tt.expectedErr != nil {
 				require.Error(t, err)

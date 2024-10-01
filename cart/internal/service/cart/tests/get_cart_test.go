@@ -1,4 +1,4 @@
-package service
+package service_test
 
 import (
 	"context"
@@ -7,6 +7,7 @@ import (
 	internal_errors "route256/cart/internal/pkg/errors"
 	"route256/cart/internal/service/cart/mock"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -23,18 +24,27 @@ func TestCartService_GetCart_Table(t *testing.T) {
 		errorContains string
 	}{
 		{
-			name: "successful get cart with 1 item",
+			name: "successful retrieval of cart with 1 item",
 			UID:  1000000,
 			setupMocks: func(ctx context.Context, repoMock *mock.ICartRepositoryMock, productServiceMock *mock.IProductServiceMock) {
 				items := []models.CartItem{{SKU: 700, Count: 3}}
 				repoMock.GetItemsByUserIDMock.When(ctx, models.UID(1000000)).Then(items, nil)
-				productServiceMock.GetProductMock.When(ctx, models.SKU(700)).Then(&models.GetProductResponse{Name: "Product", Price: 100}, nil)
+
+				var mu sync.Mutex
+				productServiceMock.GetProductMock.Set(func(ctx context.Context, sku models.SKU) (*models.GetProductResponse, error) {
+					mu.Lock()
+					defer mu.Unlock()
+					if sku == 700 {
+						return &models.GetProductResponse{Name: "Product", Price: 100}, nil
+					}
+					return nil, errors.New("product not found")
+				})
 			},
 			totalPrice:  300,
 			expectedErr: nil,
 		},
 		{
-			name: "successful get cart with 3 items",
+			name: "successful retrieval of cart with 3 items",
 			UID:  1,
 			setupMocks: func(ctx context.Context, repoMock *mock.ICartRepositoryMock, productServiceMock *mock.IProductServiceMock) {
 				items := []models.CartItem{
@@ -43,15 +53,28 @@ func TestCartService_GetCart_Table(t *testing.T) {
 					{SKU: 300, Count: 3},
 				}
 				repoMock.GetItemsByUserIDMock.When(ctx, models.UID(1)).Then(items, nil)
-				productServiceMock.GetProductMock.When(ctx, models.SKU(100)).Then(&models.GetProductResponse{Name: "Product 1", Price: 100}, nil)
-				productServiceMock.GetProductMock.When(ctx, models.SKU(200)).Then(&models.GetProductResponse{Name: "Product 2", Price: 200}, nil)
-				productServiceMock.GetProductMock.When(ctx, models.SKU(300)).Then(&models.GetProductResponse{Name: "Product 3", Price: 300}, nil)
+
+				var mu sync.Mutex
+				productServiceMock.GetProductMock.Set(func(ctx context.Context, sku models.SKU) (*models.GetProductResponse, error) {
+					mu.Lock()
+					defer mu.Unlock()
+					switch sku {
+					case 100:
+						return &models.GetProductResponse{Name: "Product 1", Price: 100}, nil
+					case 200:
+						return &models.GetProductResponse{Name: "Product 2", Price: 200}, nil
+					case 300:
+						return &models.GetProductResponse{Name: "Product 3", Price: 300}, nil
+					default:
+						return nil, errors.New("product not found")
+					}
+				})
 			},
 			totalPrice:  1400,
 			expectedErr: nil,
 		},
 		{
-			name: "bad request with UID 0",
+			name: "invalid request with UID 0",
 			UID:  0,
 			setupMocks: func(ctx context.Context, repoMock *mock.ICartRepositoryMock, productServiceMock *mock.IProductServiceMock) {
 			},
@@ -73,7 +96,13 @@ func TestCartService_GetCart_Table(t *testing.T) {
 			setupMocks: func(ctx context.Context, repoMock *mock.ICartRepositoryMock, productServiceMock *mock.IProductServiceMock) {
 				items := []models.CartItem{{SKU: 100, Count: 1}}
 				repoMock.GetItemsByUserIDMock.When(ctx, models.UID(1)).Then(items, nil)
-				productServiceMock.GetProductMock.When(ctx, models.SKU(100)).Then(nil, internal_errors.ErrInternalServerError)
+
+				var mu sync.Mutex
+				productServiceMock.GetProductMock.Set(func(ctx context.Context, sku models.SKU) (*models.GetProductResponse, error) {
+					mu.Lock()
+					defer mu.Unlock()
+					return nil, internal_errors.ErrInternalServerError
+				})
 			},
 			expectedErr: internal_errors.ErrInternalServerError,
 			totalPrice:  0,
@@ -81,6 +110,7 @@ func TestCartService_GetCart_Table(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -94,7 +124,7 @@ func TestCartService_GetCart_Table(t *testing.T) {
 			if tt.expectedErr != nil {
 				require.Error(t, err)
 				require.True(t, errors.Is(err, tt.expectedErr) || (tt.errorContains != "" && strings.Contains(err.Error(), tt.errorContains)),
-					"error must be %v or contain message: %s", tt.expectedErr, tt.errorContains)
+					"expected error %v or message to contain: %s", tt.expectedErr, tt.errorContains)
 				require.Nil(t, items)
 			} else {
 				require.NoError(t, err)

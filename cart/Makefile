@@ -25,6 +25,10 @@ test_all: cyclomatic_complexity cognitive_complexity test coverage
 test:
 	go test $(shell go list ./... | grep -vE '/(mock|vendor-proto)') -coverprofile=coverage.out
 
+.PHONY: test_race
+test_race:
+	go test -race $(shell go list ./... | grep -vE '/(mock|vendor-proto)') -coverprofile=coverage.out
+
 .PHONY: coverage
 coverage:
 	go tool cover -func=coverage.out
