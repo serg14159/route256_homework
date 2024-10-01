@@ -28,5 +28,7 @@ swagger:
 data:
   stockFilePath: "data/stock-data.json"
 
+database:
+  dsn: "postgres://user:password@localhost:5434/postgres?sslmode=disable"
 
   

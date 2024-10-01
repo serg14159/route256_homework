@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestCartService_Checkout_Table function for tests the Checkout method of CartService.
 func TestCartService_Checkout_Table(t *testing.T) {
 	tests := []struct {
 		name          string

@@ -12,8 +12,6 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-var _ pb.LomsServer = (*Service)(nil)
-
 type ILomsService interface {
 	OrderCreate(ctx context.Context, req *models.OrderCreateRequest) (*models.OrderCreateResponse, error)
 	OrderInfo(ctx context.Context, req *models.OrderInfoRequest) (*models.OrderInfoResponse, error)
@@ -27,10 +25,12 @@ type Service struct {
 	LomsService ILomsService
 }
 
+// NewService return instance of lomsService.
 func NewService(lomsService ILomsService) *Service {
 	return &Service{LomsService: lomsService}
 }
 
+// errorToStatus convert errors to status.
 func errorToStatus(err error) error {
 	var st *status.Status
 	switch {

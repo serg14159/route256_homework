@@ -28,7 +28,7 @@ type Server struct {
 	cartService ICartService
 }
 
-// Function for create new server.
+// NewServer function for create new server.
 func NewServer(cfg IConfig, cartService ICartService) *Server {
 	server := &http.Server{}
 	return &Server{
@@ -38,7 +38,7 @@ func NewServer(cfg IConfig, cartService ICartService) *Server {
 	}
 }
 
-// Function for running server.
+// Run function for running server.
 func (s *Server) Run() error {
 	// Set address
 	address := s.cfg.GetHost() + ":" + s.cfg.GetPort()
@@ -67,7 +67,7 @@ func (s *Server) Run() error {
 	return nil
 }
 
-// Shutdown stop server
+// Shutdown stop server.
 func (s *Server) Shutdown(ctx context.Context) error {
 	return s.server.Shutdown(ctx)
 }

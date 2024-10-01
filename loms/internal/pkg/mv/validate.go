@@ -8,7 +8,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// Function Validate create validate mv.
+// Validate create validate mv.
 func Validate(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 	if v, ok := req.(interface{ Validate() error }); ok {
 		if err := v.Validate(); err != nil {

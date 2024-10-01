@@ -1,0 +1,105 @@
+version: "3.8"
+x-postgres-common: &postgres-common
+  image: postgres:16-alpine
+  restart: always
+  healthcheck:
+    test: ["CMD", "pg_isready", "-U", "user", "--dbname=postgres"]
+    interval: 10s
+    timeout: 5s
+    retries: 5
+  networks:
+    - pg-network
+
+services:
+  postgres_primary:
+    <<: *postgres-common
+    container_name: postgres_primary
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_HOST_AUTH_METHOD: "scram-sha-256\nhost replication all 0.0.0.0/0 md5"
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    entrypoint: ["pg_start"]
+    volumes:
+      - ./primary_data:/var/lib/postgresql/data
+      - ./00_init.sql:/docker-entrypoint-initdb.d/00_init.sql
+      - ./pg_start:/usr/local/bin/pg_start
+
+  postgres_replica:
+    <<: *postgres-common
+    container_name: postgres_replica
+    ports:
+      - 5433:5432
+    environment:
+      CONTAINER_NAME: postgres_replica
+      PGUSER: replicator
+      PGPASSWORD: replicator_password
+      PGDATA: /var/lib/postgresql/data/pgdata
+    command: |
+      bash -c "
+      if [ -f /var/lib/postgresql/data/pgdata/PG_VERSION ]; then
+      echo 'Backup replica...'
+      POSTFIX=$$(date +%s)
+      mkdir -p /var/lib/postgresql/data/archive/pgdata-\$$CONTAINER_NAME-\$$POSTFIX
+      mv /var/lib/postgresql/data/pgdata/* /var/lib/postgresql/data/archive/pgdata-\$$CONTAINER_NAME-\$$POSTFIX
+      fi
+      until pg_basebackup --pgdata=/var/lib/postgresql/data/pgdata -R --slot=replication_slot --host=postgres_primary --port=5432
+      do
+        echo 'Waiting for primary to connect...'
+        sleep 1s
+      done
+      echo 'Backup done, starting replica...'
+      chown -R postgres:postgres /var/lib/postgresql/data/pgdata
+      chown -R postgres:postgres /var/lib/postgresql/data/archive
+      chmod 0700 /var/lib/postgresql/data/pgdata
+      gosu postgres postgres
+        -c log_statement='all' \
+        -c log_connections=on \
+        -c log_disconnections=on \
+        -c log_duration=on
+      "
+    depends_on:
+      - postgres_primary
+    volumes:
+      - ./replica_data:/var/lib/postgresql/data/pgdata
+      - ./archive:/var/lib/postgresql/data/archive
+
+  pgpool:
+    image: bitnami/pgpool:4
+    container_name: pgpool
+    ports:
+      - 5434:5432
+    environment:
+      - PGPOOL_BACKEND_NODES=0:postgres_primary:5432,1:postgres_replica:5432
+      - PGPOOL_SR_CHECK_PERIOD=30
+      - PGPOOL_SR_CHECK_USER=user
+      - PGPOOL_SR_CHECK_PASSWORD=password
+      - PGPOOL_ENABLE_LOAD_BALANCING=yes
+      - PGPOOL_HEALTH_CHECK_PERIOD=30
+      - PGPOOL_HEALTH_CHECK_USER=user
+      - PGPOOL_HEALTH_CHECK_PASSWORD=password
+      - PGPOOL_USER=user
+      - PGPOOL_PASSWORD=password
+      - PGPOOL_ADMIN_USERNAME=admin
+      - PGPOOL_ADMIN_PASSWORD=admin_password
+      - PGPOOL_POSTGRES_USERNAME=user
+      - PGPOOL_POSTGRES_PASSWORD=password
+      - PGPOOL_NUM_INIT_CHILDREN=50
+      - PGPOOL_MAX_POOL=4
+    depends_on:
+      - postgres_primary
+      - postgres_replica
+    networks:
+      - pg-network
+    healthcheck:
+      test: ["CMD", "/opt/bitnami/scripts/pgpool/healthcheck.sh"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  pg-network:
+    driver: bridge

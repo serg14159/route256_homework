@@ -24,7 +24,7 @@ func NewCartRepository() *Repository {
 	}
 }
 
-// Function for adding item to cart.
+// AddItem function for adding item to cart.
 func (r *Repository) AddItem(ctx context.Context, UID models.UID, item models.CartItem) error {
 	if UID < 1 || item.SKU < 1 || item.Count < 1 {
 		return fmt.Errorf("UID and SKU must be greater than zero: %w", internal_errors.ErrBadRequest)
@@ -46,7 +46,7 @@ func (r *Repository) AddItem(ctx context.Context, UID models.UID, item models.Ca
 	return nil
 }
 
-// Function for delete item from cart.
+// DeleteItem function for delete item from cart.
 func (r *Repository) DeleteItem(ctx context.Context, UID models.UID, SKU models.SKU) error {
 	if UID < 1 || SKU < 1 {
 		return fmt.Errorf("UID and SKU must be greater than zero: %w", internal_errors.ErrBadRequest)
@@ -62,7 +62,7 @@ func (r *Repository) DeleteItem(ctx context.Context, UID models.UID, SKU models.
 	return nil
 }
 
-// Function for delete cart.
+// DeleteItemsByUserID function for delete cart.
 func (r *Repository) DeleteItemsByUserID(ctx context.Context, UID models.UID) error {
 	if UID < 1 {
 		return fmt.Errorf("UID must be greater than zero: %w", internal_errors.ErrBadRequest)
@@ -76,7 +76,7 @@ func (r *Repository) DeleteItemsByUserID(ctx context.Context, UID models.UID) er
 	return nil
 }
 
-// Function for getting items from cart.
+// GetItemsByUserID function for getting items from cart.
 func (r *Repository) GetItemsByUserID(ctx context.Context, UID models.UID) ([]models.CartItem, error) {
 	if UID < 1 {
 		return nil, fmt.Errorf("UID must be greater than zero: %w", internal_errors.ErrBadRequest)

@@ -7,7 +7,7 @@ import (
 	"strconv"
 )
 
-// Function Checkout handler for processes order request.
+// Checkout handler for processes order request.
 func (s *Server) Checkout(w http.ResponseWriter, r *http.Request) {
 	rawUID := r.PathValue("user_id")
 	UID, err := strconv.ParseInt(rawUID, 10, 64)

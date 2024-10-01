@@ -14,7 +14,7 @@ func NewLogMux(h http.Handler) http.Handler {
 	return &LogMux{h: h}
 }
 
-// Function middleware for log request.
+// ServeHTTP middleware for log http request.
 func (m *LogMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 	m.h.ServeHTTP(w, r)

@@ -10,7 +10,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// Function Logger create request/response logger mv.
+// Logger create request/response logger mv.
 func Logger(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
 	raw, _ := protojson.Marshal((req).(proto.Message))
 	log.Printf("request: method: %v, req: %v\n", info.FullMethod, string(raw))
@@ -26,6 +26,7 @@ func Logger(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, ha
 	return
 }
 
+// WithHTTPLoggingMiddleware logging http request.
 func WithHTTPLoggingMiddleware(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		log.Println(r.Method)

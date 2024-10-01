@@ -13,7 +13,7 @@ import (
 	pb "route256/loms/pkg/api/loms/v1"
 )
 
-// Function for create gateway server.
+// createGatewayServer create gateway server.
 func createGatewayServer(grpcAddr, gatewayAddr string, allowedOrigins []string) *http.Server {
 	// Create a client connection to the gRPC Server we just started.
 	// This is where the gRPC-Gateway proxies the requests.
@@ -40,7 +40,7 @@ func createGatewayServer(grpcAddr, gatewayAddr string, allowedOrigins []string) 
 	return gatewayServer
 }
 
-// Function ChainHTTPMiddleware combines several HTTP middleware into one chain.
+// сhainHTTPMiddleware combines several HTTP middleware into one chain.
 func сhainHTTPMiddleware(middlewares ...func(http.Handler) http.Handler) func(http.Handler) http.Handler {
 	return func(finalHandler http.Handler) http.Handler {
 		for i := len(middlewares) - 1; i >= 0; i-- {

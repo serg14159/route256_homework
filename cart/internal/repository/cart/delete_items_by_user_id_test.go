@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestRepository_DeleteItemsByUserID function for tests the DeleteItemsByUserID method of repository.
 func TestRepository_DeleteItemsByUserID(t *testing.T) {
 	// Init test data
 	tests := []struct {

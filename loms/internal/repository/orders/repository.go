@@ -5,70 +5,99 @@ import (
 	"fmt"
 	"route256/loms/internal/models"
 	internal_errors "route256/loms/internal/pkg/errors"
-	"sync"
+	"route256/loms/internal/repository/sqlc"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// Storage
-type Storage = map[models.OID]models.Order
-
-// OrderRepository
+// OrderRepository.
 type OrderRepository struct {
-	mu           sync.Mutex
-	storage      Storage
-	countOrderID models.OID
+	queries sqlc.Querier
+	pool    *pgxpool.Pool
 }
 
-// Function NewOrderRepository creates a new instance of OrderRepository.
-func NewOrderRepository() *OrderRepository {
+// NewOrderRepository creates a new instance of OrderRepository.
+func NewOrderRepository(pool *pgxpool.Pool) *OrderRepository {
 	return &OrderRepository{
-		mu:           sync.Mutex{},
-		storage:      make(Storage),
-		countOrderID: 0,
+		queries: sqlc.New(pool),
+		pool:    pool,
 	}
 }
 
-// Function Create add new order to repository and returns unique orderID.
-func (r *OrderRepository) Create(ctx context.Context, order models.Order) (models.OID, error) {
+// Create adds a new order to repository and returns unique orderID.
+func (r *OrderRepository) Create(ctx context.Context, tx pgx.Tx, order models.Order) (models.OID, error) {
 	// Validate input data
-	err := validateOrder(order)
-	if err != nil {
+	if err := validateOrder(order); err != nil {
 		return 0, err
 	}
 
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	// Check transaction
+	q := r.getQuerier(tx)
 
-	// Increment countOrderID and generate new orderID
-	r.countOrderID++
-	orderID := r.countOrderID
+	// Create order
+	createdOrder, err := q.CreateOrder(ctx, &sqlc.CreateOrderParams{
+		UserID: order.UserID,
+		Name:   string(order.Status),
+	})
+	if err != nil {
+		return 0, fmt.Errorf("failed to create order: %w", err)
+	}
 
-	// Save order in storage
-	r.storage[orderID] = order
+	for _, item := range order.Items {
+		_, err := q.CreateOrderItem(ctx, &sqlc.CreateOrderItemParams{
+			OrderID: &createdOrder.ID,
+			Sku:     int32(item.SKU),
+			Count:   int16(item.Count),
+		})
+		if err != nil {
+			return 0, fmt.Errorf("failed to create order item: %w", err)
+		}
+	}
 
-	return orderID, nil
+	return models.OID(createdOrder.ID), nil
 }
 
-// Function GetByID return order by orderID.
-func (r *OrderRepository) GetByID(ctx context.Context, orderID models.OID) (models.Order, error) {
+// GetByID return order by orderID.
+func (r *OrderRepository) GetByID(ctx context.Context, tx pgx.Tx, orderID models.OID) (models.Order, error) {
 	// Validate input data
 	if orderID < 1 {
 		return models.Order{}, fmt.Errorf("orderID must be greater than zero: %w", internal_errors.ErrBadRequest)
 	}
 
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	// Check transaction
+	q := r.getQuerier(tx)
 
-	// Get order by orderID
-	order, exists := r.storage[orderID]
-	if !exists {
+	// Get order
+	order, err := q.GetOrderByID(ctx, orderID)
+	if err != nil {
 		return models.Order{}, internal_errors.ErrNotFound
 	}
 
-	return order, nil
+	// Get items
+	items, err := q.GetOrderItems(ctx, &orderID)
+	if err != nil {
+		return models.Order{}, fmt.Errorf("failed to get order items: %w", err)
+	}
+
+	// Convert
+	var modelItems []models.Item
+	for _, item := range items {
+		modelItems = append(modelItems, models.Item{
+			SKU:   models.SKU(item.Sku),
+			Count: uint16(item.Count),
+		})
+	}
+
+	return models.Order{
+		Status: models.OrderStatus(order.Status),
+		UserID: order.UserID,
+		Items:  modelItems,
+	}, nil
 }
 
-// Function SetStatus update status of existing order.
-func (r *OrderRepository) SetStatus(ctx context.Context, orderID models.OID, status models.OrderStatus) error {
+// SetStatus updates the status of an existing order.
+func (r *OrderRepository) SetStatus(ctx context.Context, tx pgx.Tx, orderID models.OID, status models.OrderStatus) error {
 	// Validate input data
 	if orderID < 1 {
 		return fmt.Errorf("orderID must be greater than zero: %w", internal_errors.ErrBadRequest)
@@ -78,23 +107,22 @@ func (r *OrderRepository) SetStatus(ctx context.Context, orderID models.OID, sta
 		return fmt.Errorf("invalid order status: %w", internal_errors.ErrPreconditionFailed)
 	}
 
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	// Get order by orderID
-	order, exists := r.storage[orderID]
-	if !exists {
-		return fmt.Errorf("order with orderID not found: %w", internal_errors.ErrPreconditionFailed)
-	}
+	// Check transaction
+	q := r.getQuerier(tx)
 
 	// Update order status
-	order.Status = status
-	r.storage[orderID] = order
+	err := q.SetOrderStatus(ctx, &sqlc.SetOrderStatusParams{
+		ID:   orderID,
+		Name: string(status),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to set order status: %w", err)
+	}
 
 	return nil
 }
 
-// Function validateOrder validate the order.
+// validateOrder validate the order.
 func validateOrder(order models.Order) error {
 	if order.UserID < 1 {
 		return fmt.Errorf("userID must be greater than zero: %w", internal_errors.ErrBadRequest)
@@ -113,7 +141,7 @@ func validateOrder(order models.Order) error {
 	return nil
 }
 
-// Function isValidOrderStatus check status is valid.
+// isValidOrderStatus check status is valid.
 func isValidOrderStatus(status models.OrderStatus) bool {
 	switch status {
 	case models.OrderStatusNew,
@@ -125,4 +153,12 @@ func isValidOrderStatus(status models.OrderStatus) bool {
 	default:
 		return false
 	}
+}
+
+// getQuerier returns sqlc.Querier based on provided transaction.
+func (r *OrderRepository) getQuerier(tx pgx.Tx) sqlc.Querier {
+	if tx != nil {
+		return sqlc.New(tx)
+	}
+	return r.queries
 }

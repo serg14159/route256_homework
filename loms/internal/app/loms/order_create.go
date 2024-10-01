@@ -9,7 +9,7 @@ import (
 	pb "route256/loms/pkg/api/loms/v1"
 )
 
-// Function OrderCreate implements the GRPC OrderCreate method.
+// OrderCreate implements the GRPC OrderCreate method.
 func (s *Service) OrderCreate(ctx context.Context, req *pb.OrderCreateRequest) (*pb.OrderCreateResponse, error) {
 	orderCreateRequest, err := toModelOrderCreateRequest(req)
 	if err != nil {
@@ -24,6 +24,7 @@ func (s *Service) OrderCreate(ctx context.Context, req *pb.OrderCreateRequest) (
 	return toPbOrderCreateResponse(orderCreateResponse), nil
 }
 
+// toModelOrderCreateRequest convert request.
 func toModelOrderCreateRequest(req *pb.OrderCreateRequest) (*models.OrderCreateRequest, error) {
 	if req == nil {
 		return nil, fmt.Errorf("invalid input data: %w", internal_errors.ErrBadRequest)
@@ -43,6 +44,7 @@ func toModelOrderCreateRequest(req *pb.OrderCreateRequest) (*models.OrderCreateR
 	}, nil
 }
 
+// toPbOrderCreateResponse convert response.
 func toPbOrderCreateResponse(res *models.OrderCreateResponse) *pb.OrderCreateResponse {
 	if res == nil {
 		return &pb.OrderCreateResponse{}

@@ -8,7 +8,7 @@ import (
 	"strconv"
 )
 
-// Function handler for add product into cart.
+// AddProduct handler for add product into cart.
 func (s *Server) AddProduct(w http.ResponseWriter, r *http.Request) {
 	rawUID := r.PathValue("user_id")
 	UID, err := strconv.ParseInt(rawUID, 10, 64)

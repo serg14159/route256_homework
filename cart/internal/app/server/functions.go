@@ -16,13 +16,13 @@ func init() {
 	validate = validator.New()
 }
 
-// Function for set response headers.
+// setResponseHeaders function for set response headers.
 func setResponseHeaders(w http.ResponseWriter, statusCode int) {
 	w.WriteHeader(statusCode)
 	w.Header().Set("Content-Type", "application/json")
 }
 
-// Function for write JSON error.
+// writeJSONError function for write JSON error.
 func writeJSONError(w http.ResponseWriter, statusCode int, message string) {
 	setResponseHeaders(w, statusCode)
 	_, errOut := fmt.Fprintf(w, "{\"message\":\"%s\"}", message)
@@ -31,7 +31,7 @@ func writeJSONError(w http.ResponseWriter, statusCode int, message string) {
 	}
 }
 
-// Function to determine the HTTP status of the code based on an error
+// getStatusCodeFromError function to determine the HTTP status of the code based on an error
 func getStatusCodeFromError(err error) int {
 	switch {
 	case errors.Is(err, internal_errors.ErrBadRequest):

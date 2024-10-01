@@ -61,50 +61,6 @@ Content-Type: application/json
 }
 ### expected {} 400 Bad Request
 
-### add negative count of sku to cart
-POST http://localhost:8082/user/31337/cart/1076963
-Content-Type: application/json
-
-{
-  "count": -1
-}
-### expected {} 400 Bad Request; count cannot be negative
-
-### add sku to cart without specifying count
-POST http://localhost:8082/user/31337/cart/1076963
-Content-Type: application/json
-
-{
-}
-### expected {} 400 Bad Request; count must be specified
-
-### add 1 sku to cart
-POST http://localhost:8082/user/1007/cart/2008
-Content-Type: application/json
-
-{
-  "count": 1
-}
-### expected {} 200 OK; must add 1 item
-
-### add 1 sku to cart
-POST http://localhost:8082/user/1007/cart/2958025
-Content-Type: application/json
-
-{
-  "count": 1
-}
-### expected {} 200 OK; must add 1 item
-
-### add 1 sku to cart
-POST http://localhost:8082/user/1007/cart/773297411
-Content-Type: application/json
-
-{
-  "count": 1
-}
-### expected {} 200 OK; must add 1 item
-
 # ========================================================================================
 
 ### delete whole sku from cart
@@ -117,25 +73,10 @@ DELETE http://localhost:8082/user/31337/cart
 Content-Type: application/json
 ### expected {} 200 OK; must delete cart
 
-### delete whole sku from cart
-DELETE http://localhost:8082/user/1007/cart/2008
-Content-Type: application/json
-### expected {} 200 OK; must delete item from cart
-
-### delete whole cart
-DELETE http://localhost:8082/user/1007/cart
-Content-Type: application/json
-### expected {} 200 OK; must delete cart
-
 # ========================================================================================
 
 ### get list of a cart
 GET http://localhost:8082/user/31337/cart
-Content-Type: application/json
-### expected {} 200 OK; must show cart
-
-### get list of a cart
-GET http://localhost:8082/user/1007/cart
 Content-Type: application/json
 ### expected {} 200 OK; must show cart
 

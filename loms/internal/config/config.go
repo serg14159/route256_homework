@@ -127,13 +127,23 @@ func (d *Data) GetStockFilePath() string {
 	return d.StockFilePath
 }
 
+// Database.
+type Database struct {
+	DSN string `yaml:"dsn"`
+}
+
+func (d *Database) GetDSN() string {
+	return d.DSN
+}
+
 // Config - contains all configuration parameters in config package.
 type Config struct {
-	Project Project `yaml:"project" mapstructure:"project"`
-	Grpc    Grpc    `yaml:"grpc" mapstructure:"grpc"`
-	Gateway Gateway `yaml:"gateway" mapstructure:"gateway"`
-	Swagger Swagger `yaml:"swagger" mapstructure:"swagger"`
-	Data    Data    `yaml:"data" mapstructure:"data"`
+	Project  Project  `yaml:"project" mapstructure:"project"`
+	Grpc     Grpc     `yaml:"grpc" mapstructure:"grpc"`
+	Gateway  Gateway  `yaml:"gateway" mapstructure:"gateway"`
+	Swagger  Swagger  `yaml:"swagger" mapstructure:"swagger"`
+	Data     Data     `yaml:"data" mapstructure:"data"`
+	Database Database `yaml:"database" mapstructure:"database"`
 }
 
 func NewConfig() *Config {
@@ -174,6 +184,7 @@ func (c *Config) ReadConfig(configPath string) error {
 	return nil
 }
 
+// setDefaultValues function for set default values of config.
 func setDefaultValues() {
 	// Project
 	viper.SetDefault("project.debug", "false")
@@ -205,8 +216,12 @@ func setDefaultValues() {
 
 	// Data
 	viper.SetDefault("data.stockFilePath", "data/stock-data.json")
+
+	// Database
+	viper.SetDefault("database.dsn", "postgres://username:password@localhost:pgpool_port/dbname?sslmode=disable")
 }
 
+// bindEnvVariables function for bind env variables with config name.
 func (c *Config) bindEnvVariables() error {
 	envVars := map[string]string{
 		// Project
@@ -235,6 +250,9 @@ func (c *Config) bindEnvVariables() error {
 
 		// Data
 		"data.stockFilePath": "DATA_STOCK_FILEPATH",
+
+		// Database
+		"database.dsn": "DATABASE_DSN",
 	}
 
 	for key, env := range envVars {

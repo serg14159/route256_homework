@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Function for tests the DelProduct method of CartService.
+// TestCartService_DelProduct_Table function for tests the DelProduct method of CartService.
 func TestCartService_DelProduct_Table(t *testing.T) {
 	tests := []struct {
 		name          string

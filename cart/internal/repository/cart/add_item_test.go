@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Function for tests the AddItem method of repository.
+// TestRepository_AddItem function for tests the AddItem method of repository.
 func TestRepository_AddItem(t *testing.T) {
 	// Init test data
 	tests := []struct {

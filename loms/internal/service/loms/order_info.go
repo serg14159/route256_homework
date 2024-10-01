@@ -7,7 +7,7 @@ import (
 	internal_errors "route256/loms/internal/pkg/errors"
 )
 
-// Function OrderInfo.
+// OrderInfo аunction.
 func (s *LomsService) OrderInfo(ctx context.Context, req *models.OrderInfoRequest) (*models.OrderInfoResponse, error) {
 	// Validate input data
 	if req.OrderID < 1 {
@@ -15,7 +15,7 @@ func (s *LomsService) OrderInfo(ctx context.Context, req *models.OrderInfoReques
 	}
 
 	// Get info about order
-	order, err := s.orderRepository.GetByID(ctx, req.OrderID)
+	order, err := s.orderRepository.GetByID(ctx, nil, req.OrderID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get order: %w", err)
 	}

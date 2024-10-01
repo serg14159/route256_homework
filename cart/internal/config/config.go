@@ -134,6 +134,7 @@ func (c *Config) ReadConfig(configPath string) error {
 	return nil
 }
 
+// setDefaultValues function for set default values of config.
 func setDefaultValues() {
 	// Project
 	viper.SetDefault("project.debug", "false")
@@ -151,6 +152,7 @@ func setDefaultValues() {
 	viper.SetDefault("lomsService.port", "50051")
 }
 
+// bindEnvVariables function for bind env variables with config name.
 func (c *Config) bindEnvVariables() error {
 	envVars := map[string]string{
 		"project.debug":             "PROJECT_DEBUG",

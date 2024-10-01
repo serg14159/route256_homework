@@ -10,7 +10,7 @@ payload=$(
   "items": [
     {
       "sku": 1003,
-      "count": 1
+      "count": 10
     }
   ]
 }

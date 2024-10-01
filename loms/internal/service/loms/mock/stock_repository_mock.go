@@ -12,6 +12,7 @@ import (
 	mm_time "time"
 
 	"github.com/gojuno/minimock/v3"
+	"github.com/jackc/pgx/v5"
 )
 
 // IStockRepositoryMock implements mm_service.IStockRepository
@@ -19,9 +20,9 @@ type IStockRepositoryMock struct {
 	t          minimock.Tester
 	finishOnce sync.Once
 
-	funcCancelReservedItems          func(ctx context.Context, items []models.Item) (err error)
+	funcCancelReservedItems          func(ctx context.Context, tx pgx.Tx, items []models.Item) (err error)
 	funcCancelReservedItemsOrigin    string
-	inspectFuncCancelReservedItems   func(ctx context.Context, items []models.Item)
+	inspectFuncCancelReservedItems   func(ctx context.Context, tx pgx.Tx, items []models.Item)
 	afterCancelReservedItemsCounter  uint64
 	beforeCancelReservedItemsCounter uint64
 	CancelReservedItemsMock          mIStockRepositoryMockCancelReservedItems
@@ -33,26 +34,19 @@ type IStockRepositoryMock struct {
 	beforeGetAvailableStockBySKUCounter uint64
 	GetAvailableStockBySKUMock          mIStockRepositoryMockGetAvailableStockBySKU
 
-	funcRemoveReservedItems          func(ctx context.Context, items []models.Item) (err error)
+	funcRemoveReservedItems          func(ctx context.Context, tx pgx.Tx, items []models.Item) (err error)
 	funcRemoveReservedItemsOrigin    string
-	inspectFuncRemoveReservedItems   func(ctx context.Context, items []models.Item)
+	inspectFuncRemoveReservedItems   func(ctx context.Context, tx pgx.Tx, items []models.Item)
 	afterRemoveReservedItemsCounter  uint64
 	beforeRemoveReservedItemsCounter uint64
 	RemoveReservedItemsMock          mIStockRepositoryMockRemoveReservedItems
 
-	funcReserveItems          func(ctx context.Context, items []models.Item) (err error)
+	funcReserveItems          func(ctx context.Context, tx pgx.Tx, items []models.Item) (err error)
 	funcReserveItemsOrigin    string
-	inspectFuncReserveItems   func(ctx context.Context, items []models.Item)
+	inspectFuncReserveItems   func(ctx context.Context, tx pgx.Tx, items []models.Item)
 	afterReserveItemsCounter  uint64
 	beforeReserveItemsCounter uint64
 	ReserveItemsMock          mIStockRepositoryMockReserveItems
-
-	funcRollbackRemoveReserved          func(removedItems []models.Item)
-	funcRollbackRemoveReservedOrigin    string
-	inspectFuncRollbackRemoveReserved   func(removedItems []models.Item)
-	afterRollbackRemoveReservedCounter  uint64
-	beforeRollbackRemoveReservedCounter uint64
-	RollbackRemoveReservedMock          mIStockRepositoryMockRollbackRemoveReserved
 }
 
 // NewIStockRepositoryMock returns a mock for mm_service.IStockRepository
@@ -74,9 +68,6 @@ func NewIStockRepositoryMock(t minimock.Tester) *IStockRepositoryMock {
 
 	m.ReserveItemsMock = mIStockRepositoryMockReserveItems{mock: m}
 	m.ReserveItemsMock.callArgs = []*IStockRepositoryMockReserveItemsParams{}
-
-	m.RollbackRemoveReservedMock = mIStockRepositoryMockRollbackRemoveReserved{mock: m}
-	m.RollbackRemoveReservedMock.callArgs = []*IStockRepositoryMockRollbackRemoveReservedParams{}
 
 	t.Cleanup(m.MinimockFinish)
 
@@ -110,12 +101,14 @@ type IStockRepositoryMockCancelReservedItemsExpectation struct {
 // IStockRepositoryMockCancelReservedItemsParams contains parameters of the IStockRepository.CancelReservedItems
 type IStockRepositoryMockCancelReservedItemsParams struct {
 	ctx   context.Context
+	tx    pgx.Tx
 	items []models.Item
 }
 
 // IStockRepositoryMockCancelReservedItemsParamPtrs contains pointers to parameters of the IStockRepository.CancelReservedItems
 type IStockRepositoryMockCancelReservedItemsParamPtrs struct {
 	ctx   *context.Context
+	tx    *pgx.Tx
 	items *[]models.Item
 }
 
@@ -128,6 +121,7 @@ type IStockRepositoryMockCancelReservedItemsResults struct {
 type IStockRepositoryMockCancelReservedItemsExpectationOrigins struct {
 	origin      string
 	originCtx   string
+	originTx    string
 	originItems string
 }
 
@@ -142,7 +136,7 @@ func (mmCancelReservedItems *mIStockRepositoryMockCancelReservedItems) Optional(
 }
 
 // Expect sets up expected params for IStockRepository.CancelReservedItems
-func (mmCancelReservedItems *mIStockRepositoryMockCancelReservedItems) Expect(ctx context.Context, items []models.Item) *mIStockRepositoryMockCancelReservedItems {
+func (mmCancelReservedItems *mIStockRepositoryMockCancelReservedItems) Expect(ctx context.Context, tx pgx.Tx, items []models.Item) *mIStockRepositoryMockCancelReservedItems {
 	if mmCancelReservedItems.mock.funcCancelReservedItems != nil {
 		mmCancelReservedItems.mock.t.Fatalf("IStockRepositoryMock.CancelReservedItems mock is already set by Set")
 	}
@@ -155,7 +149,7 @@ func (mmCancelReservedItems *mIStockRepositoryMockCancelReservedItems) Expect(ct
 		mmCancelReservedItems.mock.t.Fatalf("IStockRepositoryMock.CancelReservedItems mock is already set by ExpectParams functions")
 	}
 
-	mmCancelReservedItems.defaultExpectation.params = &IStockRepositoryMockCancelReservedItemsParams{ctx, items}
+	mmCancelReservedItems.defaultExpectation.params = &IStockRepositoryMockCancelReservedItemsParams{ctx, tx, items}
 	mmCancelReservedItems.defaultExpectation.expectationOrigins.origin = minimock.CallerInfo(1)
 	for _, e := range mmCancelReservedItems.expectations {
 		if minimock.Equal(e.params, mmCancelReservedItems.defaultExpectation.params) {
@@ -189,8 +183,31 @@ func (mmCancelReservedItems *mIStockRepositoryMockCancelReservedItems) ExpectCtx
 	return mmCancelReservedItems
 }
 
-// ExpectItemsParam2 sets up expected param items for IStockRepository.CancelReservedItems
-func (mmCancelReservedItems *mIStockRepositoryMockCancelReservedItems) ExpectItemsParam2(items []models.Item) *mIStockRepositoryMockCancelReservedItems {
+// ExpectTxParam2 sets up expected param tx for IStockRepository.CancelReservedItems
+func (mmCancelReservedItems *mIStockRepositoryMockCancelReservedItems) ExpectTxParam2(tx pgx.Tx) *mIStockRepositoryMockCancelReservedItems {
+	if mmCancelReservedItems.mock.funcCancelReservedItems != nil {
+		mmCancelReservedItems.mock.t.Fatalf("IStockRepositoryMock.CancelReservedItems mock is already set by Set")
+	}
+
+	if mmCancelReservedItems.defaultExpectation == nil {
+		mmCancelReservedItems.defaultExpectation = &IStockRepositoryMockCancelReservedItemsExpectation{}
+	}
+
+	if mmCancelReservedItems.defaultExpectation.params != nil {
+		mmCancelReservedItems.mock.t.Fatalf("IStockRepositoryMock.CancelReservedItems mock is already set by Expect")
+	}
+
+	if mmCancelReservedItems.defaultExpectation.paramPtrs == nil {
+		mmCancelReservedItems.defaultExpectation.paramPtrs = &IStockRepositoryMockCancelReservedItemsParamPtrs{}
+	}
+	mmCancelReservedItems.defaultExpectation.paramPtrs.tx = &tx
+	mmCancelReservedItems.defaultExpectation.expectationOrigins.originTx = minimock.CallerInfo(1)
+
+	return mmCancelReservedItems
+}
+
+// ExpectItemsParam3 sets up expected param items for IStockRepository.CancelReservedItems
+func (mmCancelReservedItems *mIStockRepositoryMockCancelReservedItems) ExpectItemsParam3(items []models.Item) *mIStockRepositoryMockCancelReservedItems {
 	if mmCancelReservedItems.mock.funcCancelReservedItems != nil {
 		mmCancelReservedItems.mock.t.Fatalf("IStockRepositoryMock.CancelReservedItems mock is already set by Set")
 	}
@@ -213,7 +230,7 @@ func (mmCancelReservedItems *mIStockRepositoryMockCancelReservedItems) ExpectIte
 }
 
 // Inspect accepts an inspector function that has same arguments as the IStockRepository.CancelReservedItems
-func (mmCancelReservedItems *mIStockRepositoryMockCancelReservedItems) Inspect(f func(ctx context.Context, items []models.Item)) *mIStockRepositoryMockCancelReservedItems {
+func (mmCancelReservedItems *mIStockRepositoryMockCancelReservedItems) Inspect(f func(ctx context.Context, tx pgx.Tx, items []models.Item)) *mIStockRepositoryMockCancelReservedItems {
 	if mmCancelReservedItems.mock.inspectFuncCancelReservedItems != nil {
 		mmCancelReservedItems.mock.t.Fatalf("Inspect function is already set for IStockRepositoryMock.CancelReservedItems")
 	}
@@ -238,7 +255,7 @@ func (mmCancelReservedItems *mIStockRepositoryMockCancelReservedItems) Return(er
 }
 
 // Set uses given function f to mock the IStockRepository.CancelReservedItems method
-func (mmCancelReservedItems *mIStockRepositoryMockCancelReservedItems) Set(f func(ctx context.Context, items []models.Item) (err error)) *IStockRepositoryMock {
+func (mmCancelReservedItems *mIStockRepositoryMockCancelReservedItems) Set(f func(ctx context.Context, tx pgx.Tx, items []models.Item) (err error)) *IStockRepositoryMock {
 	if mmCancelReservedItems.defaultExpectation != nil {
 		mmCancelReservedItems.mock.t.Fatalf("Default expectation is already set for the IStockRepository.CancelReservedItems method")
 	}
@@ -254,14 +271,14 @@ func (mmCancelReservedItems *mIStockRepositoryMockCancelReservedItems) Set(f fun
 
 // When sets expectation for the IStockRepository.CancelReservedItems which will trigger the result defined by the following
 // Then helper
-func (mmCancelReservedItems *mIStockRepositoryMockCancelReservedItems) When(ctx context.Context, items []models.Item) *IStockRepositoryMockCancelReservedItemsExpectation {
+func (mmCancelReservedItems *mIStockRepositoryMockCancelReservedItems) When(ctx context.Context, tx pgx.Tx, items []models.Item) *IStockRepositoryMockCancelReservedItemsExpectation {
 	if mmCancelReservedItems.mock.funcCancelReservedItems != nil {
 		mmCancelReservedItems.mock.t.Fatalf("IStockRepositoryMock.CancelReservedItems mock is already set by Set")
 	}
 
 	expectation := &IStockRepositoryMockCancelReservedItemsExpectation{
 		mock:               mmCancelReservedItems.mock,
-		params:             &IStockRepositoryMockCancelReservedItemsParams{ctx, items},
+		params:             &IStockRepositoryMockCancelReservedItemsParams{ctx, tx, items},
 		expectationOrigins: IStockRepositoryMockCancelReservedItemsExpectationOrigins{origin: minimock.CallerInfo(1)},
 	}
 	mmCancelReservedItems.expectations = append(mmCancelReservedItems.expectations, expectation)
@@ -296,17 +313,17 @@ func (mmCancelReservedItems *mIStockRepositoryMockCancelReservedItems) invocatio
 }
 
 // CancelReservedItems implements mm_service.IStockRepository
-func (mmCancelReservedItems *IStockRepositoryMock) CancelReservedItems(ctx context.Context, items []models.Item) (err error) {
+func (mmCancelReservedItems *IStockRepositoryMock) CancelReservedItems(ctx context.Context, tx pgx.Tx, items []models.Item) (err error) {
 	mm_atomic.AddUint64(&mmCancelReservedItems.beforeCancelReservedItemsCounter, 1)
 	defer mm_atomic.AddUint64(&mmCancelReservedItems.afterCancelReservedItemsCounter, 1)
 
 	mmCancelReservedItems.t.Helper()
 
 	if mmCancelReservedItems.inspectFuncCancelReservedItems != nil {
-		mmCancelReservedItems.inspectFuncCancelReservedItems(ctx, items)
+		mmCancelReservedItems.inspectFuncCancelReservedItems(ctx, tx, items)
 	}
 
-	mm_params := IStockRepositoryMockCancelReservedItemsParams{ctx, items}
+	mm_params := IStockRepositoryMockCancelReservedItemsParams{ctx, tx, items}
 
 	// Record call args
 	mmCancelReservedItems.CancelReservedItemsMock.mutex.Lock()
@@ -325,13 +342,18 @@ func (mmCancelReservedItems *IStockRepositoryMock) CancelReservedItems(ctx conte
 		mm_want := mmCancelReservedItems.CancelReservedItemsMock.defaultExpectation.params
 		mm_want_ptrs := mmCancelReservedItems.CancelReservedItemsMock.defaultExpectation.paramPtrs
 
-		mm_got := IStockRepositoryMockCancelReservedItemsParams{ctx, items}
+		mm_got := IStockRepositoryMockCancelReservedItemsParams{ctx, tx, items}
 
 		if mm_want_ptrs != nil {
 
 			if mm_want_ptrs.ctx != nil && !minimock.Equal(*mm_want_ptrs.ctx, mm_got.ctx) {
 				mmCancelReservedItems.t.Errorf("IStockRepositoryMock.CancelReservedItems got unexpected parameter ctx, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
 					mmCancelReservedItems.CancelReservedItemsMock.defaultExpectation.expectationOrigins.originCtx, *mm_want_ptrs.ctx, mm_got.ctx, minimock.Diff(*mm_want_ptrs.ctx, mm_got.ctx))
+			}
+
+			if mm_want_ptrs.tx != nil && !minimock.Equal(*mm_want_ptrs.tx, mm_got.tx) {
+				mmCancelReservedItems.t.Errorf("IStockRepositoryMock.CancelReservedItems got unexpected parameter tx, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmCancelReservedItems.CancelReservedItemsMock.defaultExpectation.expectationOrigins.originTx, *mm_want_ptrs.tx, mm_got.tx, minimock.Diff(*mm_want_ptrs.tx, mm_got.tx))
 			}
 
 			if mm_want_ptrs.items != nil && !minimock.Equal(*mm_want_ptrs.items, mm_got.items) {
@@ -351,9 +373,9 @@ func (mmCancelReservedItems *IStockRepositoryMock) CancelReservedItems(ctx conte
 		return (*mm_results).err
 	}
 	if mmCancelReservedItems.funcCancelReservedItems != nil {
-		return mmCancelReservedItems.funcCancelReservedItems(ctx, items)
+		return mmCancelReservedItems.funcCancelReservedItems(ctx, tx, items)
 	}
-	mmCancelReservedItems.t.Fatalf("Unexpected call to IStockRepositoryMock.CancelReservedItems. %v %v", ctx, items)
+	mmCancelReservedItems.t.Fatalf("Unexpected call to IStockRepositoryMock.CancelReservedItems. %v %v %v", ctx, tx, items)
 	return
 }
 
@@ -795,12 +817,14 @@ type IStockRepositoryMockRemoveReservedItemsExpectation struct {
 // IStockRepositoryMockRemoveReservedItemsParams contains parameters of the IStockRepository.RemoveReservedItems
 type IStockRepositoryMockRemoveReservedItemsParams struct {
 	ctx   context.Context
+	tx    pgx.Tx
 	items []models.Item
 }
 
 // IStockRepositoryMockRemoveReservedItemsParamPtrs contains pointers to parameters of the IStockRepository.RemoveReservedItems
 type IStockRepositoryMockRemoveReservedItemsParamPtrs struct {
 	ctx   *context.Context
+	tx    *pgx.Tx
 	items *[]models.Item
 }
 
@@ -813,6 +837,7 @@ type IStockRepositoryMockRemoveReservedItemsResults struct {
 type IStockRepositoryMockRemoveReservedItemsExpectationOrigins struct {
 	origin      string
 	originCtx   string
+	originTx    string
 	originItems string
 }
 
@@ -827,7 +852,7 @@ func (mmRemoveReservedItems *mIStockRepositoryMockRemoveReservedItems) Optional(
 }
 
 // Expect sets up expected params for IStockRepository.RemoveReservedItems
-func (mmRemoveReservedItems *mIStockRepositoryMockRemoveReservedItems) Expect(ctx context.Context, items []models.Item) *mIStockRepositoryMockRemoveReservedItems {
+func (mmRemoveReservedItems *mIStockRepositoryMockRemoveReservedItems) Expect(ctx context.Context, tx pgx.Tx, items []models.Item) *mIStockRepositoryMockRemoveReservedItems {
 	if mmRemoveReservedItems.mock.funcRemoveReservedItems != nil {
 		mmRemoveReservedItems.mock.t.Fatalf("IStockRepositoryMock.RemoveReservedItems mock is already set by Set")
 	}
@@ -840,7 +865,7 @@ func (mmRemoveReservedItems *mIStockRepositoryMockRemoveReservedItems) Expect(ct
 		mmRemoveReservedItems.mock.t.Fatalf("IStockRepositoryMock.RemoveReservedItems mock is already set by ExpectParams functions")
 	}
 
-	mmRemoveReservedItems.defaultExpectation.params = &IStockRepositoryMockRemoveReservedItemsParams{ctx, items}
+	mmRemoveReservedItems.defaultExpectation.params = &IStockRepositoryMockRemoveReservedItemsParams{ctx, tx, items}
 	mmRemoveReservedItems.defaultExpectation.expectationOrigins.origin = minimock.CallerInfo(1)
 	for _, e := range mmRemoveReservedItems.expectations {
 		if minimock.Equal(e.params, mmRemoveReservedItems.defaultExpectation.params) {
@@ -874,8 +899,31 @@ func (mmRemoveReservedItems *mIStockRepositoryMockRemoveReservedItems) ExpectCtx
 	return mmRemoveReservedItems
 }
 
-// ExpectItemsParam2 sets up expected param items for IStockRepository.RemoveReservedItems
-func (mmRemoveReservedItems *mIStockRepositoryMockRemoveReservedItems) ExpectItemsParam2(items []models.Item) *mIStockRepositoryMockRemoveReservedItems {
+// ExpectTxParam2 sets up expected param tx for IStockRepository.RemoveReservedItems
+func (mmRemoveReservedItems *mIStockRepositoryMockRemoveReservedItems) ExpectTxParam2(tx pgx.Tx) *mIStockRepositoryMockRemoveReservedItems {
+	if mmRemoveReservedItems.mock.funcRemoveReservedItems != nil {
+		mmRemoveReservedItems.mock.t.Fatalf("IStockRepositoryMock.RemoveReservedItems mock is already set by Set")
+	}
+
+	if mmRemoveReservedItems.defaultExpectation == nil {
+		mmRemoveReservedItems.defaultExpectation = &IStockRepositoryMockRemoveReservedItemsExpectation{}
+	}
+
+	if mmRemoveReservedItems.defaultExpectation.params != nil {
+		mmRemoveReservedItems.mock.t.Fatalf("IStockRepositoryMock.RemoveReservedItems mock is already set by Expect")
+	}
+
+	if mmRemoveReservedItems.defaultExpectation.paramPtrs == nil {
+		mmRemoveReservedItems.defaultExpectation.paramPtrs = &IStockRepositoryMockRemoveReservedItemsParamPtrs{}
+	}
+	mmRemoveReservedItems.defaultExpectation.paramPtrs.tx = &tx
+	mmRemoveReservedItems.defaultExpectation.expectationOrigins.originTx = minimock.CallerInfo(1)
+
+	return mmRemoveReservedItems
+}
+
+// ExpectItemsParam3 sets up expected param items for IStockRepository.RemoveReservedItems
+func (mmRemoveReservedItems *mIStockRepositoryMockRemoveReservedItems) ExpectItemsParam3(items []models.Item) *mIStockRepositoryMockRemoveReservedItems {
 	if mmRemoveReservedItems.mock.funcRemoveReservedItems != nil {
 		mmRemoveReservedItems.mock.t.Fatalf("IStockRepositoryMock.RemoveReservedItems mock is already set by Set")
 	}
@@ -898,7 +946,7 @@ func (mmRemoveReservedItems *mIStockRepositoryMockRemoveReservedItems) ExpectIte
 }
 
 // Inspect accepts an inspector function that has same arguments as the IStockRepository.RemoveReservedItems
-func (mmRemoveReservedItems *mIStockRepositoryMockRemoveReservedItems) Inspect(f func(ctx context.Context, items []models.Item)) *mIStockRepositoryMockRemoveReservedItems {
+func (mmRemoveReservedItems *mIStockRepositoryMockRemoveReservedItems) Inspect(f func(ctx context.Context, tx pgx.Tx, items []models.Item)) *mIStockRepositoryMockRemoveReservedItems {
 	if mmRemoveReservedItems.mock.inspectFuncRemoveReservedItems != nil {
 		mmRemoveReservedItems.mock.t.Fatalf("Inspect function is already set for IStockRepositoryMock.RemoveReservedItems")
 	}
@@ -923,7 +971,7 @@ func (mmRemoveReservedItems *mIStockRepositoryMockRemoveReservedItems) Return(er
 }
 
 // Set uses given function f to mock the IStockRepository.RemoveReservedItems method
-func (mmRemoveReservedItems *mIStockRepositoryMockRemoveReservedItems) Set(f func(ctx context.Context, items []models.Item) (err error)) *IStockRepositoryMock {
+func (mmRemoveReservedItems *mIStockRepositoryMockRemoveReservedItems) Set(f func(ctx context.Context, tx pgx.Tx, items []models.Item) (err error)) *IStockRepositoryMock {
 	if mmRemoveReservedItems.defaultExpectation != nil {
 		mmRemoveReservedItems.mock.t.Fatalf("Default expectation is already set for the IStockRepository.RemoveReservedItems method")
 	}
@@ -939,14 +987,14 @@ func (mmRemoveReservedItems *mIStockRepositoryMockRemoveReservedItems) Set(f fun
 
 // When sets expectation for the IStockRepository.RemoveReservedItems which will trigger the result defined by the following
 // Then helper
-func (mmRemoveReservedItems *mIStockRepositoryMockRemoveReservedItems) When(ctx context.Context, items []models.Item) *IStockRepositoryMockRemoveReservedItemsExpectation {
+func (mmRemoveReservedItems *mIStockRepositoryMockRemoveReservedItems) When(ctx context.Context, tx pgx.Tx, items []models.Item) *IStockRepositoryMockRemoveReservedItemsExpectation {
 	if mmRemoveReservedItems.mock.funcRemoveReservedItems != nil {
 		mmRemoveReservedItems.mock.t.Fatalf("IStockRepositoryMock.RemoveReservedItems mock is already set by Set")
 	}
 
 	expectation := &IStockRepositoryMockRemoveReservedItemsExpectation{
 		mock:               mmRemoveReservedItems.mock,
-		params:             &IStockRepositoryMockRemoveReservedItemsParams{ctx, items},
+		params:             &IStockRepositoryMockRemoveReservedItemsParams{ctx, tx, items},
 		expectationOrigins: IStockRepositoryMockRemoveReservedItemsExpectationOrigins{origin: minimock.CallerInfo(1)},
 	}
 	mmRemoveReservedItems.expectations = append(mmRemoveReservedItems.expectations, expectation)
@@ -981,17 +1029,17 @@ func (mmRemoveReservedItems *mIStockRepositoryMockRemoveReservedItems) invocatio
 }
 
 // RemoveReservedItems implements mm_service.IStockRepository
-func (mmRemoveReservedItems *IStockRepositoryMock) RemoveReservedItems(ctx context.Context, items []models.Item) (err error) {
+func (mmRemoveReservedItems *IStockRepositoryMock) RemoveReservedItems(ctx context.Context, tx pgx.Tx, items []models.Item) (err error) {
 	mm_atomic.AddUint64(&mmRemoveReservedItems.beforeRemoveReservedItemsCounter, 1)
 	defer mm_atomic.AddUint64(&mmRemoveReservedItems.afterRemoveReservedItemsCounter, 1)
 
 	mmRemoveReservedItems.t.Helper()
 
 	if mmRemoveReservedItems.inspectFuncRemoveReservedItems != nil {
-		mmRemoveReservedItems.inspectFuncRemoveReservedItems(ctx, items)
+		mmRemoveReservedItems.inspectFuncRemoveReservedItems(ctx, tx, items)
 	}
 
-	mm_params := IStockRepositoryMockRemoveReservedItemsParams{ctx, items}
+	mm_params := IStockRepositoryMockRemoveReservedItemsParams{ctx, tx, items}
 
 	// Record call args
 	mmRemoveReservedItems.RemoveReservedItemsMock.mutex.Lock()
@@ -1010,13 +1058,18 @@ func (mmRemoveReservedItems *IStockRepositoryMock) RemoveReservedItems(ctx conte
 		mm_want := mmRemoveReservedItems.RemoveReservedItemsMock.defaultExpectation.params
 		mm_want_ptrs := mmRemoveReservedItems.RemoveReservedItemsMock.defaultExpectation.paramPtrs
 
-		mm_got := IStockRepositoryMockRemoveReservedItemsParams{ctx, items}
+		mm_got := IStockRepositoryMockRemoveReservedItemsParams{ctx, tx, items}
 
 		if mm_want_ptrs != nil {
 
 			if mm_want_ptrs.ctx != nil && !minimock.Equal(*mm_want_ptrs.ctx, mm_got.ctx) {
 				mmRemoveReservedItems.t.Errorf("IStockRepositoryMock.RemoveReservedItems got unexpected parameter ctx, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
 					mmRemoveReservedItems.RemoveReservedItemsMock.defaultExpectation.expectationOrigins.originCtx, *mm_want_ptrs.ctx, mm_got.ctx, minimock.Diff(*mm_want_ptrs.ctx, mm_got.ctx))
+			}
+
+			if mm_want_ptrs.tx != nil && !minimock.Equal(*mm_want_ptrs.tx, mm_got.tx) {
+				mmRemoveReservedItems.t.Errorf("IStockRepositoryMock.RemoveReservedItems got unexpected parameter tx, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmRemoveReservedItems.RemoveReservedItemsMock.defaultExpectation.expectationOrigins.originTx, *mm_want_ptrs.tx, mm_got.tx, minimock.Diff(*mm_want_ptrs.tx, mm_got.tx))
 			}
 
 			if mm_want_ptrs.items != nil && !minimock.Equal(*mm_want_ptrs.items, mm_got.items) {
@@ -1036,9 +1089,9 @@ func (mmRemoveReservedItems *IStockRepositoryMock) RemoveReservedItems(ctx conte
 		return (*mm_results).err
 	}
 	if mmRemoveReservedItems.funcRemoveReservedItems != nil {
-		return mmRemoveReservedItems.funcRemoveReservedItems(ctx, items)
+		return mmRemoveReservedItems.funcRemoveReservedItems(ctx, tx, items)
 	}
-	mmRemoveReservedItems.t.Fatalf("Unexpected call to IStockRepositoryMock.RemoveReservedItems. %v %v", ctx, items)
+	mmRemoveReservedItems.t.Fatalf("Unexpected call to IStockRepositoryMock.RemoveReservedItems. %v %v %v", ctx, tx, items)
 	return
 }
 
@@ -1137,12 +1190,14 @@ type IStockRepositoryMockReserveItemsExpectation struct {
 // IStockRepositoryMockReserveItemsParams contains parameters of the IStockRepository.ReserveItems
 type IStockRepositoryMockReserveItemsParams struct {
 	ctx   context.Context
+	tx    pgx.Tx
 	items []models.Item
 }
 
 // IStockRepositoryMockReserveItemsParamPtrs contains pointers to parameters of the IStockRepository.ReserveItems
 type IStockRepositoryMockReserveItemsParamPtrs struct {
 	ctx   *context.Context
+	tx    *pgx.Tx
 	items *[]models.Item
 }
 
@@ -1155,6 +1210,7 @@ type IStockRepositoryMockReserveItemsResults struct {
 type IStockRepositoryMockReserveItemsExpectationOrigins struct {
 	origin      string
 	originCtx   string
+	originTx    string
 	originItems string
 }
 
@@ -1169,7 +1225,7 @@ func (mmReserveItems *mIStockRepositoryMockReserveItems) Optional() *mIStockRepo
 }
 
 // Expect sets up expected params for IStockRepository.ReserveItems
-func (mmReserveItems *mIStockRepositoryMockReserveItems) Expect(ctx context.Context, items []models.Item) *mIStockRepositoryMockReserveItems {
+func (mmReserveItems *mIStockRepositoryMockReserveItems) Expect(ctx context.Context, tx pgx.Tx, items []models.Item) *mIStockRepositoryMockReserveItems {
 	if mmReserveItems.mock.funcReserveItems != nil {
 		mmReserveItems.mock.t.Fatalf("IStockRepositoryMock.ReserveItems mock is already set by Set")
 	}
@@ -1182,7 +1238,7 @@ func (mmReserveItems *mIStockRepositoryMockReserveItems) Expect(ctx context.Cont
 		mmReserveItems.mock.t.Fatalf("IStockRepositoryMock.ReserveItems mock is already set by ExpectParams functions")
 	}
 
-	mmReserveItems.defaultExpectation.params = &IStockRepositoryMockReserveItemsParams{ctx, items}
+	mmReserveItems.defaultExpectation.params = &IStockRepositoryMockReserveItemsParams{ctx, tx, items}
 	mmReserveItems.defaultExpectation.expectationOrigins.origin = minimock.CallerInfo(1)
 	for _, e := range mmReserveItems.expectations {
 		if minimock.Equal(e.params, mmReserveItems.defaultExpectation.params) {
@@ -1216,8 +1272,31 @@ func (mmReserveItems *mIStockRepositoryMockReserveItems) ExpectCtxParam1(ctx con
 	return mmReserveItems
 }
 
-// ExpectItemsParam2 sets up expected param items for IStockRepository.ReserveItems
-func (mmReserveItems *mIStockRepositoryMockReserveItems) ExpectItemsParam2(items []models.Item) *mIStockRepositoryMockReserveItems {
+// ExpectTxParam2 sets up expected param tx for IStockRepository.ReserveItems
+func (mmReserveItems *mIStockRepositoryMockReserveItems) ExpectTxParam2(tx pgx.Tx) *mIStockRepositoryMockReserveItems {
+	if mmReserveItems.mock.funcReserveItems != nil {
+		mmReserveItems.mock.t.Fatalf("IStockRepositoryMock.ReserveItems mock is already set by Set")
+	}
+
+	if mmReserveItems.defaultExpectation == nil {
+		mmReserveItems.defaultExpectation = &IStockRepositoryMockReserveItemsExpectation{}
+	}
+
+	if mmReserveItems.defaultExpectation.params != nil {
+		mmReserveItems.mock.t.Fatalf("IStockRepositoryMock.ReserveItems mock is already set by Expect")
+	}
+
+	if mmReserveItems.defaultExpectation.paramPtrs == nil {
+		mmReserveItems.defaultExpectation.paramPtrs = &IStockRepositoryMockReserveItemsParamPtrs{}
+	}
+	mmReserveItems.defaultExpectation.paramPtrs.tx = &tx
+	mmReserveItems.defaultExpectation.expectationOrigins.originTx = minimock.CallerInfo(1)
+
+	return mmReserveItems
+}
+
+// ExpectItemsParam3 sets up expected param items for IStockRepository.ReserveItems
+func (mmReserveItems *mIStockRepositoryMockReserveItems) ExpectItemsParam3(items []models.Item) *mIStockRepositoryMockReserveItems {
 	if mmReserveItems.mock.funcReserveItems != nil {
 		mmReserveItems.mock.t.Fatalf("IStockRepositoryMock.ReserveItems mock is already set by Set")
 	}
@@ -1240,7 +1319,7 @@ func (mmReserveItems *mIStockRepositoryMockReserveItems) ExpectItemsParam2(items
 }
 
 // Inspect accepts an inspector function that has same arguments as the IStockRepository.ReserveItems
-func (mmReserveItems *mIStockRepositoryMockReserveItems) Inspect(f func(ctx context.Context, items []models.Item)) *mIStockRepositoryMockReserveItems {
+func (mmReserveItems *mIStockRepositoryMockReserveItems) Inspect(f func(ctx context.Context, tx pgx.Tx, items []models.Item)) *mIStockRepositoryMockReserveItems {
 	if mmReserveItems.mock.inspectFuncReserveItems != nil {
 		mmReserveItems.mock.t.Fatalf("Inspect function is already set for IStockRepositoryMock.ReserveItems")
 	}
@@ -1265,7 +1344,7 @@ func (mmReserveItems *mIStockRepositoryMockReserveItems) Return(err error) *ISto
 }
 
 // Set uses given function f to mock the IStockRepository.ReserveItems method
-func (mmReserveItems *mIStockRepositoryMockReserveItems) Set(f func(ctx context.Context, items []models.Item) (err error)) *IStockRepositoryMock {
+func (mmReserveItems *mIStockRepositoryMockReserveItems) Set(f func(ctx context.Context, tx pgx.Tx, items []models.Item) (err error)) *IStockRepositoryMock {
 	if mmReserveItems.defaultExpectation != nil {
 		mmReserveItems.mock.t.Fatalf("Default expectation is already set for the IStockRepository.ReserveItems method")
 	}
@@ -1281,14 +1360,14 @@ func (mmReserveItems *mIStockRepositoryMockReserveItems) Set(f func(ctx context.
 
 // When sets expectation for the IStockRepository.ReserveItems which will trigger the result defined by the following
 // Then helper
-func (mmReserveItems *mIStockRepositoryMockReserveItems) When(ctx context.Context, items []models.Item) *IStockRepositoryMockReserveItemsExpectation {
+func (mmReserveItems *mIStockRepositoryMockReserveItems) When(ctx context.Context, tx pgx.Tx, items []models.Item) *IStockRepositoryMockReserveItemsExpectation {
 	if mmReserveItems.mock.funcReserveItems != nil {
 		mmReserveItems.mock.t.Fatalf("IStockRepositoryMock.ReserveItems mock is already set by Set")
 	}
 
 	expectation := &IStockRepositoryMockReserveItemsExpectation{
 		mock:               mmReserveItems.mock,
-		params:             &IStockRepositoryMockReserveItemsParams{ctx, items},
+		params:             &IStockRepositoryMockReserveItemsParams{ctx, tx, items},
 		expectationOrigins: IStockRepositoryMockReserveItemsExpectationOrigins{origin: minimock.CallerInfo(1)},
 	}
 	mmReserveItems.expectations = append(mmReserveItems.expectations, expectation)
@@ -1323,17 +1402,17 @@ func (mmReserveItems *mIStockRepositoryMockReserveItems) invocationsDone() bool 
 }
 
 // ReserveItems implements mm_service.IStockRepository
-func (mmReserveItems *IStockRepositoryMock) ReserveItems(ctx context.Context, items []models.Item) (err error) {
+func (mmReserveItems *IStockRepositoryMock) ReserveItems(ctx context.Context, tx pgx.Tx, items []models.Item) (err error) {
 	mm_atomic.AddUint64(&mmReserveItems.beforeReserveItemsCounter, 1)
 	defer mm_atomic.AddUint64(&mmReserveItems.afterReserveItemsCounter, 1)
 
 	mmReserveItems.t.Helper()
 
 	if mmReserveItems.inspectFuncReserveItems != nil {
-		mmReserveItems.inspectFuncReserveItems(ctx, items)
+		mmReserveItems.inspectFuncReserveItems(ctx, tx, items)
 	}
 
-	mm_params := IStockRepositoryMockReserveItemsParams{ctx, items}
+	mm_params := IStockRepositoryMockReserveItemsParams{ctx, tx, items}
 
 	// Record call args
 	mmReserveItems.ReserveItemsMock.mutex.Lock()
@@ -1352,13 +1431,18 @@ func (mmReserveItems *IStockRepositoryMock) ReserveItems(ctx context.Context, it
 		mm_want := mmReserveItems.ReserveItemsMock.defaultExpectation.params
 		mm_want_ptrs := mmReserveItems.ReserveItemsMock.defaultExpectation.paramPtrs
 
-		mm_got := IStockRepositoryMockReserveItemsParams{ctx, items}
+		mm_got := IStockRepositoryMockReserveItemsParams{ctx, tx, items}
 
 		if mm_want_ptrs != nil {
 
 			if mm_want_ptrs.ctx != nil && !minimock.Equal(*mm_want_ptrs.ctx, mm_got.ctx) {
 				mmReserveItems.t.Errorf("IStockRepositoryMock.ReserveItems got unexpected parameter ctx, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
 					mmReserveItems.ReserveItemsMock.defaultExpectation.expectationOrigins.originCtx, *mm_want_ptrs.ctx, mm_got.ctx, minimock.Diff(*mm_want_ptrs.ctx, mm_got.ctx))
+			}
+
+			if mm_want_ptrs.tx != nil && !minimock.Equal(*mm_want_ptrs.tx, mm_got.tx) {
+				mmReserveItems.t.Errorf("IStockRepositoryMock.ReserveItems got unexpected parameter tx, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmReserveItems.ReserveItemsMock.defaultExpectation.expectationOrigins.originTx, *mm_want_ptrs.tx, mm_got.tx, minimock.Diff(*mm_want_ptrs.tx, mm_got.tx))
 			}
 
 			if mm_want_ptrs.items != nil && !minimock.Equal(*mm_want_ptrs.items, mm_got.items) {
@@ -1378,9 +1462,9 @@ func (mmReserveItems *IStockRepositoryMock) ReserveItems(ctx context.Context, it
 		return (*mm_results).err
 	}
 	if mmReserveItems.funcReserveItems != nil {
-		return mmReserveItems.funcReserveItems(ctx, items)
+		return mmReserveItems.funcReserveItems(ctx, tx, items)
 	}
-	mmReserveItems.t.Fatalf("Unexpected call to IStockRepositoryMock.ReserveItems. %v %v", ctx, items)
+	mmReserveItems.t.Fatalf("Unexpected call to IStockRepositoryMock.ReserveItems. %v %v %v", ctx, tx, items)
 	return
 }
 
@@ -1452,288 +1536,6 @@ func (m *IStockRepositoryMock) MinimockReserveItemsInspect() {
 	}
 }
 
-type mIStockRepositoryMockRollbackRemoveReserved struct {
-	optional           bool
-	mock               *IStockRepositoryMock
-	defaultExpectation *IStockRepositoryMockRollbackRemoveReservedExpectation
-	expectations       []*IStockRepositoryMockRollbackRemoveReservedExpectation
-
-	callArgs []*IStockRepositoryMockRollbackRemoveReservedParams
-	mutex    sync.RWMutex
-
-	expectedInvocations       uint64
-	expectedInvocationsOrigin string
-}
-
-// IStockRepositoryMockRollbackRemoveReservedExpectation specifies expectation struct of the IStockRepository.RollbackRemoveReserved
-type IStockRepositoryMockRollbackRemoveReservedExpectation struct {
-	mock               *IStockRepositoryMock
-	params             *IStockRepositoryMockRollbackRemoveReservedParams
-	paramPtrs          *IStockRepositoryMockRollbackRemoveReservedParamPtrs
-	expectationOrigins IStockRepositoryMockRollbackRemoveReservedExpectationOrigins
-
-	returnOrigin string
-	Counter      uint64
-}
-
-// IStockRepositoryMockRollbackRemoveReservedParams contains parameters of the IStockRepository.RollbackRemoveReserved
-type IStockRepositoryMockRollbackRemoveReservedParams struct {
-	removedItems []models.Item
-}
-
-// IStockRepositoryMockRollbackRemoveReservedParamPtrs contains pointers to parameters of the IStockRepository.RollbackRemoveReserved
-type IStockRepositoryMockRollbackRemoveReservedParamPtrs struct {
-	removedItems *[]models.Item
-}
-
-// IStockRepositoryMockRollbackRemoveReservedOrigins contains origins of expectations of the IStockRepository.RollbackRemoveReserved
-type IStockRepositoryMockRollbackRemoveReservedExpectationOrigins struct {
-	origin             string
-	originRemovedItems string
-}
-
-// Marks this method to be optional. The default behavior of any method with Return() is '1 or more', meaning
-// the test will fail minimock's automatic final call check if the mocked method was not called at least once.
-// Optional() makes method check to work in '0 or more' mode.
-// It is NOT RECOMMENDED to use this option unless you really need it, as default behaviour helps to
-// catch the problems when the expected method call is totally skipped during test run.
-func (mmRollbackRemoveReserved *mIStockRepositoryMockRollbackRemoveReserved) Optional() *mIStockRepositoryMockRollbackRemoveReserved {
-	mmRollbackRemoveReserved.optional = true
-	return mmRollbackRemoveReserved
-}
-
-// Expect sets up expected params for IStockRepository.RollbackRemoveReserved
-func (mmRollbackRemoveReserved *mIStockRepositoryMockRollbackRemoveReserved) Expect(removedItems []models.Item) *mIStockRepositoryMockRollbackRemoveReserved {
-	if mmRollbackRemoveReserved.mock.funcRollbackRemoveReserved != nil {
-		mmRollbackRemoveReserved.mock.t.Fatalf("IStockRepositoryMock.RollbackRemoveReserved mock is already set by Set")
-	}
-
-	if mmRollbackRemoveReserved.defaultExpectation == nil {
-		mmRollbackRemoveReserved.defaultExpectation = &IStockRepositoryMockRollbackRemoveReservedExpectation{}
-	}
-
-	if mmRollbackRemoveReserved.defaultExpectation.paramPtrs != nil {
-		mmRollbackRemoveReserved.mock.t.Fatalf("IStockRepositoryMock.RollbackRemoveReserved mock is already set by ExpectParams functions")
-	}
-
-	mmRollbackRemoveReserved.defaultExpectation.params = &IStockRepositoryMockRollbackRemoveReservedParams{removedItems}
-	mmRollbackRemoveReserved.defaultExpectation.expectationOrigins.origin = minimock.CallerInfo(1)
-	for _, e := range mmRollbackRemoveReserved.expectations {
-		if minimock.Equal(e.params, mmRollbackRemoveReserved.defaultExpectation.params) {
-			mmRollbackRemoveReserved.mock.t.Fatalf("Expectation set by When has same params: %#v", *mmRollbackRemoveReserved.defaultExpectation.params)
-		}
-	}
-
-	return mmRollbackRemoveReserved
-}
-
-// ExpectRemovedItemsParam1 sets up expected param removedItems for IStockRepository.RollbackRemoveReserved
-func (mmRollbackRemoveReserved *mIStockRepositoryMockRollbackRemoveReserved) ExpectRemovedItemsParam1(removedItems []models.Item) *mIStockRepositoryMockRollbackRemoveReserved {
-	if mmRollbackRemoveReserved.mock.funcRollbackRemoveReserved != nil {
-		mmRollbackRemoveReserved.mock.t.Fatalf("IStockRepositoryMock.RollbackRemoveReserved mock is already set by Set")
-	}
-
-	if mmRollbackRemoveReserved.defaultExpectation == nil {
-		mmRollbackRemoveReserved.defaultExpectation = &IStockRepositoryMockRollbackRemoveReservedExpectation{}
-	}
-
-	if mmRollbackRemoveReserved.defaultExpectation.params != nil {
-		mmRollbackRemoveReserved.mock.t.Fatalf("IStockRepositoryMock.RollbackRemoveReserved mock is already set by Expect")
-	}
-
-	if mmRollbackRemoveReserved.defaultExpectation.paramPtrs == nil {
-		mmRollbackRemoveReserved.defaultExpectation.paramPtrs = &IStockRepositoryMockRollbackRemoveReservedParamPtrs{}
-	}
-	mmRollbackRemoveReserved.defaultExpectation.paramPtrs.removedItems = &removedItems
-	mmRollbackRemoveReserved.defaultExpectation.expectationOrigins.originRemovedItems = minimock.CallerInfo(1)
-
-	return mmRollbackRemoveReserved
-}
-
-// Inspect accepts an inspector function that has same arguments as the IStockRepository.RollbackRemoveReserved
-func (mmRollbackRemoveReserved *mIStockRepositoryMockRollbackRemoveReserved) Inspect(f func(removedItems []models.Item)) *mIStockRepositoryMockRollbackRemoveReserved {
-	if mmRollbackRemoveReserved.mock.inspectFuncRollbackRemoveReserved != nil {
-		mmRollbackRemoveReserved.mock.t.Fatalf("Inspect function is already set for IStockRepositoryMock.RollbackRemoveReserved")
-	}
-
-	mmRollbackRemoveReserved.mock.inspectFuncRollbackRemoveReserved = f
-
-	return mmRollbackRemoveReserved
-}
-
-// Return sets up results that will be returned by IStockRepository.RollbackRemoveReserved
-func (mmRollbackRemoveReserved *mIStockRepositoryMockRollbackRemoveReserved) Return() *IStockRepositoryMock {
-	if mmRollbackRemoveReserved.mock.funcRollbackRemoveReserved != nil {
-		mmRollbackRemoveReserved.mock.t.Fatalf("IStockRepositoryMock.RollbackRemoveReserved mock is already set by Set")
-	}
-
-	if mmRollbackRemoveReserved.defaultExpectation == nil {
-		mmRollbackRemoveReserved.defaultExpectation = &IStockRepositoryMockRollbackRemoveReservedExpectation{mock: mmRollbackRemoveReserved.mock}
-	}
-
-	mmRollbackRemoveReserved.defaultExpectation.returnOrigin = minimock.CallerInfo(1)
-	return mmRollbackRemoveReserved.mock
-}
-
-// Set uses given function f to mock the IStockRepository.RollbackRemoveReserved method
-func (mmRollbackRemoveReserved *mIStockRepositoryMockRollbackRemoveReserved) Set(f func(removedItems []models.Item)) *IStockRepositoryMock {
-	if mmRollbackRemoveReserved.defaultExpectation != nil {
-		mmRollbackRemoveReserved.mock.t.Fatalf("Default expectation is already set for the IStockRepository.RollbackRemoveReserved method")
-	}
-
-	if len(mmRollbackRemoveReserved.expectations) > 0 {
-		mmRollbackRemoveReserved.mock.t.Fatalf("Some expectations are already set for the IStockRepository.RollbackRemoveReserved method")
-	}
-
-	mmRollbackRemoveReserved.mock.funcRollbackRemoveReserved = f
-	mmRollbackRemoveReserved.mock.funcRollbackRemoveReservedOrigin = minimock.CallerInfo(1)
-	return mmRollbackRemoveReserved.mock
-}
-
-// Times sets number of times IStockRepository.RollbackRemoveReserved should be invoked
-func (mmRollbackRemoveReserved *mIStockRepositoryMockRollbackRemoveReserved) Times(n uint64) *mIStockRepositoryMockRollbackRemoveReserved {
-	if n == 0 {
-		mmRollbackRemoveReserved.mock.t.Fatalf("Times of IStockRepositoryMock.RollbackRemoveReserved mock can not be zero")
-	}
-	mm_atomic.StoreUint64(&mmRollbackRemoveReserved.expectedInvocations, n)
-	mmRollbackRemoveReserved.expectedInvocationsOrigin = minimock.CallerInfo(1)
-	return mmRollbackRemoveReserved
-}
-
-func (mmRollbackRemoveReserved *mIStockRepositoryMockRollbackRemoveReserved) invocationsDone() bool {
-	if len(mmRollbackRemoveReserved.expectations) == 0 && mmRollbackRemoveReserved.defaultExpectation == nil && mmRollbackRemoveReserved.mock.funcRollbackRemoveReserved == nil {
-		return true
-	}
-
-	totalInvocations := mm_atomic.LoadUint64(&mmRollbackRemoveReserved.mock.afterRollbackRemoveReservedCounter)
-	expectedInvocations := mm_atomic.LoadUint64(&mmRollbackRemoveReserved.expectedInvocations)
-
-	return totalInvocations > 0 && (expectedInvocations == 0 || expectedInvocations == totalInvocations)
-}
-
-// RollbackRemoveReserved implements mm_service.IStockRepository
-func (mmRollbackRemoveReserved *IStockRepositoryMock) RollbackRemoveReserved(removedItems []models.Item) {
-	mm_atomic.AddUint64(&mmRollbackRemoveReserved.beforeRollbackRemoveReservedCounter, 1)
-	defer mm_atomic.AddUint64(&mmRollbackRemoveReserved.afterRollbackRemoveReservedCounter, 1)
-
-	mmRollbackRemoveReserved.t.Helper()
-
-	if mmRollbackRemoveReserved.inspectFuncRollbackRemoveReserved != nil {
-		mmRollbackRemoveReserved.inspectFuncRollbackRemoveReserved(removedItems)
-	}
-
-	mm_params := IStockRepositoryMockRollbackRemoveReservedParams{removedItems}
-
-	// Record call args
-	mmRollbackRemoveReserved.RollbackRemoveReservedMock.mutex.Lock()
-	mmRollbackRemoveReserved.RollbackRemoveReservedMock.callArgs = append(mmRollbackRemoveReserved.RollbackRemoveReservedMock.callArgs, &mm_params)
-	mmRollbackRemoveReserved.RollbackRemoveReservedMock.mutex.Unlock()
-
-	for _, e := range mmRollbackRemoveReserved.RollbackRemoveReservedMock.expectations {
-		if minimock.Equal(*e.params, mm_params) {
-			mm_atomic.AddUint64(&e.Counter, 1)
-			return
-		}
-	}
-
-	if mmRollbackRemoveReserved.RollbackRemoveReservedMock.defaultExpectation != nil {
-		mm_atomic.AddUint64(&mmRollbackRemoveReserved.RollbackRemoveReservedMock.defaultExpectation.Counter, 1)
-		mm_want := mmRollbackRemoveReserved.RollbackRemoveReservedMock.defaultExpectation.params
-		mm_want_ptrs := mmRollbackRemoveReserved.RollbackRemoveReservedMock.defaultExpectation.paramPtrs
-
-		mm_got := IStockRepositoryMockRollbackRemoveReservedParams{removedItems}
-
-		if mm_want_ptrs != nil {
-
-			if mm_want_ptrs.removedItems != nil && !minimock.Equal(*mm_want_ptrs.removedItems, mm_got.removedItems) {
-				mmRollbackRemoveReserved.t.Errorf("IStockRepositoryMock.RollbackRemoveReserved got unexpected parameter removedItems, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
-					mmRollbackRemoveReserved.RollbackRemoveReservedMock.defaultExpectation.expectationOrigins.originRemovedItems, *mm_want_ptrs.removedItems, mm_got.removedItems, minimock.Diff(*mm_want_ptrs.removedItems, mm_got.removedItems))
-			}
-
-		} else if mm_want != nil && !minimock.Equal(*mm_want, mm_got) {
-			mmRollbackRemoveReserved.t.Errorf("IStockRepositoryMock.RollbackRemoveReserved got unexpected parameters, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
-				mmRollbackRemoveReserved.RollbackRemoveReservedMock.defaultExpectation.expectationOrigins.origin, *mm_want, mm_got, minimock.Diff(*mm_want, mm_got))
-		}
-
-		return
-
-	}
-	if mmRollbackRemoveReserved.funcRollbackRemoveReserved != nil {
-		mmRollbackRemoveReserved.funcRollbackRemoveReserved(removedItems)
-		return
-	}
-	mmRollbackRemoveReserved.t.Fatalf("Unexpected call to IStockRepositoryMock.RollbackRemoveReserved. %v", removedItems)
-
-}
-
-// RollbackRemoveReservedAfterCounter returns a count of finished IStockRepositoryMock.RollbackRemoveReserved invocations
-func (mmRollbackRemoveReserved *IStockRepositoryMock) RollbackRemoveReservedAfterCounter() uint64 {
-	return mm_atomic.LoadUint64(&mmRollbackRemoveReserved.afterRollbackRemoveReservedCounter)
-}
-
-// RollbackRemoveReservedBeforeCounter returns a count of IStockRepositoryMock.RollbackRemoveReserved invocations
-func (mmRollbackRemoveReserved *IStockRepositoryMock) RollbackRemoveReservedBeforeCounter() uint64 {
-	return mm_atomic.LoadUint64(&mmRollbackRemoveReserved.beforeRollbackRemoveReservedCounter)
-}
-
-// Calls returns a list of arguments used in each call to IStockRepositoryMock.RollbackRemoveReserved.
-// The list is in the same order as the calls were made (i.e. recent calls have a higher index)
-func (mmRollbackRemoveReserved *mIStockRepositoryMockRollbackRemoveReserved) Calls() []*IStockRepositoryMockRollbackRemoveReservedParams {
-	mmRollbackRemoveReserved.mutex.RLock()
-
-	argCopy := make([]*IStockRepositoryMockRollbackRemoveReservedParams, len(mmRollbackRemoveReserved.callArgs))
-	copy(argCopy, mmRollbackRemoveReserved.callArgs)
-
-	mmRollbackRemoveReserved.mutex.RUnlock()
-
-	return argCopy
-}
-
-// MinimockRollbackRemoveReservedDone returns true if the count of the RollbackRemoveReserved invocations corresponds
-// the number of defined expectations
-func (m *IStockRepositoryMock) MinimockRollbackRemoveReservedDone() bool {
-	if m.RollbackRemoveReservedMock.optional {
-		// Optional methods provide '0 or more' call count restriction.
-		return true
-	}
-
-	for _, e := range m.RollbackRemoveReservedMock.expectations {
-		if mm_atomic.LoadUint64(&e.Counter) < 1 {
-			return false
-		}
-	}
-
-	return m.RollbackRemoveReservedMock.invocationsDone()
-}
-
-// MinimockRollbackRemoveReservedInspect logs each unmet expectation
-func (m *IStockRepositoryMock) MinimockRollbackRemoveReservedInspect() {
-	for _, e := range m.RollbackRemoveReservedMock.expectations {
-		if mm_atomic.LoadUint64(&e.Counter) < 1 {
-			m.t.Errorf("Expected call to IStockRepositoryMock.RollbackRemoveReserved at\n%s with params: %#v", e.expectationOrigins.origin, *e.params)
-		}
-	}
-
-	afterRollbackRemoveReservedCounter := mm_atomic.LoadUint64(&m.afterRollbackRemoveReservedCounter)
-	// if default expectation was set then invocations count should be greater than zero
-	if m.RollbackRemoveReservedMock.defaultExpectation != nil && afterRollbackRemoveReservedCounter < 1 {
-		if m.RollbackRemoveReservedMock.defaultExpectation.params == nil {
-			m.t.Errorf("Expected call to IStockRepositoryMock.RollbackRemoveReserved at\n%s", m.RollbackRemoveReservedMock.defaultExpectation.returnOrigin)
-		} else {
-			m.t.Errorf("Expected call to IStockRepositoryMock.RollbackRemoveReserved at\n%s with params: %#v", m.RollbackRemoveReservedMock.defaultExpectation.expectationOrigins.origin, *m.RollbackRemoveReservedMock.defaultExpectation.params)
-		}
-	}
-	// if func was set then invocations count should be greater than zero
-	if m.funcRollbackRemoveReserved != nil && afterRollbackRemoveReservedCounter < 1 {
-		m.t.Errorf("Expected call to IStockRepositoryMock.RollbackRemoveReserved at\n%s", m.funcRollbackRemoveReservedOrigin)
-	}
-
-	if !m.RollbackRemoveReservedMock.invocationsDone() && afterRollbackRemoveReservedCounter > 0 {
-		m.t.Errorf("Expected %d calls to IStockRepositoryMock.RollbackRemoveReserved at\n%s but found %d calls",
-			mm_atomic.LoadUint64(&m.RollbackRemoveReservedMock.expectedInvocations), m.RollbackRemoveReservedMock.expectedInvocationsOrigin, afterRollbackRemoveReservedCounter)
-	}
-}
-
 // MinimockFinish checks that all mocked methods have been called the expected number of times
 func (m *IStockRepositoryMock) MinimockFinish() {
 	m.finishOnce.Do(func() {
@@ -1745,8 +1547,6 @@ func (m *IStockRepositoryMock) MinimockFinish() {
 			m.MinimockRemoveReservedItemsInspect()
 
 			m.MinimockReserveItemsInspect()
-
-			m.MinimockRollbackRemoveReservedInspect()
 		}
 	})
 }
@@ -1773,6 +1573,5 @@ func (m *IStockRepositoryMock) minimockDone() bool {
 		m.MinimockCancelReservedItemsDone() &&
 		m.MinimockGetAvailableStockBySKUDone() &&
 		m.MinimockRemoveReservedItemsDone() &&
-		m.MinimockReserveItemsDone() &&
-		m.MinimockRollbackRemoveReservedDone()
+		m.MinimockReserveItemsDone()
 }

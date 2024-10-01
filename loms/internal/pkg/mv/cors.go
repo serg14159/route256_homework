@@ -4,7 +4,7 @@ import (
 	"net/http"
 )
 
-// Function CorsMiddleware create CORS mv.
+// CorsMiddleware create CORS mv.
 func Cors(allowedOrigins []string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -23,7 +23,7 @@ func Cors(allowedOrigins []string) func(http.Handler) http.Handler {
 	}
 }
 
-// Function isAllowedOrigin checks if provided origin is in allowed origins list.
+// isAllowedOrigin checks if provided origin is in allowed origins list.
 func isAllowedOrigin(providedOrigin string, allowedOrigins []string) bool {
 	for _, allowedOrigin := range allowedOrigins {
 		if providedOrigin == allowedOrigin {
@@ -33,7 +33,7 @@ func isAllowedOrigin(providedOrigin string, allowedOrigins []string) bool {
 	return false
 }
 
-// Function setCORSHeaders sets the necessary CORS headers.
+// setCORSHeaders sets the necessary CORS headers.
 func setCORSHeaders(w http.ResponseWriter, origin string) {
 	headers := map[string]string{
 		"Access-Control-Allow-Origin":      origin,

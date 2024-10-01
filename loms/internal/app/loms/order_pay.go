@@ -9,7 +9,7 @@ import (
 	pb "route256/loms/pkg/api/loms/v1"
 )
 
-// Function OrderPay implements the gRPC OrderPay method.
+// OrderPay implements the gRPC OrderPay method.
 func (s *Service) OrderPay(ctx context.Context, req *pb.OrderPayRequest) (*pb.OrderPayResponse, error) {
 	orderPayRequest, err := toModelOrderPayRequest(req)
 	if err != nil {
@@ -24,6 +24,7 @@ func (s *Service) OrderPay(ctx context.Context, req *pb.OrderPayRequest) (*pb.Or
 	return &pb.OrderPayResponse{}, nil
 }
 
+// toModelOrderPayRequest convert request.
 func toModelOrderPayRequest(req *pb.OrderPayRequest) (*models.OrderPayRequest, error) {
 	if req == nil {
 		return nil, fmt.Errorf("invalid input data: %w", internal_errors.ErrBadRequest)

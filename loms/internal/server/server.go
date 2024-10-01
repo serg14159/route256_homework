@@ -65,6 +65,7 @@ type GrpcServer struct {
 	grpcServer     *grpc.Server
 }
 
+// NewGrpcServer return instance of GRPC server.
 func NewGrpcServer(cfgPrj ICfgPrj, cfgGrpc ICfgGrpc, cfgGateway ICfgGateway, cfgSwagger ICfgSwagger, lomsServiceApi *api.Service) *GrpcServer {
 	return &GrpcServer{
 		cfgPrj:         cfgPrj,
@@ -105,6 +106,7 @@ func (s *GrpcServer) startServers(ctx context.Context, cancel context.CancelFunc
 	return s.startGrpcServer(ctx)
 }
 
+// startGatewayServer
 func (s *GrpcServer) startGatewayServer(ctx context.Context, cancel context.CancelFunc) error {
 	gatewayAddr := fmt.Sprintf("%s:%v", s.cfgGateway.GetGatewayHost(), s.cfgGateway.GetGatewayPort())
 	grpcAddr := fmt.Sprintf("%s:%v", s.cfgGrpc.GetGrpcHost(), s.cfgGrpc.GetGrpcPort())
@@ -120,6 +122,7 @@ func (s *GrpcServer) startGatewayServer(ctx context.Context, cancel context.Canc
 	return nil
 }
 
+// startSwaggerServer
 func (s *GrpcServer) startSwaggerServer(ctx context.Context, cancel context.CancelFunc) error {
 	swaggerAddr := fmt.Sprintf("%s:%v", s.cfgSwagger.GetSwaggerHost(), s.cfgSwagger.GetSwaggerPort())
 	swaggerGtAddr := fmt.Sprintf("%s:%v", s.cfgSwagger.GetGtAddr(), s.cfgGateway.GetGatewayPort())
@@ -139,6 +142,7 @@ func (s *GrpcServer) startSwaggerServer(ctx context.Context, cancel context.Canc
 	return nil
 }
 
+// startGrpcServer
 func (s *GrpcServer) startGrpcServer(ctx context.Context) error {
 	grpcAddr := fmt.Sprintf("%s:%v", s.cfgGrpc.GetGrpcHost(), s.cfgGrpc.GetGrpcPort())
 	l, err := net.Listen("tcp", grpcAddr)
@@ -156,6 +160,7 @@ func (s *GrpcServer) startGrpcServer(ctx context.Context) error {
 	return nil
 }
 
+// createGrpcServer
 func (s *GrpcServer) createGrpcServer() *grpc.Server {
 	server := grpc.NewServer(
 		grpc.KeepaliveParams(keepalive.ServerParameters{
@@ -181,6 +186,7 @@ func (s *GrpcServer) createGrpcServer() *grpc.Server {
 	return server
 }
 
+// awaitTermination
 func (s *GrpcServer) awaitTermination(ctx context.Context) {
 	quit := make(chan os.Signal, quitChannelBufferSize)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
@@ -193,6 +199,7 @@ func (s *GrpcServer) awaitTermination(ctx context.Context) {
 	}
 }
 
+// shutdownServers
 func (s *GrpcServer) shutdownServers(ctx context.Context) {
 	if s.gatewayServer != nil {
 		if err := s.gatewayServer.Shutdown(ctx); err != nil {
