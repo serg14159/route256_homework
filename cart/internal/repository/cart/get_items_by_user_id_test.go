@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"route256/cart/internal/models"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -112,4 +113,41 @@ func TestRepository_GetItemsByUserID(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestRepository_GetItemsByUserID_Concurrent tests concurrent calls to GetItemsByUserID.
+func TestRepository_GetItemsByUserID_Concurrent(t *testing.T) {
+	// Run test parallel
+	t.Parallel()
+
+	repo := NewCartRepository()
+	ctx := context.Background()
+
+	const numGoroutines = 100
+	const UID models.UID = 1
+	items := []models.CartItem{
+		{SKU: 1001, Count: 2},
+		{SKU: 1002, Count: 3},
+	}
+
+	// Add items
+	for _, item := range items {
+		err := repo.AddItem(ctx, UID, item)
+		require.NoError(t, err)
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(numGoroutines)
+
+	// Concurrently get items from repository
+	for i := 0; i < numGoroutines; i++ {
+		go func() {
+			defer wg.Done()
+			retrievedItems, err := repo.GetItemsByUserID(ctx, UID)
+			require.NoError(t, err)
+			require.Len(t, retrievedItems, len(items))
+		}()
+	}
+
+	wg.Wait()
 }

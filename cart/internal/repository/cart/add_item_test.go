@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"route256/cart/internal/models"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -114,4 +115,40 @@ func TestRepository_AddItem(t *testing.T) {
 			require.Equal(t, tt.expectedCount, storedItem.Count, "Count must match")
 		})
 	}
+}
+
+// TestRepository_AddItem_Concurrent tests concurrent calls to AddItem.
+func TestRepository_AddItem_Concurrent(t *testing.T) {
+	// Run test parallel
+	t.Parallel()
+
+	repo := NewCartRepository()
+	ctx := context.Background()
+
+	const numGoroutines = 100
+	const UID models.UID = 1
+	item := models.CartItem{SKU: 1001, Count: 1}
+
+	var wg sync.WaitGroup
+	wg.Add(numGoroutines)
+
+	// Add items
+	for i := 0; i < numGoroutines; i++ {
+		go func() {
+			defer wg.Done()
+			err := repo.AddItem(ctx, UID, item)
+			require.NoError(t, err)
+		}()
+	}
+
+	wg.Wait()
+
+	// Verify the final count
+	repo.mu.Lock()
+	storedCart, ok := repo.storage[UID]
+	repo.mu.Unlock()
+	require.True(t, ok)
+	storedItem, ok := storedCart[item.SKU]
+	require.True(t, ok)
+	require.Equal(t, uint16(numGoroutines*int(item.Count)), storedItem.Count)
 }
