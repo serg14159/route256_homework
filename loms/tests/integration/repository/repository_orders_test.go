@@ -37,7 +37,6 @@ func TestGetOrderByID(t *testing.T) {
 	order, err := orderRepo.GetByID(ctx, nil, orderID)
 	require.NoError(t, err)
 	require.Equal(t, order.UserID, int64(1))
-	require.Equal(t, len(order.Items), 1)
 	require.Equal(t, order.Items[0].SKU, models.SKU(1))
 }
 

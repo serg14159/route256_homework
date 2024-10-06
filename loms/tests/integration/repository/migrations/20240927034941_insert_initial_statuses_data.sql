@@ -10,5 +10,5 @@ INSERT INTO statuses (name) VALUES
 
 -- +goose Down
 -- +goose StatementBegin
---DELETE FROM statuses WHERE name IN ('new', 'awaiting payment', 'failed', 'paid', 'cancelled');
+DELETE FROM statuses WHERE name IN ('new', 'awaiting payment', 'failed', 'paid', 'cancelled');
 -- +goose StatementEnd

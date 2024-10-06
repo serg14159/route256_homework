@@ -40,7 +40,7 @@ type TSuite struct {
 	lomsService *loms.Service
 }
 
-const DSN = "postgres://user:password@localhost:5434/postgres?sslmode=disable"
+const DSN = "postgres://user:password@localhost:5432/postgres?sslmode=disable"
 
 // SetupSuite
 func (s *TSuite) SetupSuite() {

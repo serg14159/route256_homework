@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"route256/cart/internal/models"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -86,4 +87,46 @@ func TestRepository_DeleteItem(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestRepository_DeleteItem_Concurrent tests concurrent calls to DeleteItem.
+func TestRepository_DeleteItem_Concurrent(t *testing.T) {
+	// Run test parallel
+	t.Parallel()
+
+	repo := NewCartRepository()
+	ctx := context.Background()
+
+	const numGoroutines = 100
+	const UID models.UID = 1
+	SKU := models.SKU(1001)
+	item := models.CartItem{SKU: SKU, Count: 1}
+
+	// Add item
+	repo.mu.Lock()
+	if repo.storage[UID] == nil {
+		repo.storage[UID] = make(map[models.SKU]models.CartItem)
+	}
+	repo.storage[UID][SKU] = item
+	repo.mu.Unlock()
+
+	var wg sync.WaitGroup
+	wg.Add(numGoroutines)
+
+	// Concurrently delete items from repository
+	for i := 0; i < numGoroutines; i++ {
+		go func() {
+			defer wg.Done()
+			err := repo.DeleteItem(ctx, UID, SKU)
+			require.NoError(t, err)
+		}()
+	}
+
+	wg.Wait()
+
+	// Verify the item has been deleted
+	repo.mu.Lock()
+	_, exists := repo.storage[UID][SKU]
+	repo.mu.Unlock()
+	require.False(t, exists, "item should be deleted")
 }

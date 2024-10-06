@@ -16,7 +16,7 @@ import (
 
 var connTests *pgxpool.Pool
 
-const DSN = "postgres://user:password@localhost:5434/postgres_test?sslmode=disable"
+const DSN = "postgres://user:password@localhost:5432/postgres_test?sslmode=disable"
 
 // TestMain
 func TestMain(m *testing.M) {
@@ -56,11 +56,7 @@ func runMigrations(db *sql.DB, action string) {
 	if err := goose.SetDialect("postgres"); err != nil {
 		log.Fatalf("Error setting goose dialect: %v", err)
 	}
-	if _, err := goose.GetDBVersion(db); err != nil {
-		if err := goose.UpTo(db, ".", 0); err != nil {
-			log.Fatalf("Error initializing goose_db_version: %v", err)
-		}
-	}
+
 	// Run migration
 	var err error
 	switch action {

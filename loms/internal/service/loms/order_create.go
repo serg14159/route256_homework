@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"route256/loms/internal/models"
@@ -37,6 +38,14 @@ func (s *LomsService) OrderCreate(ctx context.Context, req *models.OrderCreateRe
 		return nil
 	})
 
+	if errors.Is(err, internal_errors.ErrStockReservation) {
+		// Set status "failed"
+		errSetStatus := s.updateOrderStatus(ctx, nil, orderID, models.OrderStatusFailed)
+		if errSetStatus != nil {
+			return nil, errSetStatus
+		}
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -66,19 +75,21 @@ func (s *LomsService) createOrder(ctx context.Context, tx pgx.Tx, req *models.Or
 func (s *LomsService) reserveStocks(ctx context.Context, tx pgx.Tx, orderID models.OID, items []models.Item) error {
 	err := s.stockRepository.ReserveItems(ctx, tx, items)
 	if err != nil {
-		setStatusErr := s.orderRepository.SetStatus(ctx, tx, orderID, models.OrderStatusFailed)
-		if setStatusErr != nil {
-			return fmt.Errorf("failed to set order status failed: %w", setStatusErr)
-		}
-		return fmt.Errorf("failed to reserve stock: %w", err)
+		return fmt.Errorf("failed to reserve stock: %w", internal_errors.ErrStockReservation)
 	}
 
 	// Set status "awaiting payment"
-	err = s.orderRepository.SetStatus(ctx, tx, orderID, models.OrderStatusAwaitingPayment)
-	if err != nil {
-		return fmt.Errorf("failed to set order status awaiting payment: %w", err)
-	}
+	err = s.updateOrderStatus(ctx, tx, orderID, models.OrderStatusAwaitingPayment)
 
+	return err
+}
+
+// updateOrderStatus function for update order status.
+func (s *LomsService) updateOrderStatus(ctx context.Context, tx pgx.Tx, orderID models.OID, status models.OrderStatus) error {
+	err := s.orderRepository.SetStatus(ctx, tx, orderID, status)
+	if err != nil {
+		return fmt.Errorf("failed to set order status '%s': %w", status, err)
+	}
 	return nil
 }
 
