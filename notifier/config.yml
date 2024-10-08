@@ -1,0 +1,10 @@
+project:
+  name: Notifier
+  debug: true
+  environment: development
+
+kafka:
+  brokers: "localhost:9092"
+  consumerGroup: "notifier_group"
+  topics: "loms.order-events"
+

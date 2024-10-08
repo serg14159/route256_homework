@@ -154,7 +154,7 @@ docker_build:
 
 .PHONY: docker_run
 docker_run:
-	docker run -p 8082:8082 loms:latest
+	docker run -p 8083:8083 loms:latest
 
 # Tests
 .PHONY: test_all
