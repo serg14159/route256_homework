@@ -3,6 +3,8 @@ package consumer
 import (
 	"context"
 	"log"
+	"sync"
+	"time"
 
 	"github.com/IBM/sarama"
 )
@@ -21,6 +23,7 @@ type KafkaConsumer struct {
 	cfg           IKafkaCfg
 	handler       IHandlerMessage
 	consumerGroup sarama.ConsumerGroup
+	wg            sync.WaitGroup
 }
 
 // NewKafkaConsumer create new KafkaConsumer instance.
@@ -45,7 +48,15 @@ func NewKafkaConsumer(cfg IKafkaCfg, handler IHandlerMessage) (*KafkaConsumer, e
 
 // Start begins consuming messages from Kafka.
 func (kc *KafkaConsumer) Start(ctx context.Context) error {
-	defer kc.consumerGroup.Close()
+	log.Printf("Start consuming...")
+	kc.wg.Add(1)
+	defer kc.wg.Done()
+
+	defer func() {
+		if err := kc.consumerGroup.Close(); err != nil {
+			log.Printf("Error closing consumer: %v", err)
+		}
+	}()
 
 	go func() {
 		for err := range kc.consumerGroup.Errors() {
@@ -53,18 +64,27 @@ func (kc *KafkaConsumer) Start(ctx context.Context) error {
 		}
 	}()
 
-	log.Printf("Start consuming")
-
 	// Consume messages from specified topics
 	for {
-		if err := kc.consumerGroup.Consume(ctx, kc.cfg.GetTopics(), kc); err != nil {
-			log.Printf("Error during consumption: %v", err)
-		}
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
+		err := kc.consumerGroup.Consume(ctx, kc.cfg.GetTopics(), kc)
+		if err != nil {
+			log.Printf("Error during consumption: %v", err)
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(time.Second):
+			}
+		}
 	}
 
+}
+
+// Wait blocks until KafkaConsumer finished work.
+func (kc *KafkaConsumer) Wait() {
+	kc.wg.Wait()
 }
 
 // Setup is a required method for sarama.ConsumerGroupHandler interface.
@@ -79,12 +99,19 @@ func (kc *KafkaConsumer) Cleanup(_ sarama.ConsumerGroupSession) error {
 
 // ConsumeClaim processes messages from Kafka partition claim.
 func (kc *KafkaConsumer) ConsumeClaim(sess sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
-	for message := range claim.Messages() {
-		if err := kc.handler.HandleMessage(message); err != nil {
-			log.Printf("Error handling message: %v", err)
-			continue
+	for {
+		select {
+		case message, ok := <-claim.Messages():
+			if !ok {
+				return nil
+			}
+			if err := kc.handler.HandleMessage(message); err != nil {
+				log.Printf("Error handling message: %v", err)
+				continue
+			}
+			sess.MarkMessage(message, "")
+		case <-sess.Context().Done():
+			return nil
 		}
-		sess.MarkMessage(message, "")
 	}
-	return nil
 }

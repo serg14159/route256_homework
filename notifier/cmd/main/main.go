@@ -9,6 +9,7 @@ import (
 	"route256/notifier/internal/config"
 	"route256/notifier/internal/consumer"
 	service "route256/notifier/internal/service/notifier"
+	"syscall"
 
 	"log"
 
@@ -68,7 +69,12 @@ func main() {
 
 	// Wait os interrupt
 	quit := make(chan os.Signal, quitChannelBufferSize)
-	signal.Notify(quit, os.Interrupt)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 	<-quit
+
 	log.Printf("Shutdown ...")
+
+	cancel()
+
+	kafkaConsumer.Wait()
 }
