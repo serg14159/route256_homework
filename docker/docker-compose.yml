@@ -9,7 +9,7 @@ x-postgres-common: &postgres-common
     timeout: 5s
     retries: 5
   networks:
-    - pg-network
+    - app-network
 
 services:
 # postgres
@@ -108,7 +108,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - pg-network
+      - app-network
 
 # kafka
   kafka-ui:
@@ -120,6 +120,8 @@ services:
       KAFKA_CLUSTERS_0_NAME: local
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka0:29092
       DYNAMIC_CONFIG_ENABLED: "true"
+    networks:
+      - app-network
 
   kafka0:
     container_name: kafka
@@ -147,6 +149,8 @@ services:
       '
     volumes:
       - ./kafka_data:/tmp/kraft-combined-logs
+    networks:
+      - app-network
 
   kafka-init-topics:
     container_name: init-topics
@@ -159,7 +163,46 @@ services:
         cub kafka-ready -b kafka0:29092 1 60 &&
         kafka-topics --create --topic loms.order-events --partitions 2 --replication-factor 1 --if-not-exists --bootstrap-server kafka0:29092
       '
+    networks:
+      - app-network
+
+# notifier
+  notifier1:
+    container_name: notifier1
+    build: ../notifier
+    environment:
+      - KAFKA_BROKERS=kafka0:29092
+      - KAFKA_CONSUMER_GROUP=notifier_group
+      - KAFKA_TOPICS=loms.order-events
+    depends_on:
+      - kafka0
+    networks:
+      - app-network
+
+  notifier2:
+    container_name: notifier2
+    build: ../notifier
+    environment:
+      - KAFKA_BROKERS=kafka0:29092
+      - KAFKA_CONSUMER_GROUP=notifier_group
+      - KAFKA_TOPICS=loms.order-events
+    depends_on:
+      - kafka0
+    networks:
+      - app-network
+
+  notifier3:
+    container_name: notifier3
+    build: ../notifier
+    environment:
+      - KAFKA_BROKERS=kafka0:29092
+      - KAFKA_CONSUMER_GROUP=notifier_group
+      - KAFKA_TOPICS=loms.order-events
+    depends_on:
+      - kafka0
+    networks:
+      - app-network
 
 networks:
-  pg-network:
+  app-network:
     driver: bridge
