@@ -2,6 +2,9 @@ package models
 
 import "time"
 
+// User ID.
+type UID = int64
+
 type OrderStatus string
 
 const (
@@ -13,7 +16,7 @@ const (
 )
 
 type OrderEvent struct {
-	OrderID    string      `json:"order_id"`
+	OrderID    UID         `json:"order_id"`
 	Status     OrderStatus `json:"status"`
 	Time       time.Time   `json:"time"`
 	Additional string      `json:"additional"`
