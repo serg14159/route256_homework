@@ -1,5 +1,7 @@
 package models
 
+import "time"
+
 // User ID.
 type UID = int64
 
@@ -9,20 +11,20 @@ type SKU = uint32
 // Order ID.
 type OID = int64
 
-// Item represents a single item in an order.
+// Item represents single item in an order.
 type Item struct {
 	SKU   SKU    `validate:"gt=0"`
 	Count uint16 `validate:"gt=0"`
 }
 
-// Stock represents the inventory information for a specific product (SKU).
+// Stock represents inventory information for a specific product (SKU).
 type Stock struct {
 	SKU        SKU    `json:"sku"`
 	TotalCount uint64 `json:"total_count"`
 	Reserved   uint64 `json:"reserved"`
 }
 
-// OrderStatus represents the status of an order.
+// OrderStatus represents status of order.
 type OrderStatus string
 
 const (
@@ -87,4 +89,12 @@ type StocksInfoRequest struct {
 // StocksInfoResponse represents a response containing stock information.
 type StocksInfoResponse struct {
 	Count uint64 `json:"count"`
+}
+
+// OrderEvent represents kafka message.
+type OrderEvent struct {
+	OrderID    UID         `json:"order_id"`
+	Status     OrderStatus `json:"status"`
+	Time       time.Time   `json:"time"`
+	Additional string      `json:"additional"`
 }

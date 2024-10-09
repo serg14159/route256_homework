@@ -43,7 +43,7 @@ func main() {
 		cfg.Project.GetName(), cfg.Project.GetVersion(), cfg.Project.GetCommitHash(), cfg.Project.GetDebug(), cfg.Project.GetEnvironment())
 
 	// Cfg
-	fmt.Printf("cfg: %v", cfg)
+	fmt.Printf("cfg: %v \n", cfg)
 
 	// DB connect
 	ctx := context.Background()
