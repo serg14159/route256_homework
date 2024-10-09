@@ -9,6 +9,14 @@ import (
 	"github.com/IBM/sarama"
 )
 
+const (
+	MaxMetadataRetry     = 5
+	MetadataRetryBackoff = time.Second * 10
+	ConsumerRetryBackoff = time.Second * 5
+	MaxAttempts          = 5
+	RetryDelay           = time.Second * 5
+)
+
 type IKafkaCfg interface {
 	GetBrokers() []string
 	GetConsumerGroup() string
@@ -33,8 +41,23 @@ func NewKafkaConsumer(cfg IKafkaCfg, handler IHandlerMessage) (*KafkaConsumer, e
 	config.Consumer.Return.Errors = true
 	config.Consumer.Offsets.Initial = sarama.OffsetOldest
 
+	// Retries config
+	config.Metadata.Retry.Max = MaxMetadataRetry
+	config.Metadata.Retry.Backoff = MetadataRetryBackoff
+	config.Consumer.Retry.Backoff = ConsumerRetryBackoff
+
 	// Create consumer group
-	consumerGroup, err := sarama.NewConsumerGroup(cfg.GetBrokers(), cfg.GetConsumerGroup(), config)
+	var consumerGroup sarama.ConsumerGroup
+	var err error
+
+	for attempts := 0; attempts < MaxAttempts; attempts++ {
+		consumerGroup, err = sarama.NewConsumerGroup(cfg.GetBrokers(), cfg.GetConsumerGroup(), config)
+		if err == nil {
+			break
+		}
+		log.Printf("Failed to create consumer group (attempt %d/%d): %v", attempts+1, MaxAttempts, err)
+		time.Sleep(RetryDelay)
+	}
 	if err != nil {
 		return nil, err
 	}
