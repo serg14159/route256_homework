@@ -1,10 +1,14 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"os"
 	"os/signal"
+	"route256/notifier/internal/app/handler"
 	"route256/notifier/internal/config"
+	"route256/notifier/internal/consumer"
+	service "route256/notifier/internal/service/notifier"
 
 	"log"
 
@@ -36,6 +40,31 @@ func main() {
 
 	// Cfg
 	log.Printf("Cfg: %v", cfg)
+
+	// Service
+	notifierService := service.NewNotifierService()
+
+	// Handle
+	messageHandler := handler.NewMessageHandler(notifierService)
+
+	// Consumer
+	kafkaConsumer, err := consumer.NewKafkaConsumer(&cfg.Kafka, messageHandler)
+	if err != nil {
+		log.Printf("Failed creating consumer, err: %s", err)
+		os.Exit(1)
+	}
+
+	// Create context with cancel
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Run consumer
+	go func() {
+		if err := kafkaConsumer.Start(ctx); err != nil {
+			log.Printf("Failed start consumer, err: %s", err)
+			os.Exit(1)
+		}
+	}()
 
 	// Wait os interrupt
 	quit := make(chan os.Signal, quitChannelBufferSize)
