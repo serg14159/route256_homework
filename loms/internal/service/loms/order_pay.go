@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"log"
 
 	"route256/loms/internal/models"
 
@@ -44,17 +43,18 @@ func (s *LomsService) OrderPay(ctx context.Context, req *models.OrderPayRequest)
 			return fmt.Errorf("failed to set order status to payed: %w", err)
 		}
 
+		// Write event in outbox
+		eventType := "OrderPayed"
+		err = s.writeEventInOutbox(ctx, tx, eventType, req.OrderID, models.OrderStatusCancelled, eventType)
+		if err != nil {
+			return fmt.Errorf("write event in outbox: %w", err)
+		}
+
 		return nil
 	})
 
 	if err != nil {
 		return err
-	}
-
-	// Send order status "payed" to Kafka
-	err = s.sendEventToKafka(ctx, req.OrderID, models.OrderStatusPayed, "OrderPay")
-	if err != nil {
-		log.Printf("Failed to send Kafka message: %v", err)
 	}
 
 	return nil

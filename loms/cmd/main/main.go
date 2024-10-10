@@ -9,9 +9,11 @@ import (
 	loms "route256/loms/internal/app/loms"
 	kafkaProducer "route256/loms/internal/pkg/kafka"
 	repo_order "route256/loms/internal/repository/orders"
+	repo_outbox "route256/loms/internal/repository/outbox"
 	repo_stocks "route256/loms/internal/repository/stocks"
 	loms_usecase "route256/loms/internal/service/loms"
 	"syscall"
+	"time"
 
 	config "route256/loms/internal/config"
 	"route256/loms/internal/server"
@@ -25,6 +27,7 @@ import (
 
 const quitChannelBufferSize = 1
 const errorChannelBufferSize = 1
+const processOutboxInterval time.Duration = 2 * time.Second
 
 func main() {
 	// Load environment
@@ -71,6 +74,9 @@ func main() {
 	// Repository stocks
 	repoStocks := repo_stocks.NewStockRepository(pool)
 
+	// Repository outbox
+	repoOutbox := repo_outbox.NewOutboxRepository(pool)
+
 	// Kafka producer
 	kafkaProd, err := kafkaProducer.NewKafkaProducer(&cfg.Kafka)
 	if err != nil {
@@ -83,7 +89,7 @@ func main() {
 	}()
 
 	// Loms usecase
-	lomsUsecaseService := loms_usecase.NewService(repoOrder, repoStocks, txManager, kafkaProd)
+	lomsUsecaseService := loms_usecase.NewService(repoOrder, repoStocks, repoOutbox, txManager, kafkaProd)
 
 	// Loms
 	controller := loms.NewService(lomsUsecaseService)
@@ -98,6 +104,23 @@ func main() {
 		if err := server.NewGrpcServer(&cfg.Project, &cfg.Grpc, &cfg.Gateway, &cfg.Swagger, controller).Start(); err != nil {
 			log.Printf("Failed creating gRPC server, err:%s", err)
 			serverErrChan <- err
+		}
+	}()
+
+	// ProcessOutbox
+	go func() {
+		ticker := time.NewTicker(processOutboxInterval)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ticker.C:
+				if err := lomsUsecaseService.ProcessOutbox(ctx); err != nil {
+					log.Printf("Error processing outbox: %v", err)
+				}
+			case <-ctx.Done():
+				return
+			}
 		}
 	}()
 

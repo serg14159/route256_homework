@@ -4,11 +4,23 @@
 
 package sqlc
 
+import (
+	"github.com/jackc/pgx/v5/pgtype"
+)
+
 type Item struct {
 	ID      int64
 	OrderID *int64
 	Sku     int32
 	Count   int16
+}
+
+type Outbox struct {
+	ID        int32
+	EventType string
+	Payload   string
+	CreatedAt pgtype.Timestamptz
+	Processed *bool
 }
 
 type Stock struct {

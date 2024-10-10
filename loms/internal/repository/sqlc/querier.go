@@ -12,10 +12,13 @@ type Querier interface {
 	CancelReservedItems(ctx context.Context, arg *CancelReservedItemsParams) error
 	CreateOrder(ctx context.Context, arg *CreateOrderParams) (*CreateOrderRow, error)
 	CreateOrderItem(ctx context.Context, arg *CreateOrderItemParams) (int64, error)
+	FetchNextOutboxEvent(ctx context.Context) (*FetchNextOutboxEventRow, error)
 	GetAvailableStockBySKU(ctx context.Context, sku int32) (int32, error)
 	GetOrderByID(ctx context.Context, id int64) (*GetOrderByIDRow, error)
 	GetOrderItems(ctx context.Context, orderID *int64) ([]*Item, error)
 	GetStockBySKU(ctx context.Context, sku int32) (*Stock, error)
+	InsertOutboxEvent(ctx context.Context, arg *InsertOutboxEventParams) (*Outbox, error)
+	MarkOutboxEventAsProcessed(ctx context.Context, id int32) error
 	RemoveReservedItems(ctx context.Context, arg *RemoveReservedItemsParams) error
 	ReserveItems(ctx context.Context, arg *ReserveItemsParams) error
 	SetOrderStatus(ctx context.Context, arg *SetOrderStatusParams) error

@@ -212,6 +212,10 @@ create_migration_create_stocks_table:
 create_migration_insert_initial_stocks_data:
 	bin/goose -dir migrations create insert_initial_stocks_data sql
 
+.PHONY: create_migration_create_outbox_table
+create_migration_create_outbox_table:
+	bin/goose -dir migrations create create_outbox_table sql
+
 .PHONY: migrations_up
 migrations_up:
 	bin/goose -dir migrations postgres "postgres://user:password@localhost:5434/postgres?sslmode=disable" up

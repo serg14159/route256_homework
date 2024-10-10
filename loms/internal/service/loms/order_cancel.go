@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"log"
 	"route256/loms/internal/models"
 	internal_errors "route256/loms/internal/pkg/errors"
 
@@ -42,17 +41,18 @@ func (s *LomsService) OrderCancel(ctx context.Context, req *models.OrderCancelRe
 			return fmt.Errorf("failed to update order status: %w", err)
 		}
 
+		// Write event in outbox
+		eventType := "OrderCancelled"
+		err = s.writeEventInOutbox(ctx, tx, eventType, req.OrderID, models.OrderStatusCancelled, eventType)
+		if err != nil {
+			return fmt.Errorf("write event in outbox: %w", err)
+		}
+
 		return nil
 	})
 
 	if err != nil {
 		return err
-	}
-
-	// Send order status "cancelled" to Kafka
-	err = s.sendEventToKafka(ctx, req.OrderID, models.OrderStatusCancelled, "OrderCancel")
-	if err != nil {
-		log.Printf("Failed to send Kafka message: %v", err)
 	}
 
 	return nil

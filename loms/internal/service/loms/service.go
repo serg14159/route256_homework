@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"route256/loms/internal/models"
-	"time"
 
 	"github.com/jackc/pgx/v5"
 )
@@ -28,34 +27,30 @@ type ITxManager interface {
 }
 
 type IProducer interface {
-	SendOrderEvent(ctx context.Context, event *models.OrderEvent) error
+	SendOutboxEvent(ctx context.Context, event *models.OutboxEvent) error
+}
+
+type IOutboxRepository interface {
+	CreateEvent(ctx context.Context, tx pgx.Tx, eventType string, payload interface{}) error
+	FetchNextMsg(ctx context.Context, tx pgx.Tx) (*models.OutboxEvent, error)
+	MarkAsSent(ctx context.Context, tx pgx.Tx, eventID int64) error
 }
 
 type LomsService struct {
-	orderRepository IOrderRepository
-	stockRepository IStockRepository
-	txManager       ITxManager
-	producer        IProducer
+	orderRepository  IOrderRepository
+	stockRepository  IStockRepository
+	outboxRepository IOutboxRepository
+	txManager        ITxManager
+	producer         IProducer
 }
 
 // NewService return instance of LomsService.
-func NewService(orderRepository IOrderRepository, stockRepository IStockRepository, txManager ITxManager, producer IProducer) *LomsService {
+func NewService(orderRepository IOrderRepository, stockRepository IStockRepository, outboxRepository IOutboxRepository, txManager ITxManager, producer IProducer) *LomsService {
 	return &LomsService{
-		orderRepository: orderRepository,
-		stockRepository: stockRepository,
-		txManager:       txManager,
-		producer:        producer,
+		orderRepository:  orderRepository,
+		stockRepository:  stockRepository,
+		outboxRepository: outboxRepository,
+		txManager:        txManager,
+		producer:         producer,
 	}
-}
-
-// sendEventToKafka sends OrderEvent to Kafka.
-func (s *LomsService) sendEventToKafka(ctx context.Context, orderID models.OID, status models.OrderStatus, additional string) error {
-	event := &models.OrderEvent{
-		OrderID:    models.OID(orderID),
-		Status:     status,
-		Time:       time.Now(),
-		Additional: additional,
-	}
-	err := s.producer.SendOrderEvent(ctx, event)
-	return err
 }

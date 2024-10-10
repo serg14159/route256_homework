@@ -2,7 +2,6 @@ package kafka
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"route256/loms/internal/models"
 	"time"
@@ -20,6 +19,7 @@ type KafkaProducer struct {
 	cfg      IKafkaCfg
 }
 
+// NewKafkaProducer creates a new KafkaProducer instance.
 func NewKafkaProducer(cfg IKafkaCfg) (*KafkaProducer, error) {
 	kafkaConfig := sarama.NewConfig()
 	kafkaConfig.Producer.Return.Successes = true
@@ -40,18 +40,14 @@ func NewKafkaProducer(cfg IKafkaCfg) (*KafkaProducer, error) {
 	return kp, nil
 }
 
-func (kp *KafkaProducer) SendOrderEvent(ctx context.Context, event *models.OrderEvent) error {
-	eventBytes, err := json.Marshal(event)
-	if err != nil {
-		return fmt.Errorf("failed to marshal event: %w", err)
-	}
-
-	key := fmt.Sprintf("%d", event.OrderID)
+// SendOutboxEvent send message containing OutboxEvent to Kafka.
+func (kp *KafkaProducer) SendOutboxEvent(ctx context.Context, event *models.OutboxEvent) error {
+	key := fmt.Sprintf("%d", event.ID)
 
 	msg := &sarama.ProducerMessage{
 		Topic:     kp.cfg.GetTopic(),
 		Key:       sarama.StringEncoder(key),
-		Value:     sarama.ByteEncoder(eventBytes),
+		Value:     sarama.ByteEncoder(event.Payload),
 		Timestamp: time.Now(),
 	}
 
@@ -65,6 +61,7 @@ func (kp *KafkaProducer) SendOrderEvent(ctx context.Context, event *models.Order
 	return nil
 }
 
+// Close gracefully close Kafka producer connection.
 func (kp *KafkaProducer) Close() error {
 	return kp.producer.Close()
 }

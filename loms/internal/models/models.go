@@ -98,3 +98,10 @@ type OrderEvent struct {
 	Time       time.Time   `json:"time"`
 	Additional string      `json:"additional"`
 }
+
+// OutboxEvent represents event stored in the outbox table.
+type OutboxEvent struct {
+	ID        int64  `json:"id"`
+	EventType string `json:"event_type"`
+	Payload   string `json:"payload"`
+}
