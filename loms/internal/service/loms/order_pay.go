@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"route256/loms/internal/models"
 
@@ -46,5 +47,15 @@ func (s *LomsService) OrderPay(ctx context.Context, req *models.OrderPayRequest)
 		return nil
 	})
 
-	return err
+	if err != nil {
+		return err
+	}
+
+	// Send order status "payed" to Kafka
+	err = s.sendEventToKafka(ctx, req.OrderID, models.OrderStatusPayed, "OrderPay")
+	if err != nil {
+		log.Printf("Failed to send Kafka message: %v", err)
+	}
+
+	return nil
 }

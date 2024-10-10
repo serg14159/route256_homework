@@ -2,8 +2,8 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"log"
 
 	"route256/loms/internal/models"
 	internal_errors "route256/loms/internal/pkg/errors"
@@ -20,17 +20,32 @@ func (s *LomsService) OrderCreate(ctx context.Context, req *models.OrderCreateRe
 
 	// Create a transaction using WithTx
 	var orderID models.OID
-	err := s.txManager.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) error {
-		var err error
+	var orderStatus models.OrderStatus
+	var err error
 
-		// Create order with status "new"
-		orderID, err = s.createOrder(ctx, tx, req)
-		if err != nil {
-			return fmt.Errorf("failed to create order: %w", err)
-		}
+	// Create order with status "new"
+	orderStatus = models.OrderStatusNew
+	orderID, err = s.createOrder(ctx, nil, req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create order: %w", err)
+	}
 
+	// Send order status "new" to Kafka
+	err = s.sendEventToKafka(ctx, orderID, orderStatus, "OrderCreate")
+	if err != nil {
+		log.Printf("Failed to send Kafka message: %v", err)
+	}
+
+	// Tx
+	orderStatus = models.OrderStatusAwaitingPayment
+	err = s.txManager.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		// Reserve stocks
-		err = s.reserveStocks(ctx, tx, orderID, req.Items)
+		err := s.reserveStocks(ctx, tx, req.Items)
+		if err != nil {
+			return fmt.Errorf("failed to reserve stocks: %w", err)
+		}
+		// Set order status "awaiting payment"
+		err = s.updateOrderStatus(ctx, tx, orderID, orderStatus)
 		if err != nil {
 			return fmt.Errorf("failed to reserve stocks: %w", err)
 		}
@@ -38,16 +53,27 @@ func (s *LomsService) OrderCreate(ctx context.Context, req *models.OrderCreateRe
 		return nil
 	})
 
-	if errors.Is(err, internal_errors.ErrStockReservation) {
-		// Set status "failed"
-		errSetStatus := s.updateOrderStatus(ctx, nil, orderID, models.OrderStatusFailed)
+	if err != nil {
+		// Set order status "failed"
+		orderStatus = models.OrderStatusFailed
+		errSetStatus := s.updateOrderStatus(ctx, nil, orderID, orderStatus)
 		if errSetStatus != nil {
-			return nil, errSetStatus
+			return nil, fmt.Errorf("%w : %w", err, internal_errors.ErrInternalServerError)
 		}
+
+		// Send order status "failed" to Kafka
+		err = s.sendEventToKafka(ctx, orderID, orderStatus, "OrderCreate")
+		if err != nil {
+			log.Printf("Failed to send Kafka message: %v", err)
+		}
+
+		return nil, fmt.Errorf("%w : %w", err, internal_errors.ErrPreconditionFailed)
 	}
 
+	// Send order status "awaiting payment" to Kafka
+	err = s.sendEventToKafka(ctx, orderID, orderStatus, "OrderCreate")
 	if err != nil {
-		return nil, err
+		log.Printf("Failed to send Kafka message: %v", err)
 	}
 
 	// Return orderID
@@ -72,15 +98,11 @@ func (s *LomsService) createOrder(ctx context.Context, tx pgx.Tx, req *models.Or
 }
 
 // reserveStocks handles stock reservation and sets order status accordingly.
-func (s *LomsService) reserveStocks(ctx context.Context, tx pgx.Tx, orderID models.OID, items []models.Item) error {
+func (s *LomsService) reserveStocks(ctx context.Context, tx pgx.Tx, items []models.Item) error {
 	err := s.stockRepository.ReserveItems(ctx, tx, items)
 	if err != nil {
-		return fmt.Errorf("failed to reserve stock: %w", internal_errors.ErrStockReservation)
+		return fmt.Errorf("failed to reserve stock: %w", err)
 	}
-
-	// Set status "awaiting payment"
-	err = s.updateOrderStatus(ctx, tx, orderID, models.OrderStatusAwaitingPayment)
-
 	return err
 }
 

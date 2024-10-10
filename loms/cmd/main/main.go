@@ -5,10 +5,13 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/signal"
 	loms "route256/loms/internal/app/loms"
+	kafkaProducer "route256/loms/internal/pkg/kafka"
 	repo_order "route256/loms/internal/repository/orders"
 	repo_stocks "route256/loms/internal/repository/stocks"
 	loms_usecase "route256/loms/internal/service/loms"
+	"syscall"
 
 	config "route256/loms/internal/config"
 	"route256/loms/internal/server"
@@ -19,6 +22,9 @@ import (
 
 	"github.com/joho/godotenv"
 )
+
+const quitChannelBufferSize = 1
+const errorChannelBufferSize = 1
 
 func main() {
 	// Load environment
@@ -46,7 +52,9 @@ func main() {
 	fmt.Printf("cfg: %v \n", cfg)
 
 	// DB connect
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	pool, err := db.NewConnect(ctx, &cfg.Database)
 	if err != nil {
 		log.Printf("Failed connect to database, err:%s", err)
@@ -63,15 +71,47 @@ func main() {
 	// Repository stocks
 	repoStocks := repo_stocks.NewStockRepository(pool)
 
+	// Kafka producer
+	kafkaProd, err := kafkaProducer.NewKafkaProducer(&cfg.Kafka)
+	if err != nil {
+		log.Fatalf("Failed to create Kafka producer: %v", err)
+	}
+	defer func() {
+		if err := kafkaProd.Close(); err != nil {
+			log.Printf("Failed to close Kafka producer: %v", err)
+		}
+	}()
+
 	// Loms usecase
-	lomsUsecaseService := loms_usecase.NewService(repoOrder, repoStocks, txManager)
+	lomsUsecaseService := loms_usecase.NewService(repoOrder, repoStocks, txManager, kafkaProd)
 
 	// Loms
 	controller := loms.NewService(lomsUsecaseService)
 
+	// Create channel to listen interrupt or terminate signals
+	quitChan := make(chan os.Signal, quitChannelBufferSize)
+	signal.Notify(quitChan, syscall.SIGINT, syscall.SIGTERM)
+
 	// GRPC server
-	if err := server.NewGrpcServer(&cfg.Project, &cfg.Grpc, &cfg.Gateway, &cfg.Swagger, controller).Start(); err != nil {
-		log.Printf("Failed creating gRPC server, err:%s", err)
-		return
+	serverErrChan := make(chan error, errorChannelBufferSize)
+	go func() {
+		if err := server.NewGrpcServer(&cfg.Project, &cfg.Grpc, &cfg.Gateway, &cfg.Swagger, controller).Start(); err != nil {
+			log.Printf("Failed creating gRPC server, err:%s", err)
+			serverErrChan <- err
+		}
+	}()
+
+	// Wait
+	select {
+	case <-quitChan:
+		log.Println("Shutdown signal received")
+	case err := <-serverErrChan:
+		if err != nil {
+			log.Printf("Server error: %v", err)
+		}
 	}
+
+	cancel()
+
+	log.Printf("Shutdown ...")
 }
