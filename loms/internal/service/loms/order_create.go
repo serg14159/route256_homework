@@ -27,7 +27,7 @@ func (s *LomsService) OrderCreate(ctx context.Context, req *models.OrderCreateRe
 	orderStatus = models.OrderStatusNew
 	err = s.txManager.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		// Create order
-		orderID, err = s.createOrder(ctx, nil, req)
+		orderID, err = s.createOrder(ctx, tx, req)
 		if err != nil {
 			return fmt.Errorf("create order: %w", err)
 		}
@@ -74,7 +74,7 @@ func (s *LomsService) OrderCreate(ctx context.Context, req *models.OrderCreateRe
 		orderStatus = models.OrderStatusFailed
 		errSetStatusFailed := s.txManager.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) error {
 			// Set order status
-			errSetStatus := s.updateOrderStatus(ctx, nil, orderID, orderStatus)
+			errSetStatus := s.updateOrderStatus(ctx, tx, orderID, orderStatus)
 			if err != nil {
 				return fmt.Errorf("update order status: %w : %w", errSetStatus, internal_errors.ErrInternalServerError)
 			}

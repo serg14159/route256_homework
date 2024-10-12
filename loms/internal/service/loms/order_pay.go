@@ -45,7 +45,7 @@ func (s *LomsService) OrderPay(ctx context.Context, req *models.OrderPayRequest)
 
 		// Write event in outbox
 		eventType := "OrderPayed"
-		err = s.writeEventInOutbox(ctx, tx, eventType, req.OrderID, models.OrderStatusCancelled, eventType)
+		err = s.writeEventInOutbox(ctx, tx, eventType, req.OrderID, models.OrderStatusPayed, eventType)
 		if err != nil {
 			return fmt.Errorf("write event in outbox: %w", err)
 		}

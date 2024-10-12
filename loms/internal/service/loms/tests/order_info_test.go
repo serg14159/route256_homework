@@ -71,12 +71,11 @@ func TestLomsService_OrderInfo_Table(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
 			ctx := context.Background()
-			orderRepoMock, stockRepoMock, txManagerMock, service := setup(t)
+			orderRepoMock, stockRepoMock, _, _, txManagerMock, service := setup(t)
 
 			tt.setupMocks(ctx, orderRepoMock, stockRepoMock, txManagerMock, tt.req)
 
