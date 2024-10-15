@@ -11,15 +11,18 @@ import (
 	service "route256/loms/internal/service/loms"
 	"route256/loms/internal/service/loms/mock"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/require"
 )
 
 // Test function for OrderCancel method of LomsService
 func TestLomsService_OrderCancel_Table(t *testing.T) {
 	tests := []struct {
-		name          string
-		req           *models.OrderCancelRequest
-		setupMocks    func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, txManagerMock *mock.ITxManagerMock, txMock *mock.TxMock, req *models.OrderCancelRequest)
+		name       string
+		req        *models.OrderCancelRequest
+		setupMocks func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock,
+			stockRepoMock *mock.IStockRepositoryMock, outboxRepoMock *mock.IOutboxRepositoryMock,
+			txManagerMock *mock.ITxManagerMock, txMock *mock.TxMock, req *models.OrderCancelRequest)
 		expectedErr   error
 		errorContains string
 	}{
@@ -28,7 +31,9 @@ func TestLomsService_OrderCancel_Table(t *testing.T) {
 			req: &models.OrderCancelRequest{
 				OrderID: 1,
 			},
-			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, txManagerMock *mock.ITxManagerMock, txMock *mock.TxMock, req *models.OrderCancelRequest) {
+			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock,
+				stockRepoMock *mock.IStockRepositoryMock, outboxRepoMock *mock.IOutboxRepositoryMock,
+				txManagerMock *mock.ITxManagerMock, txMock *mock.TxMock, req *models.OrderCancelRequest) {
 				order := models.Order{
 					Status: models.OrderStatusNew,
 					UserID: 1,
@@ -38,6 +43,18 @@ func TestLomsService_OrderCancel_Table(t *testing.T) {
 				orderRepoMock.GetByIDMock.Expect(ctx, txMock, models.OID(req.OrderID)).Return(order, nil)
 				stockRepoMock.CancelReservedItemsMock.Expect(ctx, txMock, order.Items).Return(nil)
 				orderRepoMock.SetStatusMock.Expect(ctx, txMock, models.OID(req.OrderID), models.OrderStatusCancelled).Return(nil)
+
+				EventType := "OrderCancelled"
+				outboxRepoMock.CreateEventMock.Set(func(ctx context.Context, tx pgx.Tx, eventType string, payload interface{}) error {
+					require.Equal(t, EventType, eventType)
+					event, ok := payload.(models.OrderEvent)
+					require.True(t, ok)
+					require.Equal(t, event.OrderID, req.OrderID)
+					require.Equal(t, event.Status, models.OrderStatusCancelled)
+					require.Equal(t, event.Additional, EventType)
+					return nil
+				})
+
 				txManagerMock.WithTxMock.Set(func(ctx context.Context, fn service.WithTxFunc) error {
 					return fn(ctx, txMock)
 				})
@@ -50,7 +67,10 @@ func TestLomsService_OrderCancel_Table(t *testing.T) {
 			req: &models.OrderCancelRequest{
 				OrderID: 0,
 			},
-			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, txManagerMock *mock.ITxManagerMock, txMock *mock.TxMock, req *models.OrderCancelRequest) {
+			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock,
+				stockRepoMock *mock.IStockRepositoryMock, outboxRepoMock *mock.IOutboxRepositoryMock,
+				txManagerMock *mock.ITxManagerMock, txMock *mock.TxMock, req *models.OrderCancelRequest) {
+
 			},
 			expectedErr:   internal_errors.ErrBadRequest,
 			errorContains: "orderID must be greater than zero",
@@ -60,8 +80,11 @@ func TestLomsService_OrderCancel_Table(t *testing.T) {
 			req: &models.OrderCancelRequest{
 				OrderID: 2,
 			},
-			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, txManagerMock *mock.ITxManagerMock, txMock *mock.TxMock, req *models.OrderCancelRequest) {
+			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock,
+				stockRepoMock *mock.IStockRepositoryMock, outboxRepoMock *mock.IOutboxRepositoryMock,
+				txManagerMock *mock.ITxManagerMock, txMock *mock.TxMock, req *models.OrderCancelRequest) {
 				orderRepoMock.GetByIDMock.Expect(ctx, txMock, models.OID(req.OrderID)).Return(models.Order{}, errors.New("db error"))
+
 				txManagerMock.WithTxMock.Set(func(ctx context.Context, fn service.WithTxFunc) error {
 					return fn(ctx, txMock)
 				})
@@ -74,7 +97,9 @@ func TestLomsService_OrderCancel_Table(t *testing.T) {
 			req: &models.OrderCancelRequest{
 				OrderID: 3,
 			},
-			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, txManagerMock *mock.ITxManagerMock, txMock *mock.TxMock, req *models.OrderCancelRequest) {
+			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock,
+				stockRepoMock *mock.IStockRepositoryMock, outboxRepoMock *mock.IOutboxRepositoryMock,
+				txManagerMock *mock.ITxManagerMock, txMock *mock.TxMock, req *models.OrderCancelRequest) {
 				order := models.Order{
 					Status: models.OrderStatusNew,
 					UserID: 1,
@@ -83,6 +108,7 @@ func TestLomsService_OrderCancel_Table(t *testing.T) {
 
 				orderRepoMock.GetByIDMock.Expect(ctx, txMock, models.OID(req.OrderID)).Return(order, nil)
 				stockRepoMock.CancelReservedItemsMock.Expect(ctx, txMock, order.Items).Return(errors.New("reserve cancel error"))
+
 				txManagerMock.WithTxMock.Set(func(ctx context.Context, fn service.WithTxFunc) error {
 					return fn(ctx, txMock)
 				})
@@ -91,11 +117,13 @@ func TestLomsService_OrderCancel_Table(t *testing.T) {
 			errorContains: "failed to cancel stock reservation",
 		},
 		{
-			name: "error update order status",
+			name: "error updating order status",
 			req: &models.OrderCancelRequest{
 				OrderID: 4,
 			},
-			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, txManagerMock *mock.ITxManagerMock, txMock *mock.TxMock, req *models.OrderCancelRequest) {
+			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock,
+				stockRepoMock *mock.IStockRepositoryMock, outboxRepoMock *mock.IOutboxRepositoryMock,
+				txManagerMock *mock.ITxManagerMock, txMock *mock.TxMock, req *models.OrderCancelRequest) {
 				order := models.Order{
 					Status: models.OrderStatusNew,
 					UserID: 1,
@@ -105,6 +133,7 @@ func TestLomsService_OrderCancel_Table(t *testing.T) {
 				orderRepoMock.GetByIDMock.Expect(ctx, txMock, models.OID(req.OrderID)).Return(order, nil)
 				stockRepoMock.CancelReservedItemsMock.Expect(ctx, txMock, order.Items).Return(nil)
 				orderRepoMock.SetStatusMock.Expect(ctx, txMock, models.OID(req.OrderID), models.OrderStatusCancelled).Return(errors.New("update status error"))
+
 				txManagerMock.WithTxMock.Set(func(ctx context.Context, fn service.WithTxFunc) error {
 					return fn(ctx, txMock)
 				})
@@ -112,18 +141,54 @@ func TestLomsService_OrderCancel_Table(t *testing.T) {
 			expectedErr:   internal_errors.ErrInternalServerError,
 			errorContains: "failed to update order status",
 		},
+		{
+			name: "error writing event to outbox",
+			req: &models.OrderCancelRequest{
+				OrderID: 5,
+			},
+			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock,
+				stockRepoMock *mock.IStockRepositoryMock, outboxRepoMock *mock.IOutboxRepositoryMock,
+				txManagerMock *mock.ITxManagerMock, txMock *mock.TxMock, req *models.OrderCancelRequest) {
+				order := models.Order{
+					Status: models.OrderStatusNew,
+					UserID: 1,
+					Items:  []models.Item{{SKU: 1005, Count: 3}},
+				}
+
+				orderRepoMock.GetByIDMock.Expect(ctx, txMock, models.OID(req.OrderID)).Return(order, nil)
+				stockRepoMock.CancelReservedItemsMock.Expect(ctx, txMock, order.Items).Return(nil)
+				orderRepoMock.SetStatusMock.Expect(ctx, txMock, models.OID(req.OrderID), models.OrderStatusCancelled).Return(nil)
+
+				EventType := "OrderCancelled"
+				outboxRepoMock.CreateEventMock.Set(func(ctx context.Context, tx pgx.Tx, eventType string, payload interface{}) error {
+					require.Equal(t, EventType, eventType)
+
+					event, ok := payload.(models.OrderEvent)
+					require.True(t, ok)
+					require.Equal(t, event.OrderID, req.OrderID)
+					require.Equal(t, event.Status, models.OrderStatusCancelled)
+					require.Equal(t, event.Additional, EventType)
+					return errors.New("outbox error")
+				})
+
+				txManagerMock.WithTxMock.Set(func(ctx context.Context, fn service.WithTxFunc) error {
+					return fn(ctx, txMock)
+				})
+			},
+			expectedErr:   internal_errors.ErrInternalServerError,
+			errorContains: "write event in outbox",
+		},
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
 			ctx := context.Background()
-			orderRepoMock, stockRepoMock, txManagerMock, service := setup(t)
+			orderRepoMock, stockRepoMock, outboxRepoMock, _, txManagerMock, service := setup(t)
 			txMock := mock.NewTxMock(t)
 
-			tt.setupMocks(ctx, orderRepoMock, stockRepoMock, txManagerMock, txMock, tt.req)
+			tt.setupMocks(ctx, orderRepoMock, stockRepoMock, outboxRepoMock, txManagerMock, txMock, tt.req)
 
 			err := service.OrderCancel(ctx, tt.req)
 			if tt.expectedErr != nil {
@@ -136,6 +201,7 @@ func TestLomsService_OrderCancel_Table(t *testing.T) {
 
 			orderRepoMock.MinimockFinish()
 			stockRepoMock.MinimockFinish()
+			outboxRepoMock.MinimockFinish()
 			txManagerMock.MinimockFinish()
 		})
 	}

@@ -41,7 +41,19 @@ func (s *LomsService) OrderCancel(ctx context.Context, req *models.OrderCancelRe
 			return fmt.Errorf("failed to update order status: %w", err)
 		}
 
+		// Write event in outbox
+		eventType := "OrderCancelled"
+		err = s.writeEventInOutbox(ctx, tx, eventType, req.OrderID, models.OrderStatusCancelled, eventType)
+		if err != nil {
+			return fmt.Errorf("write event in outbox: %w", err)
+		}
+
 		return nil
 	})
-	return err
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

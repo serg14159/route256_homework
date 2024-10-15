@@ -18,3 +18,4 @@ vendor-proto
 primary_data
 replica_data
 archive
+kafka_data

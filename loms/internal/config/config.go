@@ -136,6 +136,20 @@ func (d *Database) GetDSN() string {
 	return d.DSN
 }
 
+// Kafka.
+type Kafka struct {
+	Brokers []string `yaml:"brokers"`
+	Topic   string   `yaml:"topic"`
+}
+
+func (k *Kafka) GetBrokers() []string {
+	return k.Brokers
+}
+
+func (k *Kafka) GetTopic() string {
+	return k.Topic
+}
+
 // Config - contains all configuration parameters in config package.
 type Config struct {
 	Project  Project  `yaml:"project" mapstructure:"project"`
@@ -144,6 +158,7 @@ type Config struct {
 	Swagger  Swagger  `yaml:"swagger" mapstructure:"swagger"`
 	Data     Data     `yaml:"data" mapstructure:"data"`
 	Database Database `yaml:"database" mapstructure:"database"`
+	Kafka    Kafka    `yaml:"kafka" mapstructure:"kafka"`
 }
 
 func NewConfig() *Config {
@@ -219,6 +234,10 @@ func setDefaultValues() {
 
 	// Database
 	viper.SetDefault("database.dsn", "postgres://username:password@localhost:pgpool_port/dbname?sslmode=disable")
+
+	// Kafka
+	viper.SetDefault("kafka.brokers", "localhost:9092")
+	viper.SetDefault("kafka.topic", "loms.order-events")
 }
 
 // bindEnvVariables function for bind env variables with config name.
@@ -253,6 +272,10 @@ func (c *Config) bindEnvVariables() error {
 
 		// Database
 		"database.dsn": "DATABASE_DSN",
+
+		// Kafka
+		"kafka.brokers": "KAFKA_BROKERS",
+		"kafka.topic":   "KAFKA_TOPIC",
 	}
 
 	for key, env := range envVars {

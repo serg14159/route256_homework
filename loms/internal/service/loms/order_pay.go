@@ -43,8 +43,19 @@ func (s *LomsService) OrderPay(ctx context.Context, req *models.OrderPayRequest)
 			return fmt.Errorf("failed to set order status to payed: %w", err)
 		}
 
+		// Write event in outbox
+		eventType := "OrderPayed"
+		err = s.writeEventInOutbox(ctx, tx, eventType, req.OrderID, models.OrderStatusPayed, eventType)
+		if err != nil {
+			return fmt.Errorf("write event in outbox: %w", err)
+		}
+
 		return nil
 	})
 
-	return err
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

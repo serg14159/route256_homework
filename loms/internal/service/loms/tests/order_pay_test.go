@@ -11,15 +11,18 @@ import (
 	service "route256/loms/internal/service/loms"
 	"route256/loms/internal/service/loms/mock"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/require"
 )
 
 // Test function for OrderPay method of LomsService.
 func TestLomsService_OrderPay_Table(t *testing.T) {
 	tests := []struct {
-		name          string
-		req           *models.OrderPayRequest
-		setupMocks    func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, txManagerMock *mock.ITxManagerMock, txMock *mock.TxMock, req *models.OrderPayRequest)
+		name       string
+		req        *models.OrderPayRequest
+		setupMocks func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock,
+			stockRepoMock *mock.IStockRepositoryMock, outboxRepoMock *mock.IOutboxRepositoryMock,
+			txManagerMock *mock.ITxManagerMock, txMock *mock.TxMock, req *models.OrderPayRequest)
 		expectedErr   error
 		errorContains string
 	}{
@@ -28,7 +31,7 @@ func TestLomsService_OrderPay_Table(t *testing.T) {
 			req: &models.OrderPayRequest{
 				OrderID: 1,
 			},
-			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, txManagerMock *mock.ITxManagerMock, txMock *mock.TxMock, req *models.OrderPayRequest) {
+			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, outboxRepoMock *mock.IOutboxRepositoryMock, txManagerMock *mock.ITxManagerMock, txMock *mock.TxMock, req *models.OrderPayRequest) {
 				order := models.Order{
 					Status: models.OrderStatusAwaitingPayment,
 					UserID: 1,
@@ -38,6 +41,17 @@ func TestLomsService_OrderPay_Table(t *testing.T) {
 				orderRepoMock.GetByIDMock.Expect(ctx, txMock, models.OID(req.OrderID)).Return(order, nil)
 				stockRepoMock.RemoveReservedItemsMock.Expect(ctx, txMock, order.Items).Return(nil)
 				orderRepoMock.SetStatusMock.Expect(ctx, txMock, models.OID(req.OrderID), models.OrderStatusPayed).Return(nil)
+
+				outboxRepoMock.CreateEventMock.Set(func(ctx context.Context, tx pgx.Tx, eventType string, payload interface{}) error {
+					event, ok := payload.(models.OrderEvent)
+					require.True(t, ok)
+					require.Equal(t, "OrderPayed", eventType)
+					require.Equal(t, models.OID(req.OrderID), event.OrderID)
+					require.Equal(t, models.OrderStatusPayed, event.Status)
+					require.Equal(t, "OrderPayed", event.Additional)
+					require.False(t, event.Time.IsZero())
+					return nil
+				})
 
 				txManagerMock.WithTxMock.Set(func(ctx context.Context, fn service.WithTxFunc) error {
 					return fn(ctx, txMock)
@@ -51,7 +65,9 @@ func TestLomsService_OrderPay_Table(t *testing.T) {
 			req: &models.OrderPayRequest{
 				OrderID: 0,
 			},
-			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, txManagerMock *mock.ITxManagerMock, txMock *mock.TxMock, req *models.OrderPayRequest) {
+			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock,
+				stockRepoMock *mock.IStockRepositoryMock, outboxRepoMock *mock.IOutboxRepositoryMock,
+				txManagerMock *mock.ITxManagerMock, txMock *mock.TxMock, req *models.OrderPayRequest) {
 			},
 			expectedErr:   internal_errors.ErrBadRequest,
 			errorContains: "orderID must be greater than zero",
@@ -61,7 +77,9 @@ func TestLomsService_OrderPay_Table(t *testing.T) {
 			req: &models.OrderPayRequest{
 				OrderID: 2,
 			},
-			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, txManagerMock *mock.ITxManagerMock, txMock *mock.TxMock, req *models.OrderPayRequest) {
+			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock,
+				stockRepoMock *mock.IStockRepositoryMock, outboxRepoMock *mock.IOutboxRepositoryMock,
+				txManagerMock *mock.ITxManagerMock, txMock *mock.TxMock, req *models.OrderPayRequest) {
 				orderRepoMock.GetByIDMock.Expect(ctx, txMock, models.OID(req.OrderID)).Return(models.Order{}, errors.New("db error"))
 
 				txManagerMock.WithTxMock.Set(func(ctx context.Context, fn service.WithTxFunc) error {
@@ -76,7 +94,9 @@ func TestLomsService_OrderPay_Table(t *testing.T) {
 			req: &models.OrderPayRequest{
 				OrderID: 3,
 			},
-			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, txManagerMock *mock.ITxManagerMock, txMock *mock.TxMock, req *models.OrderPayRequest) {
+			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock,
+				stockRepoMock *mock.IStockRepositoryMock, outboxRepoMock *mock.IOutboxRepositoryMock,
+				txManagerMock *mock.ITxManagerMock, txMock *mock.TxMock, req *models.OrderPayRequest) {
 				order := models.Order{
 					Status: models.OrderStatusNew,
 					UserID: 1,
@@ -97,7 +117,9 @@ func TestLomsService_OrderPay_Table(t *testing.T) {
 			req: &models.OrderPayRequest{
 				OrderID: 4,
 			},
-			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, txManagerMock *mock.ITxManagerMock, txMock *mock.TxMock, req *models.OrderPayRequest) {
+			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock,
+				stockRepoMock *mock.IStockRepositoryMock, outboxRepoMock *mock.IOutboxRepositoryMock,
+				txManagerMock *mock.ITxManagerMock, txMock *mock.TxMock, req *models.OrderPayRequest) {
 				order := models.Order{
 					Status: models.OrderStatusAwaitingPayment,
 					UserID: 1,
@@ -119,7 +141,9 @@ func TestLomsService_OrderPay_Table(t *testing.T) {
 			req: &models.OrderPayRequest{
 				OrderID: 5,
 			},
-			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, txManagerMock *mock.ITxManagerMock, txMock *mock.TxMock, req *models.OrderPayRequest) {
+			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock,
+				stockRepoMock *mock.IStockRepositoryMock, outboxRepoMock *mock.IOutboxRepositoryMock,
+				txManagerMock *mock.ITxManagerMock, txMock *mock.TxMock, req *models.OrderPayRequest) {
 				order := models.Order{
 					Status: models.OrderStatusAwaitingPayment,
 					UserID: 1,
@@ -137,18 +161,54 @@ func TestLomsService_OrderPay_Table(t *testing.T) {
 			expectedErr:   internal_errors.ErrInternalServerError,
 			errorContains: "failed to set order status to payed",
 		},
+		{
+			name: "error writing event to outbox",
+			req: &models.OrderPayRequest{
+				OrderID: 6,
+			},
+			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock,
+				stockRepoMock *mock.IStockRepositoryMock, outboxRepoMock *mock.IOutboxRepositoryMock,
+				txManagerMock *mock.ITxManagerMock, txMock *mock.TxMock, req *models.OrderPayRequest) {
+				order := models.Order{
+					Status: models.OrderStatusAwaitingPayment,
+					UserID: 1,
+					Items:  []models.Item{{SKU: 1005, Count: 5}},
+				}
+
+				orderRepoMock.GetByIDMock.Expect(ctx, txMock, models.OID(req.OrderID)).Return(order, nil)
+				stockRepoMock.RemoveReservedItemsMock.Expect(ctx, txMock, order.Items).Return(nil)
+				orderRepoMock.SetStatusMock.Expect(ctx, txMock, models.OID(req.OrderID), models.OrderStatusPayed).Return(nil)
+
+				outboxRepoMock.CreateEventMock.Set(func(ctx context.Context, tx pgx.Tx, eventType string, payload interface{}) error {
+					event, ok := payload.(models.OrderEvent)
+					require.True(t, ok)
+					require.Equal(t, "OrderPayed", eventType)
+					require.Equal(t, models.OID(req.OrderID), event.OrderID)
+					require.Equal(t, models.OrderStatusPayed, event.Status)
+					require.Equal(t, "OrderPayed", event.Additional)
+					require.False(t, event.Time.IsZero())
+					return errors.New("outbox write error")
+				})
+
+				txManagerMock.WithTxMock.Set(func(ctx context.Context, fn service.WithTxFunc) error {
+					return fn(ctx, txMock)
+				})
+			},
+			expectedErr:   internal_errors.ErrInternalServerError,
+			errorContains: "write event in outbox",
+		},
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
 			ctx := context.Background()
-			orderRepoMock, stockRepoMock, txManagerMock, service := setup(t)
+
+			orderRepoMock, stockRepoMock, outboxRepoMock, _, txManagerMock, service := setup(t)
 			txMock := mock.NewTxMock(t)
 
-			tt.setupMocks(ctx, orderRepoMock, stockRepoMock, txManagerMock, txMock, tt.req)
+			tt.setupMocks(ctx, orderRepoMock, stockRepoMock, outboxRepoMock, txManagerMock, txMock, tt.req)
 
 			err := service.OrderPay(ctx, tt.req)
 			if tt.expectedErr != nil {
@@ -161,6 +221,7 @@ func TestLomsService_OrderPay_Table(t *testing.T) {
 
 			orderRepoMock.MinimockFinish()
 			stockRepoMock.MinimockFinish()
+			outboxRepoMock.MinimockFinish()
 			txManagerMock.MinimockFinish()
 		})
 	}

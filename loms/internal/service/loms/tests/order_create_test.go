@@ -11,6 +11,7 @@ import (
 	service "route256/loms/internal/service/loms"
 	"route256/loms/internal/service/loms/mock"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/require"
 )
 
@@ -19,7 +20,8 @@ func TestLomsService_OrderCreate_Table(t *testing.T) {
 	tests := []struct {
 		name       string
 		req        *models.OrderCreateRequest
-		setupMocks func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock,
+		setupMocks func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock,
+			stockRepoMock *mock.IStockRepositoryMock, outboxRepoMock *mock.IOutboxRepositoryMock,
 			txManagerMock *mock.ITxManagerMock, txMock *mock.TxMock, req *models.OrderCreateRequest)
 		expectedResp  *models.OrderCreateResponse
 		expectedErr   error
@@ -34,8 +36,8 @@ func TestLomsService_OrderCreate_Table(t *testing.T) {
 				},
 			},
 			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock,
-				stockRepoMock *mock.IStockRepositoryMock, txManagerMock *mock.ITxManagerMock,
-				txMock *mock.TxMock, req *models.OrderCreateRequest) {
+				stockRepoMock *mock.IStockRepositoryMock, outboxRepoMock *mock.IOutboxRepositoryMock,
+				txManagerMock *mock.ITxManagerMock, txMock *mock.TxMock, req *models.OrderCreateRequest) {
 
 				order := models.Order{
 					Status: models.OrderStatusNew,
@@ -44,7 +46,36 @@ func TestLomsService_OrderCreate_Table(t *testing.T) {
 				}
 
 				orderRepoMock.CreateMock.Expect(ctx, txMock, order).Return(models.OID(1), nil)
+
+				callCount := 0
+
+				outboxRepoMock.CreateEventMock.Set(func(ctx context.Context, tx pgx.Tx, eventType string, payload interface{}) error {
+					callCount++
+					switch callCount {
+					case 1:
+						event, ok := payload.(models.OrderEvent)
+						require.True(t, ok)
+						require.Equal(t, "OrderCreated", eventType)
+						require.Equal(t, models.OID(1), event.OrderID)
+						require.Equal(t, models.OrderStatusNew, event.Status)
+						require.Equal(t, "OrderCreated", event.Additional)
+						require.False(t, event.Time.IsZero())
+					case 2:
+						event, ok := payload.(models.OrderEvent)
+						require.True(t, ok)
+						require.Equal(t, "OrderAwaitingPayment", eventType)
+						require.Equal(t, models.OID(1), event.OrderID)
+						require.Equal(t, models.OrderStatusAwaitingPayment, event.Status)
+						require.Equal(t, "OrderAwaitingPayment", event.Additional)
+						require.False(t, event.Time.IsZero())
+					default:
+						t.Errorf("unexpected number of CreateEvent calls: %d", callCount)
+					}
+					return nil
+				})
+
 				stockRepoMock.ReserveItemsMock.Expect(ctx, txMock, req.Items).Return(nil)
+
 				orderRepoMock.SetStatusMock.Expect(ctx, txMock, models.OID(1), models.OrderStatusAwaitingPayment).Return(nil)
 
 				txManagerMock.WithTxMock.Set(func(ctx context.Context, fn service.WithTxFunc) error {
@@ -66,8 +97,8 @@ func TestLomsService_OrderCreate_Table(t *testing.T) {
 				},
 			},
 			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock,
-				stockRepoMock *mock.IStockRepositoryMock, txManagerMock *mock.ITxManagerMock,
-				txMock *mock.TxMock, req *models.OrderCreateRequest) {
+				stockRepoMock *mock.IStockRepositoryMock, outboxRepoMock *mock.IOutboxRepositoryMock,
+				txManagerMock *mock.ITxManagerMock, txMock *mock.TxMock, req *models.OrderCreateRequest) {
 			},
 			expectedResp:  nil,
 			expectedErr:   internal_errors.ErrBadRequest,
@@ -80,8 +111,8 @@ func TestLomsService_OrderCreate_Table(t *testing.T) {
 				Items: []models.Item{},
 			},
 			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock,
-				stockRepoMock *mock.IStockRepositoryMock, txManagerMock *mock.ITxManagerMock,
-				txMock *mock.TxMock, req *models.OrderCreateRequest) {
+				stockRepoMock *mock.IStockRepositoryMock, outboxRepoMock *mock.IOutboxRepositoryMock,
+				txManagerMock *mock.ITxManagerMock, txMock *mock.TxMock, req *models.OrderCreateRequest) {
 			},
 			expectedResp:  nil,
 			expectedErr:   internal_errors.ErrBadRequest,
@@ -96,8 +127,8 @@ func TestLomsService_OrderCreate_Table(t *testing.T) {
 				},
 			},
 			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock,
-				stockRepoMock *mock.IStockRepositoryMock, txManagerMock *mock.ITxManagerMock,
-				txMock *mock.TxMock, req *models.OrderCreateRequest) {
+				stockRepoMock *mock.IStockRepositoryMock, outboxRepoMock *mock.IOutboxRepositoryMock,
+				txManagerMock *mock.ITxManagerMock, txMock *mock.TxMock, req *models.OrderCreateRequest) {
 			},
 			expectedResp:  nil,
 			expectedErr:   internal_errors.ErrBadRequest,
@@ -112,8 +143,8 @@ func TestLomsService_OrderCreate_Table(t *testing.T) {
 				},
 			},
 			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock,
-				stockRepoMock *mock.IStockRepositoryMock, txManagerMock *mock.ITxManagerMock,
-				txMock *mock.TxMock, req *models.OrderCreateRequest) {
+				stockRepoMock *mock.IStockRepositoryMock, outboxRepoMock *mock.IOutboxRepositoryMock,
+				txManagerMock *mock.ITxManagerMock, txMock *mock.TxMock, req *models.OrderCreateRequest) {
 			},
 			expectedResp:  nil,
 			expectedErr:   internal_errors.ErrBadRequest,
@@ -128,15 +159,17 @@ func TestLomsService_OrderCreate_Table(t *testing.T) {
 				},
 			},
 			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock,
-				stockRepoMock *mock.IStockRepositoryMock, txManagerMock *mock.ITxManagerMock,
-				txMock *mock.TxMock, req *models.OrderCreateRequest) {
+				stockRepoMock *mock.IStockRepositoryMock, outboxRepoMock *mock.IOutboxRepositoryMock,
+				txManagerMock *mock.ITxManagerMock, txMock *mock.TxMock, req *models.OrderCreateRequest) {
 
 				order := models.Order{
 					Status: models.OrderStatusNew,
 					UserID: req.User,
 					Items:  req.Items,
 				}
+
 				orderRepoMock.CreateMock.Expect(ctx, txMock, order).Return(models.OID(0), errors.New("create order error"))
+
 				txManagerMock.WithTxMock.Set(func(ctx context.Context, fn service.WithTxFunc) error {
 					return fn(ctx, txMock)
 				})
@@ -154,8 +187,8 @@ func TestLomsService_OrderCreate_Table(t *testing.T) {
 				},
 			},
 			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock,
-				stockRepoMock *mock.IStockRepositoryMock, txManagerMock *mock.ITxManagerMock,
-				txMock *mock.TxMock, req *models.OrderCreateRequest) {
+				stockRepoMock *mock.IStockRepositoryMock, outboxRepoMock *mock.IOutboxRepositoryMock,
+				txManagerMock *mock.ITxManagerMock, txMock *mock.TxMock, req *models.OrderCreateRequest) {
 
 				order := models.Order{
 					Status: models.OrderStatusNew,
@@ -164,8 +197,37 @@ func TestLomsService_OrderCreate_Table(t *testing.T) {
 				}
 
 				orderRepoMock.CreateMock.Expect(ctx, txMock, order).Return(models.OID(2), nil)
+
+				callCount := 0
+
+				outboxRepoMock.CreateEventMock.Set(func(ctx context.Context, tx pgx.Tx, eventType string, payload interface{}) error {
+					callCount++
+					switch callCount {
+					case 1:
+						event, ok := payload.(models.OrderEvent)
+						require.True(t, ok)
+						require.Equal(t, "OrderCreated", eventType)
+						require.Equal(t, models.OID(2), event.OrderID)
+						require.Equal(t, models.OrderStatusNew, event.Status)
+						require.Equal(t, "OrderCreated", event.Additional)
+						require.False(t, event.Time.IsZero())
+					case 2:
+						event, ok := payload.(models.OrderEvent)
+						require.True(t, ok)
+						require.Equal(t, "OrderFailed", eventType)
+						require.Equal(t, models.OID(2), event.OrderID)
+						require.Equal(t, models.OrderStatusFailed, event.Status)
+						require.Equal(t, "OrderFailed", event.Additional)
+						require.False(t, event.Time.IsZero())
+					default:
+						t.Errorf("unexpected number of CreateEvent calls: %d", callCount)
+					}
+					return nil
+				})
+
 				stockRepoMock.ReserveItemsMock.Expect(ctx, txMock, req.Items).Return(errors.New("reserve items error"))
-				orderRepoMock.SetStatusMock.Expect(ctx, nil, models.OID(2), models.OrderStatusFailed).Return(nil)
+
+				orderRepoMock.SetStatusMock.Expect(ctx, txMock, models.OID(2), models.OrderStatusFailed).Return(nil)
 
 				txManagerMock.WithTxMock.Set(func(ctx context.Context, fn service.WithTxFunc) error {
 					return fn(ctx, txMock)
@@ -184,8 +246,8 @@ func TestLomsService_OrderCreate_Table(t *testing.T) {
 				},
 			},
 			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock,
-				stockRepoMock *mock.IStockRepositoryMock, txManagerMock *mock.ITxManagerMock,
-				txMock *mock.TxMock, req *models.OrderCreateRequest) {
+				stockRepoMock *mock.IStockRepositoryMock, outboxRepoMock *mock.IOutboxRepositoryMock,
+				txManagerMock *mock.ITxManagerMock, txMock *mock.TxMock, req *models.OrderCreateRequest) {
 
 				order := models.Order{
 					Status: models.OrderStatusNew,
@@ -194,8 +256,50 @@ func TestLomsService_OrderCreate_Table(t *testing.T) {
 				}
 
 				orderRepoMock.CreateMock.Expect(ctx, txMock, order).Return(models.OID(3), nil)
+
+				callCount := 0
+
+				outboxRepoMock.CreateEventMock.Set(func(ctx context.Context, tx pgx.Tx, eventType string, payload interface{}) error {
+					callCount++
+					switch callCount {
+					case 1:
+						event, ok := payload.(models.OrderEvent)
+						require.True(t, ok)
+						require.Equal(t, "OrderCreated", eventType)
+						require.Equal(t, models.OID(3), event.OrderID)
+						require.Equal(t, models.OrderStatusNew, event.Status)
+						require.Equal(t, "OrderCreated", event.Additional)
+						require.False(t, event.Time.IsZero())
+					case 2:
+						event, ok := payload.(models.OrderEvent)
+						require.True(t, ok)
+						require.Equal(t, "OrderFailed", eventType)
+						require.Equal(t, models.OID(3), event.OrderID)
+						require.Equal(t, models.OrderStatusFailed, event.Status)
+						require.Equal(t, "OrderFailed", event.Additional)
+						require.False(t, event.Time.IsZero())
+						return errors.New("write outbox failed")
+					default:
+						t.Errorf("unexpected number of CreateEvent calls: %d", callCount)
+					}
+					return nil
+				})
+
 				stockRepoMock.ReserveItemsMock.Expect(ctx, txMock, req.Items).Return(errors.New("reserve items error"))
-				orderRepoMock.SetStatusMock.Expect(ctx, nil, models.OID(3), models.OrderStatusFailed).Return(errors.New("set status failed"))
+
+				callCountSetStatus := 0
+
+				orderRepoMock.SetStatusMock.Set(func(ctx context.Context, tx pgx.Tx, orderID models.OID, status models.OrderStatus) error {
+					callCountSetStatus++
+					switch callCountSetStatus {
+					case 1:
+						require.Equal(t, models.OrderStatusFailed, status)
+						return errors.New("set status failed")
+					default:
+						t.Errorf("unexpected number of SetStatus calls: %d", callCountSetStatus)
+					}
+					return nil
+				})
 
 				txManagerMock.WithTxMock.Set(func(ctx context.Context, fn service.WithTxFunc) error {
 					return fn(ctx, txMock)
@@ -214,38 +318,82 @@ func TestLomsService_OrderCreate_Table(t *testing.T) {
 				},
 			},
 			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock,
-				stockRepoMock *mock.IStockRepositoryMock, txManagerMock *mock.ITxManagerMock,
-				txMock *mock.TxMock, req *models.OrderCreateRequest) {
+				stockRepoMock *mock.IStockRepositoryMock, outboxRepoMock *mock.IOutboxRepositoryMock,
+				txManagerMock *mock.ITxManagerMock, txMock *mock.TxMock, req *models.OrderCreateRequest) {
 
 				order := models.Order{
 					Status: models.OrderStatusNew,
 					UserID: req.User,
 					Items:  req.Items,
 				}
+
 				orderRepoMock.CreateMock.Expect(ctx, txMock, order).Return(models.OID(4), nil)
+
+				callCount := 0
+
+				outboxRepoMock.CreateEventMock.Set(func(ctx context.Context, tx pgx.Tx, eventType string, payload interface{}) error {
+					callCount++
+					switch callCount {
+					case 1:
+						event, ok := payload.(models.OrderEvent)
+						require.True(t, ok)
+						require.Equal(t, "OrderCreated", eventType)
+						require.Equal(t, models.OID(4), event.OrderID)
+						require.Equal(t, models.OrderStatusNew, event.Status)
+						require.Equal(t, "OrderCreated", event.Additional)
+						require.False(t, event.Time.IsZero())
+					case 2:
+						event, ok := payload.(models.OrderEvent)
+						require.True(t, ok)
+						require.Equal(t, "OrderAwaitingPayment", eventType)
+						require.Equal(t, models.OID(4), event.OrderID)
+						require.Equal(t, models.OrderStatusAwaitingPayment, event.Status)
+						require.Equal(t, "OrderAwaitingPayment", event.Additional)
+						require.False(t, event.Time.IsZero())
+						return errors.New("write outbox failed")
+					default:
+						t.Errorf("unexpected number of CreateEvent calls: %d", callCount)
+					}
+					return nil
+				})
+
 				stockRepoMock.ReserveItemsMock.Expect(ctx, txMock, req.Items).Return(nil)
-				orderRepoMock.SetStatusMock.Expect(ctx, txMock, models.OID(4), models.OrderStatusAwaitingPayment).Return(errors.New("set status awaiting payment error"))
+
+				callCountSetStatus := 0
+				orderRepoMock.SetStatusMock.Set(func(ctx context.Context, tx pgx.Tx, orderID models.OID, status models.OrderStatus) error {
+					callCountSetStatus++
+					switch callCountSetStatus {
+					case 1:
+						require.Equal(t, models.OrderStatusAwaitingPayment, status)
+						return errors.New("set status awaiting payment error")
+					case 2:
+						require.Equal(t, models.OrderStatusFailed, status)
+						return nil
+					default:
+						t.Errorf("unexpected number of SetStatus calls: %d", callCountSetStatus)
+					}
+					return nil
+				})
 
 				txManagerMock.WithTxMock.Set(func(ctx context.Context, fn service.WithTxFunc) error {
 					return fn(ctx, txMock)
 				})
 			},
 			expectedResp:  nil,
-			expectedErr:   errors.New("failed to set order status 'awaiting_payment'"),
-			errorContains: "failed to set order status",
+			expectedErr:   errors.New("set status awaiting payment error"),
+			errorContains: "set status awaiting payment",
 		},
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
 			ctx := context.Background()
-			orderRepoMock, stockRepoMock, txManagerMock, service := setup(t)
+			orderRepoMock, stockRepoMock, outboxRepoMock, _, txManagerMock, service := setup(t)
 			txMock := mock.NewTxMock(t)
 
-			tt.setupMocks(ctx, orderRepoMock, stockRepoMock, txManagerMock, txMock, tt.req)
+			tt.setupMocks(ctx, orderRepoMock, stockRepoMock, outboxRepoMock, txManagerMock, txMock, tt.req)
 
 			resp, err := service.OrderCreate(ctx, tt.req)
 			if tt.expectedErr != nil {
@@ -260,6 +408,7 @@ func TestLomsService_OrderCreate_Table(t *testing.T) {
 
 			orderRepoMock.MinimockFinish()
 			stockRepoMock.MinimockFinish()
+			outboxRepoMock.MinimockFinish()
 			txManagerMock.MinimockFinish()
 		})
 	}

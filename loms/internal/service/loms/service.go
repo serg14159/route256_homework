@@ -26,17 +26,31 @@ type ITxManager interface {
 	WithTx(ctx context.Context, fn WithTxFunc) error
 }
 
+type IProducer interface {
+	SendOutboxEvent(ctx context.Context, event *models.OutboxEvent) error
+}
+
+type IOutboxRepository interface {
+	CreateEvent(ctx context.Context, tx pgx.Tx, eventType string, payload interface{}) error
+	FetchNextMsg(ctx context.Context, tx pgx.Tx) (*models.OutboxEvent, error)
+	MarkAsSent(ctx context.Context, tx pgx.Tx, eventID int64) error
+}
+
 type LomsService struct {
-	orderRepository IOrderRepository
-	stockRepository IStockRepository
-	txManager       ITxManager
+	orderRepository  IOrderRepository
+	stockRepository  IStockRepository
+	outboxRepository IOutboxRepository
+	txManager        ITxManager
+	producer         IProducer
 }
 
 // NewService return instance of LomsService.
-func NewService(orderRepository IOrderRepository, stockRepository IStockRepository, txManager ITxManager) *LomsService {
+func NewService(orderRepository IOrderRepository, stockRepository IStockRepository, outboxRepository IOutboxRepository, txManager ITxManager, producer IProducer) *LomsService {
 	return &LomsService{
-		orderRepository: orderRepository,
-		stockRepository: stockRepository,
-		txManager:       txManager,
+		orderRepository:  orderRepository,
+		stockRepository:  stockRepository,
+		outboxRepository: outboxRepository,
+		txManager:        txManager,
+		producer:         producer,
 	}
 }
