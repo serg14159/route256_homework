@@ -139,7 +139,7 @@ func TestLomsService_OrderCancel_Table(t *testing.T) {
 				})
 			},
 			expectedErr:   internal_errors.ErrInternalServerError,
-			errorContains: "failed to update order status",
+			errorContains: "failed to set order status",
 		},
 		{
 			name: "error writing event to outbox",

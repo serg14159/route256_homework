@@ -17,79 +17,19 @@ func (s *LomsService) OrderCreate(ctx context.Context, req *models.OrderCreateRe
 		return nil, err
 	}
 
-	// Create var
-	var orderID models.OID
-	var orderStatus models.OrderStatus
-	var eventType string
-	var err error
-
-	// Create order with status "new"
-	orderStatus = models.OrderStatusNew
-	err = s.txManager.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) error {
-		// Create order
-		orderID, err = s.createOrder(ctx, tx, req)
-		if err != nil {
-			return fmt.Errorf("create order: %w", err)
-		}
-
-		// Write event in outbox
-		eventType = "OrderCreated"
-		err = s.writeEventInOutbox(ctx, tx, eventType, orderID, orderStatus, eventType)
-		if err != nil {
-			return fmt.Errorf("write event in outbox: %w", err)
-		}
-
-		return nil
-	})
-
+	// Create order with status "new" and write event in outbox
+	orderID, err := s.createOrderWithEvent(ctx, req, "OrderCreated")
 	if err != nil {
 		return nil, err
 	}
 
-	// Reserve stocks
-	orderStatus = models.OrderStatusAwaitingPayment
-	err = s.txManager.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) error {
-		// Reserve stocks
-		err := s.reserveStocks(ctx, tx, req.Items)
-		if err != nil {
-			return fmt.Errorf("reserve stocks: %w", err)
-		}
-		// Set order status "awaiting payment"
-		err = s.updateOrderStatus(ctx, tx, orderID, orderStatus)
-		if err != nil {
-			return fmt.Errorf("update order status: %w", err)
-		}
-		// Write event in outbox
-		eventType = "OrderAwaitingPayment"
-		err = s.writeEventInOutbox(ctx, tx, eventType, orderID, orderStatus, eventType)
-		if err != nil {
-			return fmt.Errorf("write event in outbox: %w", err)
-		}
-
-		return nil
-	})
-
+	// Reserve stocks and update order
+	err = s.reserveStocksAndUpdateOrder(ctx, orderID, req.Items, "OrderAwaitingPayment")
 	if err != nil {
 		// Set order status "failed"
-		orderStatus = models.OrderStatusFailed
-		errSetStatusFailed := s.txManager.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) error {
-			// Set order status
-			errSetStatus := s.updateOrderStatus(ctx, tx, orderID, orderStatus)
-			if err != nil {
-				return fmt.Errorf("update order status: %w : %w", errSetStatus, internal_errors.ErrInternalServerError)
-			}
-			// Write event in outbox
-			eventType = "OrderFailed"
-			errSetStatus = s.writeEventInOutbox(ctx, tx, eventType, orderID, orderStatus, eventType)
-			if err != nil {
-				return fmt.Errorf("write event in outbox: %w : %w", errSetStatus, internal_errors.ErrInternalServerError)
-			}
-
-			return nil
-		})
-
-		if errSetStatusFailed != nil {
-			return nil, fmt.Errorf("%w : %w", err, errSetStatusFailed)
+		errUpdate := s.updateOrderStatusAndCreateEvent(ctx, orderID, models.OrderStatusFailed, "OrderFailed")
+		if errUpdate != nil {
+			return nil, fmt.Errorf("%w : %w", err, errUpdate)
 		}
 		return nil, fmt.Errorf("%w : %w", err, internal_errors.ErrPreconditionFailed)
 	}
@@ -98,6 +38,68 @@ func (s *LomsService) OrderCreate(ctx context.Context, req *models.OrderCreateRe
 	return &models.OrderCreateResponse{
 		OrderID: orderID,
 	}, nil
+}
+
+// createOrderWithEvent creates an order and writes an event to the outbox.
+func (s *LomsService) createOrderWithEvent(ctx context.Context, req *models.OrderCreateRequest, eventType string) (models.OID, error) {
+	var orderID models.OID
+
+	err := s.txManager.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) error {
+		// Create order
+		var err error
+		orderID, err = s.createOrder(ctx, tx, req)
+		if err != nil {
+			return fmt.Errorf("create order: %w", err)
+		}
+
+		// Write event in outbox
+		if err := s.createOutboxEvent(ctx, tx, orderID, models.OrderStatusNew, eventType); err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	return orderID, err
+}
+
+// reserveStocksAndUpdateOrder reserves stocks and updates order status.
+func (s *LomsService) reserveStocksAndUpdateOrder(ctx context.Context, orderID models.OID, items []models.Item, eventType string) error {
+	return s.txManager.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) error {
+		// Reserve stocks
+		if err := s.reserveStocks(ctx, tx, items); err != nil {
+			return fmt.Errorf("reserve stocks: %w", err)
+		}
+
+		// Update order status
+		if err := s.updateOrderStatus(ctx, tx, orderID, models.OrderStatusAwaitingPayment); err != nil {
+			return fmt.Errorf("update order status: %w", err)
+		}
+
+		// Write event in outbox
+		if err := s.createOutboxEvent(ctx, tx, orderID, models.OrderStatusAwaitingPayment, eventType); err != nil {
+			return err
+		}
+
+		return nil
+	})
+}
+
+// updateOrderStatusAndCreateEvent updates order status and writes event within transaction.
+func (s *LomsService) updateOrderStatusAndCreateEvent(ctx context.Context, orderID models.OID, status models.OrderStatus, eventType string) error {
+	return s.txManager.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) error {
+		// Update order status
+		if err := s.updateOrderStatus(ctx, tx, orderID, status); err != nil {
+			return fmt.Errorf("update order status: %w", err)
+		}
+
+		// Write event in outbox
+		if err := s.createOutboxEvent(ctx, tx, orderID, status, eventType); err != nil {
+			return err
+		}
+
+		return nil
+	})
 }
 
 // createOrder handles order creation and returns the created order ID.
@@ -122,15 +124,6 @@ func (s *LomsService) reserveStocks(ctx context.Context, tx pgx.Tx, items []mode
 		return fmt.Errorf("failed to reserve stock: %w", err)
 	}
 	return err
-}
-
-// updateOrderStatus function for update order status.
-func (s *LomsService) updateOrderStatus(ctx context.Context, tx pgx.Tx, orderID models.OID, status models.OrderStatus) error {
-	err := s.orderRepository.SetStatus(ctx, tx, orderID, status)
-	if err != nil {
-		return fmt.Errorf("failed to set order status '%s': %w", status, err)
-	}
-	return nil
 }
 
 // validateOrderCreateRequest function for validate request data.
