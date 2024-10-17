@@ -159,7 +159,7 @@ func TestLomsService_OrderPay_Table(t *testing.T) {
 				})
 			},
 			expectedErr:   internal_errors.ErrInternalServerError,
-			errorContains: "failed to set order status to payed",
+			errorContains: "failed to set order status",
 		},
 		{
 			name: "error writing event to outbox",

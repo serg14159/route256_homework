@@ -9,7 +9,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	mw "route256/loms/internal/pkg/mv"
+	mw "route256/loms/internal/pkg/mw"
 	pb "route256/loms/pkg/api/loms/v1"
 )
 

@@ -23,27 +23,22 @@ func NewTransactionManager(pool *pgxpool.Pool) *TransactionManager {
 }
 
 // WithTx performs a function inside a transaction.
-func (tm *TransactionManager) WithTx(ctx context.Context, fn service.WithTxFunc) error {
+func (tm *TransactionManager) WithTx(ctx context.Context, fn service.WithTxFunc) (err error) {
 	tx, err := tm.pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("pool.Begin() err: %w", err)
 	}
-
 	defer func() {
-		if err != nil {
-			if rbErr := tx.Rollback(ctx); rbErr != nil {
-				err = fmt.Errorf("tx.Rollback() err: %v, original err: %w", rbErr, err)
-			}
+		if p := recover(); p != nil {
+			_ = tx.Rollback(ctx)
+			panic(p)
+		} else if err != nil {
+			_ = tx.Rollback(ctx)
+		} else {
+			err = tx.Commit(ctx)
 		}
 	}()
 
-	if err := fn(ctx, tx); err != nil {
-		return fmt.Errorf("fn(ctx, tx) err: %w", err)
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("tx.Commit() err: %w", err)
-	}
-
-	return nil
+	err = fn(ctx, tx)
+	return err
 }

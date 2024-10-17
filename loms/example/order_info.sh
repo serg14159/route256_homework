@@ -6,7 +6,7 @@ GRPC_METHOD="loms.Loms/OrderInfo"
 payload=$(
   cat <<EOF
 {
-  "orderID": 2
+  "orderID": 3
 }
 EOF
 )

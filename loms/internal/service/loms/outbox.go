@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"route256/loms/internal/models"
 	"time"
@@ -29,40 +30,34 @@ func (s *LomsService) writeEventInOutbox(ctx context.Context, tx pgx.Tx, eventTy
 // ProcessOutbox continuously processes outbox events, sending them to Kafka and marking them as processed.
 func (s *LomsService) ProcessOutbox(ctx context.Context) error {
 	for {
-		var noMoreMessages bool
-		err := s.txManager.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) error {
-			event, err := s.outboxRepository.FetchNextMsg(ctx, tx)
-			if err != nil {
-				if err == pgx.ErrNoRows {
-					noMoreMessages = true
-					return nil
-				}
-				return fmt.Errorf("failed to fetch next outbox message: %w", err)
+		err := s.processNextOutboxEvent(ctx)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return nil
 			}
+			return err
+		}
+	}
+}
 
-			// Send event in Kafka
-			err = s.producer.SendOutboxEvent(ctx, event)
-			if err != nil {
-				return fmt.Errorf("failed to send event to Kafka: %w", err)
-			}
-
-			// Mark event as sent
-			err = s.outboxRepository.MarkAsSent(ctx, tx, event.ID)
-			if err != nil {
-				return fmt.Errorf("failed to mark event as sent: %w", err)
-			}
-
-			return nil
-		})
-
+// processNextOutboxEvent processes the next outbox event.
+func (s *LomsService) processNextOutboxEvent(ctx context.Context) error {
+	return s.txManager.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) error {
+		event, err := s.outboxRepository.FetchNextMsg(ctx, tx)
 		if err != nil {
 			return err
 		}
 
-		if noMoreMessages {
-			break
+		// Send event to Kafka
+		if err := s.producer.SendOutboxEvent(ctx, event); err != nil {
+			return fmt.Errorf("failed to send event to Kafka: %w", err)
 		}
-	}
 
-	return nil
+		// Mark event as sent
+		if err := s.outboxRepository.MarkAsSent(ctx, tx, event.ID); err != nil {
+			return fmt.Errorf("failed to mark event as sent: %w", err)
+		}
+
+		return nil
+	})
 }

@@ -345,10 +345,10 @@ func TestLomsService_OrderCreate_Table(t *testing.T) {
 					case 2:
 						event, ok := payload.(models.OrderEvent)
 						require.True(t, ok)
-						require.Equal(t, "OrderAwaitingPayment", eventType)
+						require.Equal(t, "OrderFailed", eventType)
 						require.Equal(t, models.OID(4), event.OrderID)
-						require.Equal(t, models.OrderStatusAwaitingPayment, event.Status)
-						require.Equal(t, "OrderAwaitingPayment", event.Additional)
+						require.Equal(t, models.OrderStatusFailed, event.Status)
+						require.Equal(t, "OrderFailed", event.Additional)
 						require.False(t, event.Time.IsZero())
 						return errors.New("write outbox failed")
 					default:

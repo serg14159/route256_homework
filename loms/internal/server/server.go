@@ -23,7 +23,7 @@ import (
 	api "route256/loms/internal/app/loms"
 	pb "route256/loms/pkg/api/loms/v1"
 
-	mw "route256/loms/internal/pkg/mv"
+	mw "route256/loms/internal/pkg/mw"
 )
 
 const quitChannelBufferSize = 1
