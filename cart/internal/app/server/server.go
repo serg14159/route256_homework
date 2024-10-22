@@ -3,8 +3,8 @@ package server
 import (
 	"context"
 	"net/http"
-	"route256/cart/internal/http/server_middleware"
 	"route256/cart/internal/models"
+	server_middleware "route256/cart/internal/pkg/mw/server"
 
 	"log"
 )

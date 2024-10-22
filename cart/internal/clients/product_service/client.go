@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"route256/cart/internal/http/client_middleware"
 	"route256/cart/internal/models"
+	client_middleware "route256/cart/internal/pkg/mw/client"
 	"sync"
 	"time"
 

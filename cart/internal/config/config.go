@@ -88,12 +88,22 @@ func (l *LomsService) GetHost() string {
 	return l.Host
 }
 
+// Jaeger - contains parameters for jaeger.
+type Jaeger struct {
+	URI string `yaml:"uri" mapstructure:"uri"`
+}
+
+func (j *Jaeger) GetURI() string {
+	return j.URI
+}
+
 // Config - contains all configuration parameters in config package
 type Config struct {
 	Project        Project        `yaml:"project" mapstructure:"project"`
 	Server         Server         `yaml:"server" mapstructure:"server"`
 	ProductService ProductService `yaml:"productService" mapstructure:"productService"`
 	LomsService    LomsService    `yaml:"lomsService" mapstructure:"lomsService"`
+	Jaeger         Jaeger         `yaml:"jaeger" mapstructure:"jaeger"`
 }
 
 func NewConfig() *Config {
@@ -150,21 +160,29 @@ func setDefaultValues() {
 	// LomsService
 	viper.SetDefault("lomsService.host", "0.0.0.0")
 	viper.SetDefault("lomsService.port", "50051")
+	// Jaeger
+	viper.SetDefault("jaeger.uri", "http://localhost:4318")
 }
 
 // bindEnvVariables function for bind env variables with config name.
 func (c *Config) bindEnvVariables() error {
 	envVars := map[string]string{
-		"project.debug":             "PROJECT_DEBUG",
-		"project.name":              "PROJECT_NAME",
-		"project.environment":       "PROJECT_ENVIRONMENT",
-		"server.host":               "SERVER_HOST",
-		"server.port":               "SERVER_PORT",
+		// Project
+		"project.debug":       "PROJECT_DEBUG",
+		"project.name":        "PROJECT_NAME",
+		"project.environment": "PROJECT_ENVIRONMENT",
+		// Server
+		"server.host": "SERVER_HOST",
+		"server.port": "SERVER_PORT",
+		// ProductService
 		"productService.apiuri":     "PRODUCT_SERVICE_APIURI",
 		"productService.token":      "PRODUCT_SERVICE_TOKEN",
 		"productService.maxRetries": "PRODUCT_SERVICE_MAX_RETRIES",
-		"lomsService.host":          "LOMS_SERVICE_HOST",
-		"lomsService.port":          "LOMS_SERVICE_PORT",
+		// LomsService
+		"lomsService.host": "LOMS_SERVICE_HOST",
+		"lomsService.port": "LOMS_SERVICE_PORT",
+		// Jaeger
+		"jaeger.uri": "JAEGER_URI",
 	}
 
 	for key, env := range envVars {

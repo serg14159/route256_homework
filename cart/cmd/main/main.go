@@ -4,11 +4,14 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"route256/cart/internal/app/server"
 	"route256/cart/internal/clients/product_service"
 	"route256/cart/internal/config"
+	"route256/cart/internal/pkg/logger"
+	"route256/cart/internal/pkg/tracer"
 	repository "route256/cart/internal/repository/cart"
 	service "route256/cart/internal/service/cart"
 	"time"
@@ -16,6 +19,8 @@ import (
 	"log"
 
 	"github.com/joho/godotenv"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.opentelemetry.io/otel"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
@@ -24,6 +29,7 @@ import (
 
 const quitChannelBufferSize = 1
 const shutdownTimeout = 5 * time.Second
+const stdout = "stdout"
 
 func main() {
 	_ = godotenv.Load()
@@ -43,8 +49,39 @@ func main() {
 		log.Printf("Failed init configuration, err:%s", err)
 	}
 
-	log.Printf("Starting service: %s | version=%s | commitHash=%s | debug=%t | environment=%s",
-		cfg.Project.GetName(), cfg.Project.GetVersion(), cfg.Project.GetCommitHash(), cfg.Project.GetDebug(), cfg.Project.GetEnvironment())
+	// Init context
+	ctx := context.Background()
+
+	// Initialize logger
+	var errorOutputPaths = []string{stdout}
+	logger := logger.NewLogger(ctx, cfg.Project.Debug, errorOutputPaths)
+	defer func() {
+		if err := logger.Sync(); err != nil {
+			log.Printf("Failed to sync logger: %s", err)
+		}
+	}()
+
+	// App info
+	logger.Infow(ctx, fmt.Sprintf("Starting service: %s", cfg.Project.GetName()),
+		"version", cfg.Project.GetVersion(),
+		"commitHash", cfg.Project.GetCommitHash(),
+		"debug", cfg.Project.GetDebug(),
+		"environment", cfg.Project.GetEnvironment(),
+	)
+
+	// Add logger to context
+	ctx = logger.ToContext(ctx, logger)
+
+	// Initialize tracer
+	tp, err := tracer.InitTracer(ctx, cfg.Project.GetName(), cfg.Jaeger.GetURI())
+	if err != nil {
+		logger.Errorw(ctx, "Failed to initialize tracer", "error", err)
+	}
+	defer func() {
+		if err := tp.Shutdown(ctx); err != nil {
+			logger.Errorw(ctx, "Error shutting down tracer provider", "error", err)
+		}
+	}()
 
 	// Repository
 	cartRepository := repository.NewCartRepository()
@@ -54,9 +91,13 @@ func main() {
 
 	// Loms service client
 	lomsAddr := fmt.Sprintf("%s:%s", cfg.LomsService.Host, cfg.LomsService.Port)
-	connGrpc, err := grpc.NewClient(lomsAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	connGrpc, err := grpc.NewClient(lomsAddr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithUnaryInterceptor(grpcUnaryClientInterceptor()),
+		grpc.WithStreamInterceptor(grpcStreamClientInterceptor()),
+	)
 	if err != nil {
-		log.Printf("Did not connect: %v", err)
+		logger.Errorw(ctx, "Did not connect", "error", err)
 	}
 	defer connGrpc.Close()
 
@@ -68,21 +109,71 @@ func main() {
 	// Server
 	s := server.NewServer(&cfg.Server, cartService)
 
+	// Start metrics and profiling
+	go func() {
+		http.Handle("/metrics", promhttp.Handler())
+		// pprof
+		if err := http.ListenAndServe(":2112", nil); err != nil {
+			logger.Errorw(ctx, "Failed to start metrics server", "error", err)
+		}
+	}()
+
+	// Run server
 	err = s.Run()
 	if err != nil {
-		log.Printf("Failed to start server, err:%s", err)
+		logger.Errorw(ctx, "Failed to start server", "error", err)
 	}
 
 	// Wait os interrupt
 	quit := make(chan os.Signal, quitChannelBufferSize)
 	signal.Notify(quit, os.Interrupt)
 	<-quit
-	log.Printf("Shutdown Server ...")
+	logger.Infow(ctx, "Shutdown Server ...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
 	if err := s.Shutdown(ctx); err != nil {
-		log.Printf("Failed server shutdown, err:%s", err)
+		logger.Errorw(ctx, "Failed server shutdown", "error", err)
 	}
-	log.Printf("Server exiting")
+	logger.Infow(ctx, "Server exiting")
+}
+
+// grpcUnaryClientInterceptor returns a new unary client interceptor that adds tracing.
+func grpcUnaryClientInterceptor() grpc.UnaryClientInterceptor {
+	return func(
+		ctx context.Context,
+		method string,
+		req, reply interface{},
+		cc *grpc.ClientConn,
+		invoker grpc.UnaryInvoker,
+		opts ...grpc.CallOption) error {
+
+		// Create a span for the client call
+		tracer := otel.Tracer("grpc-client")
+		ctx, span := tracer.Start(ctx, method)
+		defer span.End()
+
+		// Invoke the original method
+		return invoker(ctx, method, req, reply, cc, opts...)
+	}
+}
+
+// grpcStreamClientInterceptor returns a new stream client interceptor that adds tracing.
+func grpcStreamClientInterceptor() grpc.StreamClientInterceptor {
+	return func(
+		ctx context.Context,
+		desc *grpc.StreamDesc,
+		cc *grpc.ClientConn,
+		method string,
+		streamer grpc.Streamer,
+		opts ...grpc.CallOption) (grpc.ClientStream, error) {
+
+		// Create a span for the client call
+		tracer := otel.Tracer("grpc-client")
+		ctx, span := tracer.Start(ctx, method)
+		defer span.End()
+
+		// Invoke the original method
+		return streamer(ctx, desc, cc, method, opts...)
+	}
 }
