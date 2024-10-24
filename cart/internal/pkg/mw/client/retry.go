@@ -1,4 +1,4 @@
-package client_middleware
+package middleware
 
 import (
 	"fmt"
@@ -19,10 +19,6 @@ type RetryMiddleware struct {
 
 // RoundTrip function for retry request.
 func (r *RetryMiddleware) RoundTrip(req *http.Request) (*http.Response, error) {
-	if r.Transport == nil {
-		r.Transport = http.DefaultTransport
-	}
-
 	var resp *http.Response
 	var err error
 

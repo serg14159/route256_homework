@@ -9,21 +9,22 @@ import (
 
 // GetCart handler for get cart contents.
 func (s *Server) GetCart(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	rawUID := r.PathValue("user_id")
 	UID, err := strconv.ParseInt(rawUID, 10, 64)
 	if err != nil {
-		writeJSONError(w, http.StatusBadRequest, err.Error())
+		writeJSONError(ctx, w, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	if UID < 1 {
-		writeJSONError(w, http.StatusBadRequest, "validation failed")
+		writeJSONError(ctx, w, http.StatusBadRequest, "validation failed")
 		return
 	}
 
-	items, totalPrice, err := s.cartService.GetCart(r.Context(), UID)
+	items, totalPrice, err := s.cartService.GetCart(ctx, UID)
 	if err != nil {
-		writeJSONError(w, getStatusCodeFromError(err), err.Error())
+		writeJSONError(ctx, w, getStatusCodeFromError(err), err.Error())
 		return
 	}
 
@@ -34,7 +35,7 @@ func (s *Server) GetCart(w http.ResponseWriter, r *http.Request) {
 
 	rawRes, err := json.Marshal(res)
 	if err != nil {
-		writeJSONError(w, http.StatusInternalServerError, err.Error())
+		writeJSONError(ctx, w, http.StatusInternalServerError, err.Error())
 		return
 	}
 

@@ -6,8 +6,10 @@ import (
 	"route256/cart/internal/models"
 	"sort"
 	"sync"
+	"time"
 
 	internal_errors "route256/cart/internal/pkg/errors"
+	"route256/cart/internal/pkg/metrics"
 )
 
 type Storage = map[models.UID]map[models.SKU]models.CartItem
@@ -24,8 +26,34 @@ func NewCartRepository() *Repository {
 	}
 }
 
+// TotalItems returns total number of items in the repository.
+func (r *Repository) TotalItems() int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	total := 0
+	for _, cart := range r.storage {
+		total += len(cart)
+	}
+	return total
+}
+
 // AddItem function for adding item to cart.
-func (r *Repository) AddItem(ctx context.Context, UID models.UID, item models.CartItem) error {
+func (r *Repository) AddItem(ctx context.Context, UID models.UID, item models.CartItem) (err error) {
+	operation := "insert"
+	metrics.IncDBOperation(operation)
+	start := time.Now()
+
+	defer func() {
+		duration := time.Since(start)
+		status := "success"
+		if err != nil {
+			status = "error"
+		}
+		metrics.ObserveDBLatency(operation, duration, status)
+		metrics.SetInMemoryItemsTotal(r.TotalItems())
+	}()
+
 	if UID < 1 || item.SKU < 1 || item.Count < 1 {
 		return fmt.Errorf("UID and SKU must be greater than zero: %w", internal_errors.ErrBadRequest)
 	}
@@ -47,7 +75,21 @@ func (r *Repository) AddItem(ctx context.Context, UID models.UID, item models.Ca
 }
 
 // DeleteItem function for delete item from cart.
-func (r *Repository) DeleteItem(ctx context.Context, UID models.UID, SKU models.SKU) error {
+func (r *Repository) DeleteItem(ctx context.Context, UID models.UID, SKU models.SKU) (err error) {
+	operation := "delete"
+	metrics.IncDBOperation(operation)
+	start := time.Now()
+
+	defer func() {
+		duration := time.Since(start)
+		status := "success"
+		if err != nil {
+			status = "error"
+		}
+		metrics.ObserveDBLatency(operation, duration, status)
+		metrics.SetInMemoryItemsTotal(r.TotalItems())
+	}()
+
 	if UID < 1 || SKU < 1 {
 		return fmt.Errorf("UID and SKU must be greater than zero: %w", internal_errors.ErrBadRequest)
 	}
@@ -63,7 +105,21 @@ func (r *Repository) DeleteItem(ctx context.Context, UID models.UID, SKU models.
 }
 
 // DeleteItemsByUserID function for delete cart.
-func (r *Repository) DeleteItemsByUserID(ctx context.Context, UID models.UID) error {
+func (r *Repository) DeleteItemsByUserID(ctx context.Context, UID models.UID) (err error) {
+	operation := "delete"
+	metrics.IncDBOperation(operation)
+	start := time.Now()
+
+	defer func() {
+		duration := time.Since(start)
+		status := "success"
+		if err != nil {
+			status = "error"
+		}
+		metrics.ObserveDBLatency(operation, duration, status)
+		metrics.SetInMemoryItemsTotal(r.TotalItems())
+	}()
+
 	if UID < 1 {
 		return fmt.Errorf("UID must be greater than zero: %w", internal_errors.ErrBadRequest)
 	}
@@ -77,7 +133,20 @@ func (r *Repository) DeleteItemsByUserID(ctx context.Context, UID models.UID) er
 }
 
 // GetItemsByUserID function for getting items from cart.
-func (r *Repository) GetItemsByUserID(ctx context.Context, UID models.UID) ([]models.CartItem, error) {
+func (r *Repository) GetItemsByUserID(ctx context.Context, UID models.UID) (items []models.CartItem, err error) {
+	operation := "select"
+	metrics.IncDBOperation(operation)
+	start := time.Now()
+
+	defer func() {
+		duration := time.Since(start)
+		status := "success"
+		if err != nil {
+			status = "error"
+		}
+		metrics.ObserveDBLatency(operation, duration, status)
+	}()
+
 	if UID < 1 {
 		return nil, fmt.Errorf("UID must be greater than zero: %w", internal_errors.ErrBadRequest)
 	}
@@ -90,7 +159,7 @@ func (r *Repository) GetItemsByUserID(ctx context.Context, UID models.UID) ([]mo
 		return nil, fmt.Errorf("cart for UID not found in storage: %w", internal_errors.ErrNotFound)
 	}
 
-	items := make([]models.CartItem, 0, len(cart))
+	items = make([]models.CartItem, 0, len(cart))
 	for _, item := range cart {
 		items = append(items, item)
 	}

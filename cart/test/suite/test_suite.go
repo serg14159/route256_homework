@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -16,6 +17,8 @@ import (
 	internal_errors "route256/cart/internal/pkg/errors"
 	repository "route256/cart/internal/repository/cart"
 	service "route256/cart/internal/service/cart"
+
+	loggerPkg "route256/cart/internal/pkg/logger"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -45,6 +48,14 @@ func (c *Config) GetMaxRetries() int {
 	return 3
 }
 
+func (c *Config) GetDebug() bool {
+	return true
+}
+
+func (c *Config) GetName() string {
+	return "test_service"
+}
+
 // Struct TSuite for tests.
 type TSuite struct {
 	suite.Suite
@@ -59,6 +70,18 @@ type TSuite struct {
 
 // SetupTest.
 func (s *TSuite) SetupTest() {
+	// Init logger
+	ctx := context.Background()
+	logger := loggerPkg.NewLogger(ctx, true, []string{"stderr"})
+	defer func() {
+		if err := logger.Sync(); err != nil {
+			fmt.Printf("Failed to sync logger: %s\n", err)
+		}
+	}()
+
+	// Add logger to context
+	ctx = loggerPkg.ToContext(ctx, logger)
+
 	// Repository
 	s.repo = repository.NewCartRepository()
 

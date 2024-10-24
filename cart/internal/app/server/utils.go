@@ -1,11 +1,12 @@
 package server
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	internal_errors "route256/cart/internal/pkg/errors"
+	"route256/cart/internal/pkg/logger"
 
 	"github.com/go-playground/validator"
 )
@@ -23,11 +24,11 @@ func setResponseHeaders(w http.ResponseWriter, statusCode int) {
 }
 
 // writeJSONError function for write JSON error.
-func writeJSONError(w http.ResponseWriter, statusCode int, message string) {
+func writeJSONError(ctx context.Context, w http.ResponseWriter, statusCode int, message string) {
 	setResponseHeaders(w, statusCode)
 	_, errOut := fmt.Fprintf(w, "{\"message\":\"%s\"}", message)
 	if errOut != nil {
-		log.Printf("Response writing failed: %s", errOut.Error())
+		logger.Errorw(ctx, "Response writing failed", "error", errOut.Error())
 	}
 }
 

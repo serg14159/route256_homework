@@ -217,6 +217,8 @@ services:
       - '--web.console.templates=/usr/share/prometheus/consoles'
     ports:
       - "9090:9090"
+    networks:
+      - app-network
       
   # grafana
   grafana:
@@ -225,6 +227,8 @@ services:
       - grafana_data:/var/lib/grafana
     ports:
       - "3000:3000"
+    networks:
+      - app-network
 
   # jaeger
   jaeger:
@@ -232,6 +236,8 @@ services:
     ports:
       - "16686:16686"
       - "4318:4318"
+    networks:
+      - app-network
 
 volumes:
   prometheus_data: {}
