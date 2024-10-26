@@ -5,6 +5,9 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net"
+	"net/http"
+	"net/http/pprof"
 	"os"
 	"os/signal"
 	"syscall"
@@ -14,29 +17,39 @@ import (
 	"route256/loms/internal/config"
 	db "route256/loms/internal/pkg/db"
 	kafkaProducer "route256/loms/internal/pkg/kafka"
+	"route256/loms/internal/pkg/logger"
+	loggerPkg "route256/loms/internal/pkg/logger"
+	"route256/loms/internal/pkg/tracer"
 	repo_order "route256/loms/internal/repository/orders"
 	repo_outbox "route256/loms/internal/repository/outbox"
 	repo_stocks "route256/loms/internal/repository/stocks"
 	"route256/loms/internal/server"
 	loms_usecase "route256/loms/internal/service/loms"
 
+	oteltrace "go.opentelemetry.io/otel/sdk/trace"
+
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 const quitChannelBufferSize = 1
 const errorChannelBufferSize = 1
 const processOutboxInterval time.Duration = 2 * time.Second
+const stdout = "stdout"
 
 type App struct {
-	config     *config.Config
-	ctx        context.Context
-	cancel     context.CancelFunc
-	pool       *pgxpool.Pool
-	usecase    *loms_usecase.LomsService
-	controller *loms.Service
-	server     *server.GrpcServer
-	producer   *kafkaProducer.KafkaProducer
+	config          *config.Config
+	ctx             context.Context
+	cancel          context.CancelFunc
+	pool            *pgxpool.Pool
+	usecase         *loms_usecase.LomsService
+	controller      *loms.Service
+	server          *server.GrpcServer
+	producer        *kafkaProducer.KafkaProducer
+	logger          *logger.Logger
+	tracer          *oteltrace.TracerProvider
+	metricsListener net.Listener
 }
 
 // NewApp
@@ -59,14 +72,26 @@ func NewApp() (*App, error) {
 		return nil, fmt.Errorf("failed to init configuration: %w", err)
 	}
 
-	log.Printf("Starting service: %s | version=%s | commitHash=%s | debug=%t | environment=%s",
-		cfg.Project.GetName(), cfg.Project.GetVersion(), cfg.Project.GetCommitHash(), cfg.Project.GetDebug(), cfg.Project.GetEnvironment())
-
-	// Cfg
-	fmt.Printf("cfg: %v \n", cfg)
-
 	// Context
 	ctx, cancel := context.WithCancel(context.Background())
+
+	// Init logger
+	var errorOutputPaths = []string{stdout}
+	logger := loggerPkg.NewLogger(ctx, cfg.Project.GetDebug(), errorOutputPaths, cfg.Project.GetName())
+
+	// App info
+	loggerPkg.Infow(ctx, fmt.Sprintf("Starting service: %s", cfg.Project.GetName()),
+		"version", cfg.Project.GetVersion(),
+		"commitHash", cfg.Project.GetCommitHash(),
+		"debug", cfg.Project.GetDebug(),
+		"environment", cfg.Project.GetEnvironment(),
+	)
+
+	// Init tracer
+	tp, err := tracer.InitTracer(ctx, cfg.Project.GetName(), cfg.Jaeger.GetURI())
+	if err != nil {
+		loggerPkg.Errorw(ctx, "Failed to initialize tracer", "error", err)
+	}
 
 	// DB connect
 	pool, err := db.NewConnect(ctx, &cfg.Database)
@@ -109,11 +134,16 @@ func NewApp() (*App, error) {
 		controller: controller,
 		server:     grpcServer,
 		producer:   kafkaProd,
+		logger:     logger,
+		tracer:     tp,
 	}, nil
 }
 
 // Run
 func (a *App) Run() error {
+	// Start metrics and profiling
+	go a.startMetricsServer()
+
 	// Run outbox
 	go a.startOutboxProcessor()
 
@@ -167,11 +197,61 @@ func (a *App) startOutboxProcessor() {
 func (a *App) Shutdown() {
 	a.cancel()
 
+	// Shutdown DB conn
 	a.pool.Close()
 
 	if err := a.producer.Close(); err != nil {
 		log.Printf("Failed to close Kafka producer: %v", err)
 	}
 
+	// Shutdown metricsListener
+	if a.metricsListener != nil {
+		if err := a.metricsListener.Close(); err != nil {
+			logger.Errorw(a.ctx, "Failed to close metrics listener", "error", err)
+		}
+	}
+
+	// Shutdown tracer
+	if err := a.tracer.Shutdown(a.ctx); err != nil {
+		logger.Errorw(a.ctx, "Error shutting down tracer provider", "error", err)
+	}
+
+	// Shutdown logger
+	if err := a.logger.Sync(); err != nil {
+		logger.Errorw(a.ctx, "Failed to sync logger", "error", err)
+	}
+
 	log.Printf("Shutdown complete")
+}
+
+// startMetricsServer starts the metrics and profiling HTTP server.
+func (a *App) startMetricsServer() {
+	mux := http.NewServeMux()
+	mux.Handle("/metrics", promhttp.Handler())
+
+	// pprof
+	mux.HandleFunc("/debug/pprof/", pprof.Index)
+	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+	mux.Handle("/debug/pprof/goroutine", pprof.Handler("goroutine"))
+	mux.Handle("/debug/pprof/heap", pprof.Handler("heap"))
+	mux.Handle("/debug/pprof/threadcreate", pprof.Handler("threadcreate"))
+	mux.Handle("/debug/pprof/block", pprof.Handler("block"))
+	mux.Handle("/debug/pprof/mutex", pprof.Handler("mutex"))
+	mux.Handle("/debug/pprof/allocs", pprof.Handler("allocs"))
+
+	// Run
+	listener, err := net.Listen("tcp4", "0.0.0.0:2113")
+	if err != nil {
+		logger.Errorw(context.Background(), "Failed to start metrics server", "error", err)
+		return
+	}
+
+	a.metricsListener = listener
+
+	if err := http.Serve(listener, mux); err != nil && err != http.ErrServerClosed {
+		logger.Errorw(context.Background(), "Metrics server stopped", "error", err)
+	}
 }

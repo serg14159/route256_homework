@@ -7,10 +7,15 @@ import (
 	internal_errors "route256/loms/internal/pkg/errors"
 
 	"github.com/jackc/pgx/v5"
+	"go.opentelemetry.io/otel"
 )
 
 // OrderCancel function for cancel order.
 func (s *LomsService) OrderCancel(ctx context.Context, req *models.OrderCancelRequest) error {
+	// Tracer
+	ctx, span := otel.Tracer("LomsService").Start(ctx, "OrderCancel")
+	defer span.End()
+
 	// Validate input data
 	if err := s.validateOrderCancelRequest(req); err != nil {
 		return err

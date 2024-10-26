@@ -72,15 +72,12 @@ type TSuite struct {
 func (s *TSuite) SetupTest() {
 	// Init logger
 	ctx := context.Background()
-	logger := loggerPkg.NewLogger(ctx, true, []string{"stderr"})
+	logger := loggerPkg.NewLogger(ctx, true, []string{"stderr"}, "cart")
 	defer func() {
 		if err := logger.Sync(); err != nil {
 			fmt.Printf("Failed to sync logger: %s\n", err)
 		}
 	}()
-
-	// Add logger to context
-	ctx = loggerPkg.ToContext(ctx, logger)
 
 	// Repository
 	s.repo = repository.NewCartRepository()

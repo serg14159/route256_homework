@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 	"net/http/pprof"
@@ -45,6 +44,7 @@ type App struct {
 	connGrpc        *grpc.ClientConn
 }
 
+// NewApp
 func NewApp(ctx context.Context) (*App, error) {
 	// Load environment
 	_ = godotenv.Load()
@@ -61,12 +61,12 @@ func NewApp(ctx context.Context) (*App, error) {
 	// Read config
 	cfg := config.NewConfig()
 	if err := cfg.ReadConfig(configPath); err != nil {
-		log.Printf("Failed init configuration, err:%s", err)
+		return nil, fmt.Errorf("failed to init configuration: %w", err)
 	}
 
 	// Init logger
 	var errorOutputPaths = []string{stdout}
-	logger := loggerPkg.NewLogger(ctx, cfg.Project.Debug, errorOutputPaths)
+	logger := loggerPkg.NewLogger(ctx, cfg.Project.GetDebug(), errorOutputPaths, cfg.Project.GetName())
 
 	// App info
 	loggerPkg.Infow(ctx, fmt.Sprintf("Starting service: %s", cfg.Project.GetName()),
@@ -75,9 +75,6 @@ func NewApp(ctx context.Context) (*App, error) {
 		"debug", cfg.Project.GetDebug(),
 		"environment", cfg.Project.GetEnvironment(),
 	)
-
-	// Add logger to context
-	ctx = loggerPkg.ToContext(ctx, logger)
 
 	// Init tracer
 	tp, err := tracer.InitTracer(ctx, cfg.Project.GetName(), cfg.Jaeger.GetURI())
@@ -110,7 +107,7 @@ func NewApp(ctx context.Context) (*App, error) {
 	// Init server
 	srv := server.NewServer(&cfg.Server, cartService)
 
-	app := &App{
+	return &App{
 		config:        cfg,
 		logger:        logger,
 		tracer:        tp,
@@ -119,9 +116,7 @@ func NewApp(ctx context.Context) (*App, error) {
 		lomsClient:    loms,
 		productClient: productService,
 		connGrpc:      connGrpc,
-	}
-
-	return app, nil
+	}, nil
 }
 
 func (a *App) Run() error {

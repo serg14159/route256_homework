@@ -28,4 +28,4 @@ scrape_configs:
   - job_name: "loms"
     scrape_interval: 5s
     static_configs:
-      - targets: [ "192.168.0.100:2112" ]
+      - targets: [ "192.168.0.100:2113" ]

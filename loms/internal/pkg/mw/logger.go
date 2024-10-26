@@ -2,8 +2,10 @@ package mw
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
+	"route256/loms/internal/pkg/logger"
 
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -13,15 +15,15 @@ import (
 // Logger create request/response logger mv.
 func Logger(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
 	raw, _ := protojson.Marshal((req).(proto.Message))
-	log.Printf("request: method: %v, req: %v\n", info.FullMethod, string(raw))
+	logger.Infow(ctx, fmt.Sprintf("request: method: %v, req: %v\n", info.FullMethod, string(raw)))
 
 	if resp, err = handler(ctx, req); err != nil {
-		log.Printf("response: method: %v, err: %v\n", info.FullMethod, err)
+		logger.Infow(ctx, fmt.Sprintf("response: method: %v, err: %v\n", info.FullMethod, err))
 		return
 	}
 
 	rawResp, _ := protojson.Marshal((resp).(proto.Message))
-	log.Printf("response: method: %v, resp: %v\n", info.FullMethod, string(rawResp))
+	logger.Infow(ctx, fmt.Sprintf("response: method: %v, resp: %v\n", info.FullMethod, string(rawResp)))
 
 	return
 }

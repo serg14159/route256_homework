@@ -7,10 +7,16 @@ import (
 	"route256/loms/internal/models"
 	internal_errors "route256/loms/internal/pkg/errors"
 	pb "route256/loms/pkg/api/loms/v1"
+
+	"go.opentelemetry.io/otel"
 )
 
 // OrderCreate implements the GRPC OrderCreate method.
 func (s *Service) OrderCreate(ctx context.Context, req *pb.OrderCreateRequest) (*pb.OrderCreateResponse, error) {
+	// Tracer
+	ctx, span := otel.Tracer("LomsHandlers").Start(ctx, "OrderCreate")
+	defer span.End()
+
 	orderCreateRequest, err := toModelOrderCreateRequest(req)
 	if err != nil {
 		return nil, errorToStatus(err)

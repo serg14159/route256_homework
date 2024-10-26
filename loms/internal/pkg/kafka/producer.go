@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"route256/loms/internal/models"
+	"route256/loms/internal/pkg/logger"
 	"time"
 
 	"github.com/IBM/sarama"
@@ -56,7 +57,7 @@ func (kp *KafkaProducer) SendOutboxEvent(ctx context.Context, event *models.Outb
 		return fmt.Errorf("failed to send message to Kafka: %w", err)
 	}
 
-	fmt.Printf("Message sent to partition %d at offset %d\n", partition, offset)
+	logger.Infow(ctx, fmt.Sprintf("Message sent to partition %d at offset %d\n", partition, offset))
 
 	return nil
 }

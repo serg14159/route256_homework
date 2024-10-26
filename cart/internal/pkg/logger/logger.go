@@ -19,7 +19,7 @@ type Logger struct {
 }
 
 // NewLogger initializes new Logger instance.
-func NewLogger(_ context.Context, debug bool, errorOutputPaths []string) *Logger {
+func NewLogger(_ context.Context, debug bool, errorOutputPaths []string, serviceName string) *Logger {
 	config := zap.NewProductionConfig()
 	config.ErrorOutputPaths = errorOutputPaths
 	config.Level.SetLevel(zap.InfoLevel)
@@ -27,7 +27,7 @@ func NewLogger(_ context.Context, debug bool, errorOutputPaths []string) *Logger
 		config.Level.SetLevel(zap.DebugLevel)
 	}
 
-	l, err := config.Build(zap.AddCallerSkip(1))
+	l, err := config.Build(zap.AddCallerSkip(1), zap.Fields(zap.String("service", serviceName)))
 	if err != nil {
 		panic(err)
 	}

@@ -9,10 +9,15 @@ import (
 	internal_errors "route256/loms/internal/pkg/errors"
 
 	"github.com/jackc/pgx/v5"
+	"go.opentelemetry.io/otel"
 )
 
 // OrderPay function for payment of order.
 func (s *LomsService) OrderPay(ctx context.Context, req *models.OrderPayRequest) error {
+	// Tracer
+	ctx, span := otel.Tracer("LomsService").Start(ctx, "OrderPay")
+	defer span.End()
+
 	// Validate input data
 	if err := s.validateOrderPayRequest(req); err != nil {
 		return err

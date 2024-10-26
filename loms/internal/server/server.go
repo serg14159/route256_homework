@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 	"os"
@@ -12,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/reflection"
@@ -23,7 +23,10 @@ import (
 	api "route256/loms/internal/app/loms"
 	pb "route256/loms/pkg/api/loms/v1"
 
+	"route256/loms/internal/pkg/logger"
 	mw "route256/loms/internal/pkg/mw"
+
+	grpc_zap "github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
 )
 
 const quitChannelBufferSize = 1
@@ -110,12 +113,12 @@ func (s *GrpcServer) startServers(ctx context.Context, cancel context.CancelFunc
 func (s *GrpcServer) startGatewayServer(ctx context.Context, cancel context.CancelFunc) error {
 	gatewayAddr := fmt.Sprintf("%s:%v", s.cfgGateway.GetGatewayHost(), s.cfgGateway.GetGatewayPort())
 	grpcAddr := fmt.Sprintf("%s:%v", s.cfgGrpc.GetGrpcHost(), s.cfgGrpc.GetGrpcPort())
-	s.gatewayServer = createGatewayServer(grpcAddr, gatewayAddr, s.cfgGateway.GetGatewayAllowedCORSOrigins())
+	s.gatewayServer = createGatewayServer(ctx, grpcAddr, gatewayAddr, s.cfgGateway.GetGatewayAllowedCORSOrigins())
 
 	go func() {
-		log.Printf("Gateway server is running on %s", gatewayAddr)
+		logger.Infow(ctx, "Gateway server is running on", "address", gatewayAddr)
 		if err := s.gatewayServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Printf("Failed running gateway server: %v", err)
+			logger.Errorw(ctx, "Failed running gateway server", "error", err)
 			cancel()
 		}
 	}()
@@ -133,9 +136,9 @@ func (s *GrpcServer) startSwaggerServer(ctx context.Context, cancel context.Canc
 	}
 
 	go func() {
-		log.Printf("Swagger server is running on %s", swaggerAddr)
+		logger.Infow(ctx, "Swagger server is running on", "address", swaggerAddr)
 		if err := s.swaggerServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Printf("Failed running swagger server: %v", err)
+			logger.Errorw(ctx, "Failed running swagger server", "error", err)
 			cancel()
 		}
 	}()
@@ -152,9 +155,9 @@ func (s *GrpcServer) startGrpcServer(ctx context.Context) error {
 
 	s.grpcServer = s.createGrpcServer()
 	go func() {
-		log.Printf("GRPC Server is listening on: %s", grpcAddr)
+		logger.Infow(ctx, "gRPC Server is listening", "address", grpcAddr)
 		if err := s.grpcServer.Serve(l); err != nil {
-			log.Printf("Failed running gRPC server: %v", err)
+			logger.Errorw(ctx, "Failed running gRPC server", "error", err)
 		}
 	}()
 	return nil
@@ -174,6 +177,9 @@ func (s *GrpcServer) createGrpcServer() *grpc.Server {
 			mw.Logger,
 			mw.Validate,
 			grpcrecovery.UnaryServerInterceptor(),
+			otelgrpc.UnaryServerInterceptor(),
+			mw.UnaryServerMetricsInterceptor(),
+			grpc_zap.UnaryServerInterceptor(logger.GetZapLogger()),
 		)),
 	)
 
@@ -193,9 +199,9 @@ func (s *GrpcServer) awaitTermination(ctx context.Context) {
 
 	select {
 	case v := <-quit:
-		log.Printf("signal.Notify: %v", v)
+		logger.Infow(ctx, "signal.Notify", v)
 	case done := <-ctx.Done():
-		log.Printf("ctx.Done: %v", done)
+		logger.Infow(ctx, "ctx.Done", done)
 	}
 }
 
@@ -203,22 +209,22 @@ func (s *GrpcServer) awaitTermination(ctx context.Context) {
 func (s *GrpcServer) shutdownServers(ctx context.Context) {
 	if s.gatewayServer != nil {
 		if err := s.gatewayServer.Shutdown(ctx); err != nil {
-			log.Printf("gatewayServer.Shutdown: %v", err)
+			logger.Errorw(ctx, "gatewayServer.Shutdown", "err", err)
 		} else {
-			log.Printf("gatewayServer shut down correctly")
+			logger.Infow(ctx, "gatewayServer shut down correctly")
 		}
 	}
 
 	if s.swaggerServer != nil {
 		if err := s.swaggerServer.Shutdown(ctx); err != nil {
-			log.Printf("swaggerServer.Shutdown: %v", err)
+			logger.Errorw(ctx, "swaggerServer.Shutdown", "err", err)
 		} else {
-			log.Printf("swaggerServer shut down correctly")
+			logger.Infow(ctx, "swaggerServer shut down correctly")
 		}
 	}
 
 	if s.grpcServer != nil {
 		s.grpcServer.GracefulStop()
-		log.Printf("grpcServer shut down correctly")
+		logger.Infow(ctx, "grpcServer shut down correctly")
 	}
 }

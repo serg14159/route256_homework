@@ -171,16 +171,20 @@ func (c *Config) bindEnvVariables() error {
 		"project.debug":       "PROJECT_DEBUG",
 		"project.name":        "PROJECT_NAME",
 		"project.environment": "PROJECT_ENVIRONMENT",
+
 		// Server
 		"server.host": "SERVER_HOST",
 		"server.port": "SERVER_PORT",
+
 		// ProductService
 		"productService.apiuri":     "PRODUCT_SERVICE_APIURI",
 		"productService.token":      "PRODUCT_SERVICE_TOKEN",
 		"productService.maxRetries": "PRODUCT_SERVICE_MAX_RETRIES",
+
 		// LomsService
 		"lomsService.host": "LOMS_SERVICE_HOST",
 		"lomsService.port": "LOMS_SERVICE_PORT",
+
 		// Jaeger
 		"jaeger.uri": "JAEGER_URI",
 	}

@@ -23,7 +23,7 @@ func main() {
 		log.Fatalf("Failed to initialize app: %v", err)
 	}
 
-	// Run the application
+	// Run application
 	if err := application.Run(); err != nil {
 		log.Fatalf("Application run error: %v", err)
 	}

@@ -7,10 +7,16 @@ import (
 	"route256/loms/internal/models"
 	internal_errors "route256/loms/internal/pkg/errors"
 	pb "route256/loms/pkg/api/loms/v1"
+
+	"go.opentelemetry.io/otel"
 )
 
 // StocksInfo implements the gRPC StocksInfo method.
 func (s *Service) StocksInfo(ctx context.Context, req *pb.StocksInfoRequest) (*pb.StocksInfoResponse, error) {
+	// Tracer
+	ctx, span := otel.Tracer("LomsHandlers").Start(ctx, "StocksInfo")
+	defer span.End()
+
 	stocksInfoRequest, err := toModelStocksInfoRequest(req)
 	if err != nil {
 		return nil, errorToStatus(err)

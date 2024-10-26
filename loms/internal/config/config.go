@@ -150,6 +150,15 @@ func (k *Kafka) GetTopic() string {
 	return k.Topic
 }
 
+// Jaeger - contains parameters for jaeger.
+type Jaeger struct {
+	URI string `yaml:"uri" mapstructure:"uri"`
+}
+
+func (j *Jaeger) GetURI() string {
+	return j.URI
+}
+
 // Config - contains all configuration parameters in config package.
 type Config struct {
 	Project  Project  `yaml:"project" mapstructure:"project"`
@@ -159,6 +168,7 @@ type Config struct {
 	Data     Data     `yaml:"data" mapstructure:"data"`
 	Database Database `yaml:"database" mapstructure:"database"`
 	Kafka    Kafka    `yaml:"kafka" mapstructure:"kafka"`
+	Jaeger   Jaeger   `yaml:"jaeger" mapstructure:"jaeger"`
 }
 
 func NewConfig() *Config {
@@ -238,6 +248,9 @@ func setDefaultValues() {
 	// Kafka
 	viper.SetDefault("kafka.brokers", "localhost:9092")
 	viper.SetDefault("kafka.topic", "loms.order-events")
+
+	// Jaeger
+	viper.SetDefault("jaeger.uri", "http://localhost:4318")
 }
 
 // bindEnvVariables function for bind env variables with config name.
@@ -276,6 +289,9 @@ func (c *Config) bindEnvVariables() error {
 		// Kafka
 		"kafka.brokers": "KAFKA_BROKERS",
 		"kafka.topic":   "KAFKA_TOPIC",
+
+		// Jaeger
+		"jaeger.uri": "JAEGER_URI",
 	}
 
 	for key, env := range envVars {

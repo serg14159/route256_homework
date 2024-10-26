@@ -7,10 +7,16 @@ import (
 	"route256/loms/internal/models"
 	internal_errors "route256/loms/internal/pkg/errors"
 	pb "route256/loms/pkg/api/loms/v1"
+
+	"go.opentelemetry.io/otel"
 )
 
 // OrderPay implements the gRPC OrderPay method.
 func (s *Service) OrderPay(ctx context.Context, req *pb.OrderPayRequest) (*pb.OrderPayResponse, error) {
+	// Tracer
+	ctx, span := otel.Tracer("LomsHandlers").Start(ctx, "OrderPay")
+	defer span.End()
+
 	orderPayRequest, err := toModelOrderPayRequest(req)
 	if err != nil {
 		return nil, errorToStatus(err)

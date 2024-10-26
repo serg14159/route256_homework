@@ -35,10 +35,6 @@ func (rw *responseWriter) WriteHeader(code int) {
 func (m *Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 
-	// Add logger to context
-	ctx := logger.ToContext(r.Context(), logger.FromContext(r.Context()))
-	r = r.WithContext(ctx)
-
 	// Wrap ResponseWriter to capture status code
 	rw := &responseWriter{w, http.StatusOK}
 
