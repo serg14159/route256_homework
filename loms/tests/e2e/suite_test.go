@@ -15,16 +15,16 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"
 
-	"route256/loms/internal/app/loms"
+	loms_app "route256/loms/internal/app/loms"
 	"route256/loms/internal/config"
 	"route256/loms/internal/models"
 	db "route256/loms/internal/pkg/db"
-	kafkaProducer "route256/loms/internal/pkg/kafka"
+	kafka_producer "route256/loms/internal/pkg/kafka"
 	mw "route256/loms/internal/pkg/mw"
 	repo_order "route256/loms/internal/repository/orders"
 	repo_outbox "route256/loms/internal/repository/outbox"
 	repo_stock "route256/loms/internal/repository/stocks"
-	service_loms "route256/loms/internal/service/loms"
+	loms_service "route256/loms/internal/service/loms"
 	pb "route256/loms/pkg/api/loms/v1"
 	"route256/loms/tests/e2e/migrations"
 
@@ -46,20 +46,20 @@ const (
 // TSuite
 type TSuite struct {
 	suite.Suite
-	conn            *grpc.ClientConn
-	client          pb.LomsClient
-	orderRepo       *repo_order.OrderRepository
-	stockRepo       *repo_stock.StockRepository
-	outboxRepo      *repo_outbox.OutboxRepository
-	txManager       *db.TransactionManager
-	grpcServer      *grpc.Server
-	listener        *bufconn.Listener
-	lomsService     *loms.Service
-	lomsServiceImpl *service_loms.LomsService
-	kafkaProducer   *kafkaProducer.KafkaProducer
-	kafkaConfig     *TestKafkaConfig
-	dbPool          *pgxpool.Pool
-	connGoose       *sql.DB
+	conn          *grpc.ClientConn
+	client        pb.LomsClient
+	orderRepo     *repo_order.OrderRepository
+	stockRepo     *repo_stock.StockRepository
+	outboxRepo    *repo_outbox.OutboxRepository
+	txManager     *db.TransactionManager
+	grpcServer    *grpc.Server
+	listener      *bufconn.Listener
+	lomsApp       *loms_app.Service
+	lomsService   *loms_service.LomsService
+	kafkaProducer *kafka_producer.KafkaProducer
+	kafkaConfig   *TestKafkaConfig
+	dbPool        *pgxpool.Pool
+	connGoose     *sql.DB
 }
 
 // TestKafkaConfig
@@ -110,14 +110,14 @@ func (s *TSuite) SetupSuite() {
 	}
 
 	// Initialize Kafka producer
-	kafkaProd, err := kafkaProducer.NewKafkaProducer(s.kafkaConfig)
+	kafkaProd, err := kafka_producer.NewKafkaProducer(s.kafkaConfig)
 	require.NoError(s.T(), err)
 	s.kafkaProducer = kafkaProd
 
 	// Initialize LomsService
-	lomsServiceImpl := service_loms.NewService(s.orderRepo, s.stockRepo, s.outboxRepo, s.txManager, s.kafkaProducer)
-	s.lomsServiceImpl = lomsServiceImpl
-	s.lomsService = loms.NewService(lomsServiceImpl)
+	lomsService := loms_service.NewService(s.orderRepo, s.stockRepo, s.outboxRepo, s.txManager, s.kafkaProducer)
+	s.lomsService = lomsService
+	s.lomsApp = loms_app.NewService(lomsService)
 
 	// Create GRPC server
 	s.grpcServer = grpc.NewServer(
@@ -132,7 +132,7 @@ func (s *TSuite) SetupSuite() {
 	)
 
 	// Register LomsService on GRPC server
-	pb.RegisterLomsServer(s.grpcServer, s.lomsService)
+	pb.RegisterLomsServer(s.grpcServer, s.lomsApp)
 
 	// Run GRPC server
 	go func() {
@@ -294,7 +294,7 @@ func (s *TSuite) TestOrderCreate_Success() {
 	orderID := models.OID(res.OrderID)
 
 	// Process outbox events
-	err = s.lomsServiceImpl.ProcessOutbox(ctx)
+	err = s.lomsService.ProcessOutbox(ctx)
 	require.NoError(s.T(), err)
 
 	// Consume messages from Kafka
@@ -352,7 +352,7 @@ func (s *TSuite) TestOrderCancel_Success() {
 	require.NotNil(s.T(), cancelResp)
 
 	// Process outbox events
-	err = s.lomsServiceImpl.ProcessOutbox(ctx)
+	err = s.lomsService.ProcessOutbox(ctx)
 	require.NoError(s.T(), err)
 
 	// Consume messages from Kafka
@@ -404,7 +404,7 @@ func (s *TSuite) TestOrderPay_Success() {
 	require.NoError(s.T(), err)
 
 	// Process outbox events
-	err = s.lomsServiceImpl.ProcessOutbox(ctx)
+	err = s.lomsService.ProcessOutbox(ctx)
 	require.NoError(s.T(), err)
 
 	// Consume messages from Kafka

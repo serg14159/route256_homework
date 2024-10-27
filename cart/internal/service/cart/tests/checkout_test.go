@@ -18,7 +18,7 @@ func TestCartService_Checkout_Table(t *testing.T) {
 	tests := []struct {
 		name          string
 		UID           models.UID
-		setupMocks    func(ctx context.Context, cartRepoMock *mock.ICartRepositoryMock, productServiceMock *mock.IProductServiceMock, lomsServiceMock *mock.ILomsServiceMock)
+		setupMocks    func(cartRepoMock *mock.ICartRepositoryMock, productServiceMock *mock.IProductServiceMock, lomsServiceMock *mock.ILomsServiceMock)
 		expectedOrder int64
 		expectedErr   error
 		errorContains string
@@ -26,14 +26,24 @@ func TestCartService_Checkout_Table(t *testing.T) {
 		{
 			name: "successful checkout",
 			UID:  1,
-			setupMocks: func(ctx context.Context, cartRepoMock *mock.ICartRepositoryMock, productServiceMock *mock.IProductServiceMock, lomsServiceMock *mock.ILomsServiceMock) {
+			setupMocks: func(cartRepoMock *mock.ICartRepositoryMock, productServiceMock *mock.IProductServiceMock, lomsServiceMock *mock.ILomsServiceMock) {
 				items := []models.CartItem{
 					{SKU: 1001, Count: 2},
 					{SKU: 1002, Count: 3},
 				}
-				cartRepoMock.GetItemsByUserIDMock.When(ctx, models.UID(1)).Then(items, nil)
-				lomsServiceMock.OrderCreateMock.When(ctx, int64(1), items).Then(int64(2), nil)
-				cartRepoMock.DeleteItemsByUserIDMock.When(ctx, models.UID(1)).Then(nil)
+				cartRepoMock.GetItemsByUserIDMock.Set(func(ctx context.Context, uid models.UID) ([]models.CartItem, error) {
+					require.Equal(t, models.UID(1), uid)
+					return items, nil
+				})
+				lomsServiceMock.OrderCreateMock.Set(func(ctx context.Context, user int64, itemsParam []models.CartItem) (int64, error) {
+					require.Equal(t, int64(1), user)
+					require.Equal(t, items, itemsParam)
+					return int64(2), nil
+				})
+				cartRepoMock.DeleteItemsByUserIDMock.Set(func(ctx context.Context, uid models.UID) error {
+					require.Equal(t, models.UID(1), uid)
+					return nil
+				})
 			},
 			expectedOrder: 2,
 			expectedErr:   nil,
@@ -42,8 +52,11 @@ func TestCartService_Checkout_Table(t *testing.T) {
 		{
 			name: "error getting cart items",
 			UID:  2,
-			setupMocks: func(ctx context.Context, cartRepoMock *mock.ICartRepositoryMock, productServiceMock *mock.IProductServiceMock, lomsServiceMock *mock.ILomsServiceMock) {
-				cartRepoMock.GetItemsByUserIDMock.When(ctx, models.UID(2)).Then(nil, errors.New("db error"))
+			setupMocks: func(cartRepoMock *mock.ICartRepositoryMock, productServiceMock *mock.IProductServiceMock, lomsServiceMock *mock.ILomsServiceMock) {
+				cartRepoMock.GetItemsByUserIDMock.Set(func(ctx context.Context, uid models.UID) ([]models.CartItem, error) {
+					require.Equal(t, models.UID(2), uid)
+					return nil, errors.New("db error")
+				})
 			},
 			expectedOrder: 0,
 			expectedErr:   internal_errors.ErrInternalServerError,
@@ -52,12 +65,19 @@ func TestCartService_Checkout_Table(t *testing.T) {
 		{
 			name: "error creating order in LomsService",
 			UID:  3,
-			setupMocks: func(ctx context.Context, cartRepoMock *mock.ICartRepositoryMock, productServiceMock *mock.IProductServiceMock, lomsServiceMock *mock.ILomsServiceMock) {
+			setupMocks: func(cartRepoMock *mock.ICartRepositoryMock, productServiceMock *mock.IProductServiceMock, lomsServiceMock *mock.ILomsServiceMock) {
 				items := []models.CartItem{
 					{SKU: 1003, Count: 1},
 				}
-				cartRepoMock.GetItemsByUserIDMock.When(ctx, models.UID(3)).Then(items, nil)
-				lomsServiceMock.OrderCreateMock.When(ctx, int64(3), items).Then(int64(0), errors.New("order create error"))
+				cartRepoMock.GetItemsByUserIDMock.Set(func(ctx context.Context, uid models.UID) ([]models.CartItem, error) {
+					require.Equal(t, models.UID(3), uid)
+					return items, nil
+				})
+				lomsServiceMock.OrderCreateMock.Set(func(ctx context.Context, user int64, itemsParam []models.CartItem) (int64, error) {
+					require.Equal(t, int64(3), user)
+					require.Equal(t, items, itemsParam)
+					return int64(0), errors.New("order create error")
+				})
 			},
 			expectedOrder: 0,
 			expectedErr:   internal_errors.ErrInternalServerError,
@@ -72,7 +92,7 @@ func TestCartService_Checkout_Table(t *testing.T) {
 			ctx := context.Background()
 			cartRepoMock, productServiceMock, lomsServiceMock, service := setup(t)
 
-			tt.setupMocks(ctx, cartRepoMock, productServiceMock, lomsServiceMock)
+			tt.setupMocks(cartRepoMock, productServiceMock, lomsServiceMock)
 
 			orderID, err := service.Checkout(ctx, tt.UID)
 			if tt.expectedErr != nil {

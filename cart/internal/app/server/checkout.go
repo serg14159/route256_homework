@@ -5,11 +5,20 @@ import (
 	"net/http"
 	"route256/cart/internal/models"
 	"strconv"
+
+	"go.opentelemetry.io/otel"
 )
 
 // Checkout handler for processes order request.
 func (s *Server) Checkout(w http.ResponseWriter, r *http.Request) {
+	// Context
 	ctx := r.Context()
+
+	// Tracer
+	ctx, span := otel.Tracer("CartHandlers").Start(ctx, "Checkout")
+	defer span.End()
+
+	// Get and check req
 	rawUID := r.PathValue("user_id")
 	UID, err := strconv.ParseInt(rawUID, 10, 64)
 	if err != nil {
@@ -22,6 +31,7 @@ func (s *Server) Checkout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Call service
 	orderID, err := s.cartService.Checkout(ctx, models.UID(UID))
 	if err != nil {
 		writeJSONError(ctx, w, getStatusCodeFromError(err), err.Error())

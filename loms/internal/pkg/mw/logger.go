@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"route256/loms/internal/pkg/logger"
+	"route256/utils/logger"
 
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protojson"

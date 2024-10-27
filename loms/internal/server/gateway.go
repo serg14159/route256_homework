@@ -8,9 +8,9 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
-	"route256/loms/internal/pkg/logger"
 	mw "route256/loms/internal/pkg/mw"
 	pb "route256/loms/pkg/api/loms/v1"
+	"route256/utils/logger"
 )
 
 // createGatewayServer create gateway server.
@@ -27,7 +27,7 @@ func createGatewayServer(ctx context.Context, grpcAddr, gatewayAddr string, allo
 		logger.Errorw(ctx, "Failed registration handler", "err", err)
 	}
 
-	middlewareChain := сhainHTTPMiddleware(
+	middlewareChain := chainHTTPMiddleware(
 		mw.WithHTTPLoggingMiddleware,
 		mw.Cors(allowedOrigins),
 	)
@@ -40,8 +40,8 @@ func createGatewayServer(ctx context.Context, grpcAddr, gatewayAddr string, allo
 	return gatewayServer
 }
 
-// сhainHTTPMiddleware combines several HTTP middleware into one chain.
-func сhainHTTPMiddleware(middlewares ...func(http.Handler) http.Handler) func(http.Handler) http.Handler {
+// chainHTTPMiddleware combines several HTTP middleware into one chain.
+func chainHTTPMiddleware(middlewares ...func(http.Handler) http.Handler) func(http.Handler) http.Handler {
 	return func(finalHandler http.Handler) http.Handler {
 		for i := len(middlewares) - 1; i >= 0; i-- {
 			finalHandler = middlewares[i](finalHandler)

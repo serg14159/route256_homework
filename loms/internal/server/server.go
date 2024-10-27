@@ -22,8 +22,8 @@ import (
 
 	api "route256/loms/internal/app/loms"
 	pb "route256/loms/pkg/api/loms/v1"
+	"route256/utils/logger"
 
-	"route256/loms/internal/pkg/logger"
 	mw "route256/loms/internal/pkg/mw"
 
 	grpc_zap "github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
@@ -172,14 +172,20 @@ func (s *GrpcServer) createGrpcServer() *grpc.Server {
 			MaxConnectionAge:  time.Duration(s.cfgGrpc.GetMaxConnectionAge()) * time.Minute,
 			Time:              time.Duration(s.cfgGrpc.GetGrpcTimeout()) * time.Minute,
 		}),
+		grpc.StatsHandler(otelgrpc.NewServerHandler()),
 		grpc.UnaryInterceptor(grpc_middleware.ChainUnaryServer(
 			grpc_ctxtags.UnaryServerInterceptor(),
 			mw.Logger,
 			mw.Validate,
 			grpcrecovery.UnaryServerInterceptor(),
-			otelgrpc.UnaryServerInterceptor(),
 			mw.UnaryServerMetricsInterceptor(),
 			grpc_zap.UnaryServerInterceptor(logger.GetZapLogger()),
+		)),
+		grpc.StreamInterceptor(grpc_middleware.ChainStreamServer(
+			grpc_ctxtags.StreamServerInterceptor(),
+			grpcrecovery.StreamServerInterceptor(),
+			mw.StreamServerMetricsInterceptor(),
+			grpc_zap.StreamServerInterceptor(logger.GetZapLogger()),
 		)),
 	)
 

@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"route256/loms/internal/models"
-	"route256/loms/internal/pkg/logger"
+	"route256/utils/logger"
 	"time"
 
 	"github.com/IBM/sarama"

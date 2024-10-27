@@ -36,10 +36,9 @@ func (r *OrderRepository) Create(ctx context.Context, tx pgx.Tx, order models.Or
 	defer span.End()
 
 	startTime := time.Now()
-
 	defer func() {
 		duration := time.Since(startTime)
-		operation := "insert"
+		operation := "Create"
 		metrics.IncDBQueryCounter(operation)
 		metrics.ObserveDBQueryDuration(operation, duration)
 	}()
@@ -82,10 +81,9 @@ func (r *OrderRepository) GetByID(ctx context.Context, tx pgx.Tx, orderID models
 	defer span.End()
 
 	startTime := time.Now()
-
 	defer func() {
 		duration := time.Since(startTime)
-		operation := "select"
+		operation := "GetByID"
 		metrics.IncDBQueryCounter(operation)
 		metrics.ObserveDBQueryDuration(operation, duration)
 	}()
@@ -133,10 +131,9 @@ func (r *OrderRepository) SetStatus(ctx context.Context, tx pgx.Tx, orderID mode
 	defer span.End()
 
 	startTime := time.Now()
-
 	defer func() {
 		duration := time.Since(startTime)
-		operation := "update"
+		operation := "SetStatus"
 		metrics.IncDBQueryCounter(operation)
 		metrics.ObserveDBQueryDuration(operation, duration)
 	}()

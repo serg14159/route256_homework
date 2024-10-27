@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"net"
@@ -12,19 +13,19 @@ import (
 	"route256/cart/internal/app/server"
 	"route256/cart/internal/clients/product_service"
 	"route256/cart/internal/config"
-	"route256/cart/internal/pkg/logger"
+
+	"route256/utils/logger"
 
 	loms_service "route256/cart/internal/clients/loms"
-	loggerPkg "route256/cart/internal/pkg/logger"
-	"route256/cart/internal/pkg/tracer"
-	repository "route256/cart/internal/repository/cart"
-	service "route256/cart/internal/service/cart"
+	grpc_mw "route256/cart/internal/pkg/mw/grpc"
+	cart_repository "route256/cart/internal/repository/cart"
+	cart_service "route256/cart/internal/service/cart"
+	"route256/utils/tracer"
 
 	oteltrace "go.opentelemetry.io/otel/sdk/trace"
 
 	"github.com/joho/godotenv"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"go.opentelemetry.io/otel"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -37,7 +38,7 @@ type App struct {
 	logger          *logger.Logger
 	tracer          *oteltrace.TracerProvider
 	server          *server.Server
-	cartService     *service.CartService
+	cartService     *cart_service.CartService
 	metricsListener net.Listener
 	lomsClient      *loms_service.LomsClient
 	productClient   *product_service.Client
@@ -66,10 +67,10 @@ func NewApp(ctx context.Context) (*App, error) {
 
 	// Init logger
 	var errorOutputPaths = []string{stdout}
-	logger := loggerPkg.NewLogger(ctx, cfg.Project.GetDebug(), errorOutputPaths, cfg.Project.GetName())
+	log := logger.NewLogger(ctx, cfg.Project.GetDebug(), errorOutputPaths, cfg.Project.GetName())
 
 	// App info
-	loggerPkg.Infow(ctx, fmt.Sprintf("Starting service: %s", cfg.Project.GetName()),
+	logger.Infow(ctx, fmt.Sprintf("Starting service: %s", cfg.Project.GetName()),
 		"version", cfg.Project.GetVersion(),
 		"commitHash", cfg.Project.GetCommitHash(),
 		"debug", cfg.Project.GetDebug(),
@@ -77,40 +78,40 @@ func NewApp(ctx context.Context) (*App, error) {
 	)
 
 	// Init tracer
-	tp, err := tracer.InitTracer(ctx, cfg.Project.GetName(), cfg.Jaeger.GetURI())
+	tr, err := tracer.InitTracer(ctx, cfg.Project.GetName(), cfg.Jaeger.GetURI())
 	if err != nil {
-		loggerPkg.Errorw(ctx, "Failed to initialize tracer", "error", err)
+		logger.Errorw(ctx, "Failed to initialize tracer", "error", err)
 	}
 
 	// Init repository
-	cartRepository := repository.NewCartRepository()
+	cartRepository := cart_repository.NewCartRepository()
 
 	// Product service client
 	productService := product_service.NewClient(&cfg.ProductService)
 
 	// Loms service client
-	lomsAddr := fmt.Sprintf("%s:%s", cfg.LomsService.Host, cfg.LomsService.Port)
+	lomsAddr := fmt.Sprintf("%s:%s", cfg.LomsService.GetHost(), cfg.LomsService.GetPort())
 	connGrpc, err := grpc.NewClient(lomsAddr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithUnaryInterceptor(grpcUnaryClientInterceptor()),
-		grpc.WithStreamInterceptor(grpcStreamClientInterceptor()),
+		grpc.WithUnaryInterceptor(grpc_mw.GrpcUnaryClientInterceptor()),
+		grpc.WithStreamInterceptor(grpc_mw.GrpcStreamClientInterceptor()),
 	)
 	if err != nil {
-		loggerPkg.Errorw(ctx, "Did not connect", "error", err)
+		logger.Errorw(ctx, "Did not connect", "error", err)
 	}
 
 	loms := loms_service.NewLomsClient(connGrpc)
 
 	// Init service
-	cartService := service.NewService(cartRepository, productService, loms)
+	cartService := cart_service.NewService(cartRepository, productService, loms)
 
 	// Init server
 	srv := server.NewServer(&cfg.Server, cartService)
 
 	return &App{
 		config:        cfg,
-		logger:        logger,
-		tracer:        tp,
+		logger:        log,
+		tracer:        tr,
 		server:        srv,
 		cartService:   cartService,
 		lomsClient:    loms,
@@ -121,7 +122,7 @@ func NewApp(ctx context.Context) (*App, error) {
 
 func (a *App) Run() error {
 	// Start metrics and profiling
-	go a.startMetricsServer()
+	go a.startMetricsServer(a.config.Metrics.GetURI())
 
 	// Run server
 	if err := a.server.Run(); err != nil {
@@ -165,7 +166,7 @@ func (a *App) Shutdown() error {
 }
 
 // startMetricsServer starts the metrics and profiling HTTP server.
-func (a *App) startMetricsServer() {
+func (a *App) startMetricsServer(uri string) {
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.Handler())
 
@@ -183,7 +184,7 @@ func (a *App) startMetricsServer() {
 	mux.Handle("/debug/pprof/allocs", pprof.Handler("allocs"))
 
 	// Run
-	listener, err := net.Listen("tcp4", "0.0.0.0:2112")
+	listener, err := net.Listen("tcp4", uri)
 	if err != nil {
 		logger.Errorw(context.Background(), "Failed to start metrics server", "error", err)
 		return
@@ -191,47 +192,7 @@ func (a *App) startMetricsServer() {
 
 	a.metricsListener = listener
 
-	if err := http.Serve(listener, mux); err != nil && err != http.ErrServerClosed {
+	if err := http.Serve(listener, mux); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		logger.Errorw(context.Background(), "Metrics server stopped", "error", err)
-	}
-}
-
-// grpcUnaryClientInterceptor returns a new unary client interceptor that adds tracing.
-func grpcUnaryClientInterceptor() grpc.UnaryClientInterceptor {
-	return func(
-		ctx context.Context,
-		method string,
-		req, reply interface{},
-		cc *grpc.ClientConn,
-		invoker grpc.UnaryInvoker,
-		opts ...grpc.CallOption) error {
-
-		// Create a span for the client call
-		tracer := otel.Tracer("grpc-client")
-		ctx, span := tracer.Start(ctx, method)
-		defer span.End()
-
-		// Invoke the original method
-		return invoker(ctx, method, req, reply, cc, opts...)
-	}
-}
-
-// grpcStreamClientInterceptor returns a new stream client interceptor that adds tracing.
-func grpcStreamClientInterceptor() grpc.StreamClientInterceptor {
-	return func(
-		ctx context.Context,
-		desc *grpc.StreamDesc,
-		cc *grpc.ClientConn,
-		method string,
-		streamer grpc.Streamer,
-		opts ...grpc.CallOption) (grpc.ClientStream, error) {
-
-		// Create a span for the client call
-		tracer := otel.Tracer("grpc-client")
-		ctx, span := tracer.Start(ctx, method)
-		defer span.End()
-
-		// Invoke the original method
-		return streamer(ctx, desc, cc, method, opts...)
 	}
 }

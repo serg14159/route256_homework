@@ -1,24 +1,29 @@
 package main
 
 import (
-	"log"
+	"context"
 	"os"
 
 	"route256/loms/internal/app"
+	"route256/utils/logger"
 )
 
 func main() {
+	// Create the application context
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	// Initialize the application
-	service, err := app.NewApp()
+	application, err := app.NewApp(ctx, cancel)
 	if err != nil {
-		log.Fatalf("Failed to initialize app: %v", err)
+		logger.Errorw(ctx, "Failed to initialize application", "error", err)
 		os.Exit(1)
 	}
 
 	// Run application
-	err = service.Run()
+	err = application.Run()
 	if err != nil {
-		log.Fatalf("Service error: %v", err)
+		logger.Errorw(ctx, "Application run error", "error", err)
 		os.Exit(1)
 	}
 }

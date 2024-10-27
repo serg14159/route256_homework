@@ -6,11 +6,20 @@ import (
 	"net/http"
 	"route256/cart/internal/models"
 	"strconv"
+
+	"go.opentelemetry.io/otel"
 )
 
 // AddProduct handler for add product into cart.
 func (s *Server) AddProduct(w http.ResponseWriter, r *http.Request) {
+	// Context
 	ctx := r.Context()
+
+	// Tracer
+	ctx, span := otel.Tracer("CartHandlers").Start(ctx, "AddProduct")
+	defer span.End()
+
+	// Get and check req
 	rawUID := r.PathValue("user_id")
 	UID, err := strconv.ParseInt(rawUID, 10, 64)
 	if err != nil {
@@ -49,6 +58,7 @@ func (s *Server) AddProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Call service
 	err = s.cartService.AddProduct(ctx, UID, SKU, req.Count)
 	if err != nil {
 		writeJSONError(ctx, w, getStatusCodeFromError(err), err.Error())

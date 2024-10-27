@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	internal_errors "route256/cart/internal/pkg/errors"
-	"route256/cart/internal/pkg/logger"
+	"route256/utils/logger"
 
 	"github.com/go-playground/validator"
 )

@@ -4,8 +4,8 @@ import (
 	"context"
 	"net/http"
 	"route256/cart/internal/models"
-	"route256/cart/internal/pkg/logger"
 	server_middleware "route256/cart/internal/pkg/mw/server"
+	"route256/utils/logger"
 )
 
 type IConfig interface {
@@ -51,9 +51,7 @@ func (s *Server) Run() error {
 	mux.HandleFunc("GET /user/{user_id}/cart", s.GetCart)
 	mux.HandleFunc("POST /user/{user_id}/checkout", s.Checkout)
 
-	handler := server_middleware.New(mux)
-
-	s.server.Handler = handler
+	s.server.Handler = server_middleware.New(mux)
 
 	// Run goroutine with ListenAndServe
 	go func() {

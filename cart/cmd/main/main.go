@@ -2,42 +2,43 @@ package main
 
 import (
 	"context"
-	"log"
 	"os"
 	"os/signal"
 	"route256/cart/internal/app"
 
-	loggerPkg "route256/cart/internal/pkg/logger"
+	"route256/utils/logger"
 )
 
 const quitChannelBufferSize = 1
 
 func main() {
-	// Create application context
+	// Create the application context
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	// Initialize the application
 	application, err := app.NewApp(ctx)
 	if err != nil {
-		log.Fatalf("Failed to initialize app: %v", err)
+		logger.Errorw(ctx, "Failed to initialize application", "error", err)
+		os.Exit(1)
 	}
 
-	// Run application
+	// Run the application
 	if err := application.Run(); err != nil {
-		log.Fatalf("Application run error: %v", err)
+		logger.Errorw(ctx, "Application run error", "error", err)
+		os.Exit(1)
 	}
 
 	// Wait for OS interrupt signal
 	quit := make(chan os.Signal, quitChannelBufferSize)
 	signal.Notify(quit, os.Interrupt)
 	<-quit
-	loggerPkg.Infow(ctx, "Shutdown Server ...")
+	logger.Infow(ctx, "Shutdown Server ...")
 
-	// Shutdown app
+	// Shutdown application
 	if err := application.Shutdown(); err != nil {
-		loggerPkg.Errorw(ctx, "Failed to shutdown application", "error", err)
+		logger.Errorw(ctx, "Failed to shutdown application", "error", err)
 	}
 
-	loggerPkg.Infow(ctx, "Server exiting")
+	logger.Infow(ctx, "Server exiting")
 }

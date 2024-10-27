@@ -95,34 +95,27 @@ func NewClient(cfg IConfig) *Client {
 }
 
 // GetProduct function for executes a request to the Product Service using a client with retries.
-func (c *Client) GetProduct(ctx context.Context, SKU models.SKU) (*models.GetProductResponse, error) {
+func (c *Client) GetProduct(ctx context.Context, SKU models.SKU) (product *models.GetProductResponse, err error) {
+	// Tracer
 	ctx, span := otel.Tracer("ProductServiceClient").Start(ctx, "GetProduct")
 	defer span.End()
 
-	if err := c.rateLimiter.Wait(ctx); err != nil {
+	if err = c.rateLimiter.Wait(ctx); err != nil {
 		return nil, err
 	}
 
-	req, err := c.prepareRequest(ctx, SKU)
-	if err != nil {
+	var req *http.Request
+	if req, err = c.prepareRequest(ctx, SKU); err != nil {
 		return nil, err
 	}
 
+	// Start time for metrics
 	start := time.Now()
+	defer metrics.LogExternalRequest(req.URL.Path, start, &err)
 
-	resp, err := c.client.Do(req)
-
-	duration := time.Since(start)
-	status := "success"
-	if err != nil || (resp != nil && resp.StatusCode >= 400) {
-		status = "error"
-	}
-	url := req.URL.Path
-
-	metrics.IncExternalRequestCounter(url, status)
-	metrics.ObserveExternalRequestDuration(url, duration)
-
-	if err != nil {
+	// Call client
+	var resp *http.Response
+	if resp, err = c.client.Do(req); err != nil {
 		if errors.Is(err, context.Canceled) {
 			return nil, fmt.Errorf("request canceled: %w", err)
 		}
@@ -130,7 +123,7 @@ func (c *Client) GetProduct(ctx context.Context, SKU models.SKU) (*models.GetPro
 	}
 	defer resp.Body.Close()
 
-	product, err := c.handleResponse(resp)
+	product, err = c.handleResponse(resp)
 	if err != nil {
 		return nil, err
 	}

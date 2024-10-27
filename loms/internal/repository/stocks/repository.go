@@ -36,10 +36,9 @@ func (r *StockRepository) GetAvailableStockBySKU(ctx context.Context, SKU models
 	defer span.End()
 
 	startTime := time.Now()
-
 	defer func() {
 		duration := time.Since(startTime)
-		operation := "select"
+		operation := "GetAvailableStockBySKU"
 		metrics.IncDBQueryCounter(operation)
 		metrics.ObserveDBQueryDuration(operation, duration)
 	}()
@@ -65,10 +64,9 @@ func (r *StockRepository) ReserveItems(ctx context.Context, tx pgx.Tx, items []m
 	defer span.End()
 
 	startTime := time.Now()
-
 	defer func() {
 		duration := time.Since(startTime)
-		operation := "update"
+		operation := "ReserveItems"
 		metrics.IncDBQueryCounter(operation)
 		metrics.ObserveDBQueryDuration(operation, duration)
 	}()
@@ -114,10 +112,9 @@ func (r *StockRepository) RemoveReservedItems(ctx context.Context, tx pgx.Tx, it
 	defer span.End()
 
 	startTime := time.Now()
-
 	defer func() {
 		duration := time.Since(startTime)
-		operation := "update"
+		operation := "RemoveReservedItems"
 		metrics.IncDBQueryCounter(operation)
 		metrics.ObserveDBQueryDuration(operation, duration)
 	}()
@@ -163,10 +160,9 @@ func (r *StockRepository) CancelReservedItems(ctx context.Context, tx pgx.Tx, it
 	defer span.End()
 
 	startTime := time.Now()
-
 	defer func() {
 		duration := time.Since(startTime)
-		operation := "update"
+		operation := "CancelReservedItems"
 		metrics.IncDBQueryCounter(operation)
 		metrics.ObserveDBQueryDuration(operation, duration)
 	}()

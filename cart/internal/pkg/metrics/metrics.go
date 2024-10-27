@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"route256/cart/internal/models"
 	"strconv"
 	"time"
 
@@ -109,4 +110,26 @@ func ObserveDBLatency(operation string, duration time.Duration, status string) {
 // SetInMemoryItemsTotal sets the total number of items in the in-memory repository.
 func SetInMemoryItemsTotal(count int) {
 	inMemoryItemsGauge.Set(float64(count))
+}
+
+// LogExternalRequest
+func LogExternalRequest(metricName string, start time.Time, err *error) {
+	duration := time.Since(start)
+	status := models.StatusSuccess
+	if *err != nil {
+		status = models.StatusError
+	}
+	IncExternalRequestCounter(metricName, string(status))
+	ObserveExternalRequestDuration(metricName, duration)
+}
+
+// LogDBOperation
+func LogDBOperation(operation string, start time.Time, err *error) {
+	duration := time.Since(start)
+	status := models.StatusSuccess
+	if *err != nil {
+		status = models.StatusError
+	}
+	IncDBOperation(operation)
+	ObserveDBLatency(operation, duration, status)
 }

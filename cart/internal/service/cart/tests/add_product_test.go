@@ -19,7 +19,7 @@ func TestCartService_AddProduct_Table(t *testing.T) {
 		UID           models.UID
 		SKU           models.SKU
 		count         uint16
-		setupMocks    func(ctx context.Context, repoMock *mock.ICartRepositoryMock, productServiceMock *mock.IProductServiceMock, lomsServiceMock *mock.ILomsServiceMock)
+		setupMocks    func(repoMock *mock.ICartRepositoryMock, productServiceMock *mock.IProductServiceMock, lomsServiceMock *mock.ILomsServiceMock)
 		expectedErr   error
 		errorContains string
 	}{
@@ -28,10 +28,20 @@ func TestCartService_AddProduct_Table(t *testing.T) {
 			UID:   1,
 			SKU:   100,
 			count: 2,
-			setupMocks: func(ctx context.Context, repoMock *mock.ICartRepositoryMock, productServiceMock *mock.IProductServiceMock, lomsServiceMock *mock.ILomsServiceMock) {
-				productServiceMock.GetProductMock.When(ctx, models.SKU(100)).Then(&models.GetProductResponse{Name: "Книга", Price: 400}, nil)
-				lomsServiceMock.StocksInfoMock.When(ctx, models.SKU(100)).Then(int64(5), nil)
-				repoMock.AddItemMock.When(ctx, models.UID(1), models.CartItem{SKU: 100, Count: 2}).Then(nil)
+			setupMocks: func(repoMock *mock.ICartRepositoryMock, productServiceMock *mock.IProductServiceMock, lomsServiceMock *mock.ILomsServiceMock) {
+				productServiceMock.GetProductMock.Set(func(ctx context.Context, sku models.SKU) (*models.GetProductResponse, error) {
+					require.Equal(t, models.SKU(100), sku)
+					return &models.GetProductResponse{Name: "Книга", Price: 400}, nil
+				})
+				lomsServiceMock.StocksInfoMock.Set(func(ctx context.Context, sku models.SKU) (int64, error) {
+					require.Equal(t, models.SKU(100), sku)
+					return int64(5), nil
+				})
+				repoMock.AddItemMock.Set(func(ctx context.Context, uid models.UID, item models.CartItem) error {
+					require.Equal(t, models.UID(1), uid)
+					require.Equal(t, models.CartItem{SKU: 100, Count: 2}, item)
+					return nil
+				})
 			},
 			expectedErr: nil,
 		},
@@ -40,7 +50,7 @@ func TestCartService_AddProduct_Table(t *testing.T) {
 			UID:   0,
 			SKU:   100,
 			count: 1,
-			setupMocks: func(ctx context.Context, repoMock *mock.ICartRepositoryMock, productServiceMock *mock.IProductServiceMock, lomsServiceMock *mock.ILomsServiceMock) {
+			setupMocks: func(repoMock *mock.ICartRepositoryMock, productServiceMock *mock.IProductServiceMock, lomsServiceMock *mock.ILomsServiceMock) {
 			},
 			expectedErr: internal_errors.ErrBadRequest,
 		},
@@ -49,7 +59,7 @@ func TestCartService_AddProduct_Table(t *testing.T) {
 			UID:   1,
 			SKU:   0,
 			count: 2,
-			setupMocks: func(ctx context.Context, repoMock *mock.ICartRepositoryMock, productServiceMock *mock.IProductServiceMock, lomsServiceMock *mock.ILomsServiceMock) {
+			setupMocks: func(repoMock *mock.ICartRepositoryMock, productServiceMock *mock.IProductServiceMock, lomsServiceMock *mock.ILomsServiceMock) {
 			},
 			expectedErr: internal_errors.ErrBadRequest,
 		},
@@ -58,7 +68,7 @@ func TestCartService_AddProduct_Table(t *testing.T) {
 			UID:   1,
 			SKU:   100,
 			count: 0,
-			setupMocks: func(ctx context.Context, repoMock *mock.ICartRepositoryMock, productServiceMock *mock.IProductServiceMock, lomsServiceMock *mock.ILomsServiceMock) {
+			setupMocks: func(repoMock *mock.ICartRepositoryMock, productServiceMock *mock.IProductServiceMock, lomsServiceMock *mock.ILomsServiceMock) {
 			},
 			expectedErr: internal_errors.ErrBadRequest,
 		},
@@ -67,8 +77,11 @@ func TestCartService_AddProduct_Table(t *testing.T) {
 			UID:   1,
 			SKU:   100,
 			count: 1,
-			setupMocks: func(ctx context.Context, repoMock *mock.ICartRepositoryMock, productServiceMock *mock.IProductServiceMock, lomsServiceMock *mock.ILomsServiceMock) {
-				productServiceMock.GetProductMock.When(ctx, models.SKU(100)).Then(nil, internal_errors.ErrInternalServerError)
+			setupMocks: func(repoMock *mock.ICartRepositoryMock, productServiceMock *mock.IProductServiceMock, lomsServiceMock *mock.ILomsServiceMock) {
+				productServiceMock.GetProductMock.Set(func(ctx context.Context, sku models.SKU) (*models.GetProductResponse, error) {
+					require.Equal(t, models.SKU(100), sku)
+					return nil, internal_errors.ErrInternalServerError
+				})
 			},
 			expectedErr: internal_errors.ErrInternalServerError,
 		},
@@ -77,8 +90,11 @@ func TestCartService_AddProduct_Table(t *testing.T) {
 			UID:   1,
 			SKU:   100,
 			count: 1,
-			setupMocks: func(ctx context.Context, repoMock *mock.ICartRepositoryMock, productServiceMock *mock.IProductServiceMock, lomsServiceMock *mock.ILomsServiceMock) {
-				productServiceMock.GetProductMock.When(ctx, models.SKU(100)).Then(nil, internal_errors.ErrPreconditionFailed)
+			setupMocks: func(repoMock *mock.ICartRepositoryMock, productServiceMock *mock.IProductServiceMock, lomsServiceMock *mock.ILomsServiceMock) {
+				productServiceMock.GetProductMock.Set(func(ctx context.Context, sku models.SKU) (*models.GetProductResponse, error) {
+					require.Equal(t, models.SKU(100), sku)
+					return nil, internal_errors.ErrPreconditionFailed
+				})
 			},
 			expectedErr: internal_errors.ErrPreconditionFailed,
 		},
@@ -87,9 +103,15 @@ func TestCartService_AddProduct_Table(t *testing.T) {
 			UID:   1,
 			SKU:   100,
 			count: 5,
-			setupMocks: func(ctx context.Context, repoMock *mock.ICartRepositoryMock, productServiceMock *mock.IProductServiceMock, lomsServiceMock *mock.ILomsServiceMock) {
-				productServiceMock.GetProductMock.When(ctx, models.SKU(100)).Then(&models.GetProductResponse{Name: "Книга", Price: 400}, nil)
-				lomsServiceMock.StocksInfoMock.When(ctx, models.SKU(100)).Then(int64(3), nil)
+			setupMocks: func(repoMock *mock.ICartRepositoryMock, productServiceMock *mock.IProductServiceMock, lomsServiceMock *mock.ILomsServiceMock) {
+				productServiceMock.GetProductMock.Set(func(ctx context.Context, sku models.SKU) (*models.GetProductResponse, error) {
+					require.Equal(t, models.SKU(100), sku)
+					return &models.GetProductResponse{Name: "Книга", Price: 400}, nil
+				})
+				lomsServiceMock.StocksInfoMock.Set(func(ctx context.Context, sku models.SKU) (int64, error) {
+					require.Equal(t, models.SKU(100), sku)
+					return int64(3), nil
+				})
 			},
 			expectedErr:   internal_errors.ErrBadRequest,
 			errorContains: "number of stocks: 3 less than required count: 5",
@@ -99,9 +121,15 @@ func TestCartService_AddProduct_Table(t *testing.T) {
 			UID:   1,
 			SKU:   100,
 			count: 1,
-			setupMocks: func(ctx context.Context, repoMock *mock.ICartRepositoryMock, productServiceMock *mock.IProductServiceMock, lomsServiceMock *mock.ILomsServiceMock) {
-				productServiceMock.GetProductMock.When(ctx, models.SKU(100)).Then(&models.GetProductResponse{Name: "Книга", Price: 400}, nil)
-				lomsServiceMock.StocksInfoMock.When(ctx, models.SKU(100)).Then(int64(0), internal_errors.ErrInternalServerError)
+			setupMocks: func(repoMock *mock.ICartRepositoryMock, productServiceMock *mock.IProductServiceMock, lomsServiceMock *mock.ILomsServiceMock) {
+				productServiceMock.GetProductMock.Set(func(ctx context.Context, sku models.SKU) (*models.GetProductResponse, error) {
+					require.Equal(t, models.SKU(100), sku)
+					return &models.GetProductResponse{Name: "Книга", Price: 400}, nil
+				})
+				lomsServiceMock.StocksInfoMock.Set(func(ctx context.Context, sku models.SKU) (int64, error) {
+					require.Equal(t, models.SKU(100), sku)
+					return int64(0), internal_errors.ErrInternalServerError
+				})
 			},
 			expectedErr: internal_errors.ErrInternalServerError,
 		},
@@ -110,10 +138,20 @@ func TestCartService_AddProduct_Table(t *testing.T) {
 			UID:   1,
 			SKU:   100,
 			count: 3,
-			setupMocks: func(ctx context.Context, repoMock *mock.ICartRepositoryMock, productServiceMock *mock.IProductServiceMock, lomsServiceMock *mock.ILomsServiceMock) {
-				productServiceMock.GetProductMock.When(ctx, models.SKU(100)).Then(&models.GetProductResponse{Name: "Книга", Price: 400}, nil)
-				lomsServiceMock.StocksInfoMock.When(ctx, models.SKU(100)).Then(int64(10), nil)
-				repoMock.AddItemMock.When(ctx, models.UID(1), models.CartItem{SKU: 100, Count: 3}).Then(ErrRepository)
+			setupMocks: func(repoMock *mock.ICartRepositoryMock, productServiceMock *mock.IProductServiceMock, lomsServiceMock *mock.ILomsServiceMock) {
+				productServiceMock.GetProductMock.Set(func(ctx context.Context, sku models.SKU) (*models.GetProductResponse, error) {
+					require.Equal(t, models.SKU(100), sku)
+					return &models.GetProductResponse{Name: "Книга", Price: 400}, nil
+				})
+				lomsServiceMock.StocksInfoMock.Set(func(ctx context.Context, sku models.SKU) (int64, error) {
+					require.Equal(t, models.SKU(100), sku)
+					return int64(10), nil
+				})
+				repoMock.AddItemMock.Set(func(ctx context.Context, uid models.UID, item models.CartItem) error {
+					require.Equal(t, models.UID(1), uid)
+					require.Equal(t, models.CartItem{SKU: 100, Count: 3}, item)
+					return ErrRepository
+				})
 			},
 			expectedErr: ErrRepository,
 		},
@@ -126,7 +164,7 @@ func TestCartService_AddProduct_Table(t *testing.T) {
 			ctx := context.Background()
 			repoMock, productServiceMock, lomsServiceMock, service := setup(t)
 
-			tt.setupMocks(ctx, repoMock, productServiceMock, lomsServiceMock)
+			tt.setupMocks(repoMock, productServiceMock, lomsServiceMock)
 
 			err := service.AddProduct(ctx, tt.UID, tt.SKU, tt.count)
 

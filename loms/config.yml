@@ -38,4 +38,7 @@ kafka:
 jaeger:
   uri: "localhost:4318"
 
+metrics:
+  uri: "0.0.0.0:2113"
+
   

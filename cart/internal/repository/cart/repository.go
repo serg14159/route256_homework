@@ -10,6 +10,8 @@ import (
 
 	internal_errors "route256/cart/internal/pkg/errors"
 	"route256/cart/internal/pkg/metrics"
+
+	"go.opentelemetry.io/otel"
 )
 
 type Storage = map[models.UID]map[models.SKU]models.CartItem
@@ -40,19 +42,14 @@ func (r *Repository) TotalItems() int {
 
 // AddItem function for adding item to cart.
 func (r *Repository) AddItem(ctx context.Context, UID models.UID, item models.CartItem) (err error) {
-	operation := "insert"
-	metrics.IncDBOperation(operation)
-	start := time.Now()
+	// Tracer
+	ctx, span := otel.Tracer("CartRepository").Start(ctx, "AddItem")
+	defer span.End()
 
-	defer func() {
-		duration := time.Since(start)
-		status := "success"
-		if err != nil {
-			status = "error"
-		}
-		metrics.ObserveDBLatency(operation, duration, status)
-		metrics.SetInMemoryItemsTotal(r.TotalItems())
-	}()
+	// Start time for metrics
+	start := time.Now()
+	defer metrics.LogDBOperation("AddItem", start, &err)
+	defer metrics.SetInMemoryItemsTotal(r.TotalItems())
 
 	if UID < 1 || item.SKU < 1 || item.Count < 1 {
 		return fmt.Errorf("UID and SKU must be greater than zero: %w", internal_errors.ErrBadRequest)
@@ -76,19 +73,14 @@ func (r *Repository) AddItem(ctx context.Context, UID models.UID, item models.Ca
 
 // DeleteItem function for delete item from cart.
 func (r *Repository) DeleteItem(ctx context.Context, UID models.UID, SKU models.SKU) (err error) {
-	operation := "delete"
-	metrics.IncDBOperation(operation)
-	start := time.Now()
+	// Tracer
+	ctx, span := otel.Tracer("CartRepository").Start(ctx, "DeleteItem")
+	defer span.End()
 
-	defer func() {
-		duration := time.Since(start)
-		status := "success"
-		if err != nil {
-			status = "error"
-		}
-		metrics.ObserveDBLatency(operation, duration, status)
-		metrics.SetInMemoryItemsTotal(r.TotalItems())
-	}()
+	// Start time for metrics
+	start := time.Now()
+	defer metrics.LogDBOperation("DeleteItem", start, &err)
+	defer metrics.SetInMemoryItemsTotal(r.TotalItems())
 
 	if UID < 1 || SKU < 1 {
 		return fmt.Errorf("UID and SKU must be greater than zero: %w", internal_errors.ErrBadRequest)
@@ -106,19 +98,14 @@ func (r *Repository) DeleteItem(ctx context.Context, UID models.UID, SKU models.
 
 // DeleteItemsByUserID function for delete cart.
 func (r *Repository) DeleteItemsByUserID(ctx context.Context, UID models.UID) (err error) {
-	operation := "delete"
-	metrics.IncDBOperation(operation)
-	start := time.Now()
+	// Tracer
+	ctx, span := otel.Tracer("CartRepository").Start(ctx, "DeleteItemsByUserID")
+	defer span.End()
 
-	defer func() {
-		duration := time.Since(start)
-		status := "success"
-		if err != nil {
-			status = "error"
-		}
-		metrics.ObserveDBLatency(operation, duration, status)
-		metrics.SetInMemoryItemsTotal(r.TotalItems())
-	}()
+	// Start time for metrics
+	start := time.Now()
+	defer metrics.LogDBOperation("DeleteItemsByUserID", start, &err)
+	defer metrics.SetInMemoryItemsTotal(r.TotalItems())
 
 	if UID < 1 {
 		return fmt.Errorf("UID must be greater than zero: %w", internal_errors.ErrBadRequest)
@@ -134,18 +121,13 @@ func (r *Repository) DeleteItemsByUserID(ctx context.Context, UID models.UID) (e
 
 // GetItemsByUserID function for getting items from cart.
 func (r *Repository) GetItemsByUserID(ctx context.Context, UID models.UID) (items []models.CartItem, err error) {
-	operation := "select"
-	metrics.IncDBOperation(operation)
-	start := time.Now()
+	// Tracer
+	ctx, span := otel.Tracer("CartRepository").Start(ctx, "GetItemsByUserID")
+	defer span.End()
 
-	defer func() {
-		duration := time.Since(start)
-		status := "success"
-		if err != nil {
-			status = "error"
-		}
-		metrics.ObserveDBLatency(operation, duration, status)
-	}()
+	// Start time for metrics
+	start := time.Now()
+	defer metrics.LogDBOperation("GetItemsByUserID", start, &err)
 
 	if UID < 1 {
 		return nil, fmt.Errorf("UID must be greater than zero: %w", internal_errors.ErrBadRequest)

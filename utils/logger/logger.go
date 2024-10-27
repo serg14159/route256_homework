@@ -11,11 +11,17 @@ import (
 var (
 	globalLogger *Logger
 	once         sync.Once
+	tmpLogger    = NewTmpLogger()
 )
 
 // Logger struct holds the zap SugaredLogger.
 type Logger struct {
 	l *zap.SugaredLogger
+}
+
+// NewTmpLogger
+func NewTmpLogger() *Logger {
+	return &Logger{l: zap.NewExample().Sugar()}
 }
 
 // NewLogger initializes new Logger instance.
@@ -52,7 +58,7 @@ func FromContext(ctx context.Context) *Logger {
 		return l
 	}
 	if globalLogger == nil {
-		panic("global logger is nil")
+		return tmpLogger
 	}
 	return globalLogger
 }

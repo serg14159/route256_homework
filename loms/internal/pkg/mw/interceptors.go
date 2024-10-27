@@ -9,6 +9,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// UnaryServerMetricsInterceptor collects metrics for unary gRPC requests.
 func UnaryServerMetricsInterceptor() grpc.UnaryServerInterceptor {
 	return func(
 		ctx context.Context,
@@ -26,5 +27,29 @@ func UnaryServerMetricsInterceptor() grpc.UnaryServerInterceptor {
 		metrics.ObserveHandlerDuration(info.FullMethod, duration)
 
 		return resp, err
+	}
+}
+
+// StreamServerMetricsInterceptor collects metrics for stream gRPC requests.
+func StreamServerMetricsInterceptor() grpc.StreamServerInterceptor {
+	return func(
+		srv interface{},
+		ss grpc.ServerStream,
+		info *grpc.StreamServerInfo,
+		handler grpc.StreamHandler,
+	) error {
+		startTime := time.Now()
+		err := handler(srv, ss)
+		duration := time.Since(startTime)
+
+		statusCode := status.Code(err).String()
+
+		// Increment request counter with status code
+		metrics.IncRequestCounterWithStatus(info.FullMethod, statusCode)
+
+		// Observe handler duration
+		metrics.ObserveHandlerDuration(info.FullMethod, duration)
+
+		return err
 	}
 }

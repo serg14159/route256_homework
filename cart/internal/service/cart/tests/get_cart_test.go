@@ -28,7 +28,10 @@ func TestCartService_GetCart_Table(t *testing.T) {
 			UID:  1000000,
 			setupMocks: func(ctx context.Context, repoMock *mock.ICartRepositoryMock, productServiceMock *mock.IProductServiceMock) {
 				items := []models.CartItem{{SKU: 700, Count: 3}}
-				repoMock.GetItemsByUserIDMock.When(ctx, models.UID(1000000)).Then(items, nil)
+				repoMock.GetItemsByUserIDMock.Set(func(ctx context.Context, uid models.UID) ([]models.CartItem, error) {
+					require.Equal(t, models.UID(1000000), uid)
+					return items, nil
+				})
 
 				var mu sync.Mutex
 				productServiceMock.GetProductMock.Set(func(ctx context.Context, sku models.SKU) (*models.GetProductResponse, error) {
@@ -52,7 +55,10 @@ func TestCartService_GetCart_Table(t *testing.T) {
 					{SKU: 200, Count: 2},
 					{SKU: 300, Count: 3},
 				}
-				repoMock.GetItemsByUserIDMock.When(ctx, models.UID(1)).Then(items, nil)
+				repoMock.GetItemsByUserIDMock.Set(func(ctx context.Context, uid models.UID) ([]models.CartItem, error) {
+					require.Equal(t, models.UID(1), uid)
+					return items, nil
+				})
 
 				var mu sync.Mutex
 				productServiceMock.GetProductMock.Set(func(ctx context.Context, sku models.SKU) (*models.GetProductResponse, error) {
@@ -85,7 +91,10 @@ func TestCartService_GetCart_Table(t *testing.T) {
 			name: "repository error",
 			UID:  1,
 			setupMocks: func(ctx context.Context, repoMock *mock.ICartRepositoryMock, productServiceMock *mock.IProductServiceMock) {
-				repoMock.GetItemsByUserIDMock.When(ctx, models.UID(1)).Then(nil, ErrRepository)
+				repoMock.GetItemsByUserIDMock.Set(func(ctx context.Context, uid models.UID) ([]models.CartItem, error) {
+					require.Equal(t, models.UID(1), uid)
+					return nil, ErrRepository
+				})
 			},
 			expectedErr: ErrRepository,
 			totalPrice:  0,
@@ -95,7 +104,10 @@ func TestCartService_GetCart_Table(t *testing.T) {
 			UID:  1,
 			setupMocks: func(ctx context.Context, repoMock *mock.ICartRepositoryMock, productServiceMock *mock.IProductServiceMock) {
 				items := []models.CartItem{{SKU: 100, Count: 1}}
-				repoMock.GetItemsByUserIDMock.When(ctx, models.UID(1)).Then(items, nil)
+				repoMock.GetItemsByUserIDMock.Set(func(ctx context.Context, uid models.UID) ([]models.CartItem, error) {
+					require.Equal(t, models.UID(1), uid)
+					return items, nil
+				})
 
 				var mu sync.Mutex
 				productServiceMock.GetProductMock.Set(func(ctx context.Context, sku models.SKU) (*models.GetProductResponse, error) {

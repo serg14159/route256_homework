@@ -23,11 +23,14 @@ func NewLomsClient(conn *grpc.ClientConn) *LomsClient {
 }
 
 // OrderCreate create order with items for user.
-func (c *LomsClient) OrderCreate(ctx context.Context, user int64, items []models.CartItem) (int64, error) {
+func (c *LomsClient) OrderCreate(ctx context.Context, user int64, items []models.CartItem) (orderID int64, err error) {
+	// Tracer
 	ctx, span := otel.Tracer("LomsClient").Start(ctx, "OrderCreate")
 	defer span.End()
 
+	// Start time for metrics
 	start := time.Now()
+	defer metrics.LogExternalRequest("LomsClient.OrderCreate", start, &err)
 
 	lomsItems := make([]*loms.Item, 0, len(items))
 	for _, item := range items {
@@ -37,18 +40,12 @@ func (c *LomsClient) OrderCreate(ctx context.Context, user int64, items []models
 		})
 	}
 
-	res, err := c.client.OrderCreate(ctx, &loms.OrderCreateRequest{
+	// Call client
+	var res *loms.OrderCreateResponse
+	res, err = c.client.OrderCreate(ctx, &loms.OrderCreateRequest{
 		User:  user,
 		Items: lomsItems,
 	})
-	duration := time.Since(start)
-
-	status := "success"
-	if err != nil {
-		status = "error"
-	}
-	metrics.IncExternalRequestCounter("LomsClient.OrderCreate", status)
-	metrics.ObserveExternalRequestDuration("LomsClient.OrderCreate", duration)
 
 	if err != nil {
 		return 0, err
@@ -58,29 +55,26 @@ func (c *LomsClient) OrderCreate(ctx context.Context, user int64, items []models
 }
 
 // StocksInfo requests information about available stocks for specified SKU.
-func (c *LomsClient) StocksInfo(ctx context.Context, SKU models.SKU) (int64, error) {
+func (c *LomsClient) StocksInfo(ctx context.Context, SKU models.SKU) (count int64, err error) {
+	// Tracer
 	ctx, span := otel.Tracer("LomsClient").Start(ctx, "StocksInfo")
 	defer span.End()
 
+	// Start time for metrics
 	start := time.Now()
+	defer metrics.LogExternalRequest("LomsClient.StocksInfo", start, &err)
 
 	req := &loms.StocksInfoRequest{
 		Sku: uint32(SKU),
 	}
 
-	res, err := c.client.StocksInfo(ctx, req)
-
-	duration := time.Since(start)
-
-	status := "success"
-	if err != nil {
-		status = "error"
-	}
-	metrics.IncExternalRequestCounter("LomsClient.StocksInfo", status)
-	metrics.ObserveExternalRequestDuration("LomsClient.StocksInfo", duration)
+	// Call client
+	var res *loms.StocksInfoResponse
+	res, err = c.client.StocksInfo(ctx, req)
 
 	if err != nil {
-		return 0, fmt.Errorf("failed to get stock info: %w", err)
+		err = fmt.Errorf("failed to get stock info: %w", err)
+		return 0, err
 	}
 
 	return int64(res.Count), nil

@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -18,7 +16,7 @@ import (
 	repository "route256/cart/internal/repository/cart"
 	service "route256/cart/internal/service/cart"
 
-	loggerPkg "route256/cart/internal/pkg/logger"
+	"route256/utils/logger"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -66,18 +64,21 @@ type TSuite struct {
 	lomsService    *loms_service.LomsClient
 	serverURL      string
 	cancelFunc     context.CancelFunc
+	logger         *logger.Logger
 }
+
+const stdout = "stdout"
 
 // SetupTest.
 func (s *TSuite) SetupTest() {
+	// Context
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	// Init logger
-	ctx := context.Background()
-	logger := loggerPkg.NewLogger(ctx, true, []string{"stderr"}, "cart")
-	defer func() {
-		if err := logger.Sync(); err != nil {
-			fmt.Printf("Failed to sync logger: %s\n", err)
-		}
-	}()
+	var errorOutputPaths = []string{stdout}
+	log := logger.NewLogger(ctx, true, errorOutputPaths, "cart")
+	s.logger = log
 
 	// Repository
 	s.repo = repository.NewCartRepository()
@@ -96,14 +97,13 @@ func (s *TSuite) SetupTest() {
 	s.server = server.NewServer(cfg, s.service)
 
 	// Create context for cancel
-	_, cancel := context.WithCancel(context.Background())
 	s.cancelFunc = cancel
 
 	// Run server
 	go func() {
 		err := s.server.Run()
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Fatalf("Server failed to start: %v", err)
+			logger.Errorw(context.Background(), "Failed to start server", "error", err)
 		}
 	}()
 
