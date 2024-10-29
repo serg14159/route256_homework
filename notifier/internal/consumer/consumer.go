@@ -74,20 +74,30 @@ func (kc *KafkaConsumer) Start(ctx context.Context) error {
 	log.Printf("Start consuming...")
 	kc.wg.Add(1)
 	defer kc.wg.Done()
+	defer closeConsumerGroup(kc)
 
-	defer func() {
-		if err := kc.consumerGroup.Close(); err != nil {
-			log.Printf("Error closing consumer: %v", err)
-		}
-	}()
-
-	go func() {
-		for err := range kc.consumerGroup.Errors() {
-			log.Printf("Error from consumer group: %v", err)
-		}
-	}()
+	go kc.handleConsumerErrors()
 
 	// Consume messages from specified topics
+	return kc.consumeLoop(ctx)
+}
+
+// closeConsumerGroup close consumer group.
+func closeConsumerGroup(kc *KafkaConsumer) {
+	if err := kc.consumerGroup.Close(); err != nil {
+		log.Printf("Error closing consumer: %v", err)
+	}
+}
+
+// handleConsumerErrors listens for errors from the consumer group.
+func (kc *KafkaConsumer) handleConsumerErrors() {
+	for err := range kc.consumerGroup.Errors() {
+		log.Printf("Error from consumer group: %v", err)
+	}
+}
+
+// consumeLoop continuously consumes messages.
+func (kc *KafkaConsumer) consumeLoop(ctx context.Context) error {
 	for {
 		if ctx.Err() != nil {
 			return ctx.Err()
@@ -102,7 +112,6 @@ func (kc *KafkaConsumer) Start(ctx context.Context) error {
 			}
 		}
 	}
-
 }
 
 // Wait blocks until KafkaConsumer finished work.
