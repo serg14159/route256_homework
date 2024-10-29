@@ -13,7 +13,6 @@ import (
 	"syscall"
 	"time"
 
-	"route256/loms/internal/app/loms"
 	loms_app "route256/loms/internal/app/loms"
 	"route256/loms/internal/config"
 	db "route256/loms/internal/pkg/db"
@@ -115,7 +114,7 @@ func NewApp(ctx context.Context, cancel context.CancelFunc) (*App, error) {
 	lomsService := loms_service.NewService(repoOrder, repoStocks, repoOutbox, txManager, kafkaProd)
 
 	// Loms app
-	lomsApp := loms.NewService(lomsService)
+	lomsApp := loms_app.NewService(lomsService)
 
 	// GRPC server
 	grpcServer := server.NewGrpcServer(&cfg.Project, &cfg.Grpc, &cfg.Gateway, &cfg.Swagger, lomsApp)

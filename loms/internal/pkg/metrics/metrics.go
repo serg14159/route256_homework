@@ -4,10 +4,11 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
 var (
-	RequestCounter = prometheus.NewCounterVec(
+	RequestCounter = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: "app",
 			Name:      "request_total",
@@ -16,16 +17,17 @@ var (
 		[]string{"method", "status"},
 	)
 
-	RequestDuration = prometheus.NewHistogramVec(
+	RequestDuration = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Namespace: "app",
 			Name:      "request_duration_seconds",
 			Help:      "Duration of requests in seconds",
+			Buckets:   prometheus.DefBuckets,
 		},
 		[]string{"method"},
 	)
 
-	DBQueryCounter = prometheus.NewCounterVec(
+	DBQueryCounter = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: "app",
 			Name:      "db_query_total",
@@ -34,11 +36,12 @@ var (
 		[]string{"query_type"},
 	)
 
-	DBQueryDuration = prometheus.NewHistogramVec(
+	DBQueryDuration = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Namespace: "app",
 			Name:      "db_query_duration_seconds",
 			Help:      "Duration of database queries in seconds",
+			Buckets:   prometheus.DefBuckets,
 		},
 		[]string{"query_type"},
 	)
