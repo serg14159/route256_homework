@@ -4,4 +4,6 @@ use (
 	./cart
 	./loms
 	./notifier
+	./utils/logger
+	./utils/tracer
 )

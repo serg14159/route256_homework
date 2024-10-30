@@ -1,7 +1,8 @@
 package config
 
 import (
-	"log"
+	"context"
+	"route256/utils/logger"
 
 	"github.com/spf13/viper"
 )
@@ -150,6 +151,24 @@ func (k *Kafka) GetTopic() string {
 	return k.Topic
 }
 
+// Jaeger - contains parameters for jaeger.
+type Jaeger struct {
+	URI string `yaml:"uri" mapstructure:"uri"`
+}
+
+func (j *Jaeger) GetURI() string {
+	return j.URI
+}
+
+// Metrics - contains parameters for metrics.
+type Metrics struct {
+	URI string `yaml:"uri" mapstructure:"uri"`
+}
+
+func (m *Metrics) GetURI() string {
+	return m.URI
+}
+
 // Config - contains all configuration parameters in config package.
 type Config struct {
 	Project  Project  `yaml:"project" mapstructure:"project"`
@@ -159,6 +178,8 @@ type Config struct {
 	Data     Data     `yaml:"data" mapstructure:"data"`
 	Database Database `yaml:"database" mapstructure:"database"`
 	Kafka    Kafka    `yaml:"kafka" mapstructure:"kafka"`
+	Jaeger   Jaeger   `yaml:"jaeger" mapstructure:"jaeger"`
+	Metrics  Metrics  `yaml:"metrics" mapstructure:"metrics"`
 }
 
 func NewConfig() *Config {
@@ -175,7 +196,7 @@ func (c *Config) ReadConfig(configPath string) error {
 	viper.SetConfigFile(configPath)
 	err := viper.ReadInConfig()
 	if err != nil {
-		log.Printf("Error loading config file: %v", err)
+		logger.Errorw(context.Background(), "Error loading config file", "error", err)
 	}
 
 	// Read env
@@ -189,7 +210,7 @@ func (c *Config) ReadConfig(configPath string) error {
 	// Load config into struct
 	err = viper.Unmarshal(&c)
 	if err != nil {
-		log.Printf("Error unmarshalling config: %v", err)
+		logger.Errorw(context.Background(), "Error unmarshalling config", "error", err)
 		return err
 	}
 
@@ -238,6 +259,12 @@ func setDefaultValues() {
 	// Kafka
 	viper.SetDefault("kafka.brokers", "localhost:9092")
 	viper.SetDefault("kafka.topic", "loms.order-events")
+
+	// Jaeger
+	viper.SetDefault("jaeger.uri", "http://localhost:4318")
+
+	// Metrics
+	viper.SetDefault("metrics.uri", "http://localhost:2113")
 }
 
 // bindEnvVariables function for bind env variables with config name.
@@ -276,11 +303,17 @@ func (c *Config) bindEnvVariables() error {
 		// Kafka
 		"kafka.brokers": "KAFKA_BROKERS",
 		"kafka.topic":   "KAFKA_TOPIC",
+
+		// Jaeger
+		"jaeger.uri": "JAEGER_URI",
+
+		// Metrics
+		"metrics.uri": "METRICS_URI",
 	}
 
 	for key, env := range envVars {
 		if err := viper.BindEnv(key, env); err != nil {
-			log.Printf("Error bind env: %v", err)
+			logger.Errorw(context.Background(), "Error bind env", "error", err)
 			return err
 		}
 	}

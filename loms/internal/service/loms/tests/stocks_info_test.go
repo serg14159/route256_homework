@@ -28,7 +28,10 @@ func TestLomsService_StocksInfo_Table(t *testing.T) {
 				SKU: 1001,
 			},
 			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, txManagerMock *mock.ITxManagerMock, req *models.StocksInfoRequest) {
-				stockRepoMock.GetAvailableStockBySKUMock.Expect(ctx, req.SKU).Return(uint64(50), nil)
+				stockRepoMock.GetAvailableStockBySKUMock.Set(func(ctx context.Context, sku uint32) (uint64, error) {
+					require.Equal(t, uint32(1001), sku)
+					return uint64(50), nil
+				})
 			},
 			expectedResp: &models.StocksInfoResponse{
 				Count: 50,
@@ -53,7 +56,10 @@ func TestLomsService_StocksInfo_Table(t *testing.T) {
 				SKU: 1002,
 			},
 			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, txManagerMock *mock.ITxManagerMock, req *models.StocksInfoRequest) {
-				stockRepoMock.GetAvailableStockBySKUMock.Expect(ctx, req.SKU).Return(uint64(0), errors.New("db error"))
+				stockRepoMock.GetAvailableStockBySKUMock.Set(func(ctx context.Context, sku uint32) (uint64, error) {
+					require.Equal(t, uint32(1002), sku)
+					return uint64(0), errors.New("db error")
+				})
 			},
 			expectedResp:  nil,
 			expectedErr:   internal_errors.ErrInternalServerError,

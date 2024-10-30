@@ -35,4 +35,10 @@ kafka:
   brokers: "localhost:9092"
   topic: "loms.order-events"
 
+jaeger:
+  uri: "localhost:4318"
+
+metrics:
+  uri: "0.0.0.0:2113"
+
   

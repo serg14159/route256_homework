@@ -8,10 +8,15 @@ import (
 	internal_errors "route256/loms/internal/pkg/errors"
 
 	"github.com/jackc/pgx/v5"
+	"go.opentelemetry.io/otel"
 )
 
 // OrderCreate function.
 func (s *LomsService) OrderCreate(ctx context.Context, req *models.OrderCreateRequest) (*models.OrderCreateResponse, error) {
+	// Tracer
+	ctx, span := otel.Tracer("LomsService").Start(ctx, "OrderCreate")
+	defer span.End()
+
 	// Validate input data
 	if err := validateOrderCreateRequest(req); err != nil {
 		return nil, err

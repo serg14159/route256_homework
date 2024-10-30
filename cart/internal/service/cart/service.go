@@ -7,6 +7,8 @@ import (
 	"route256/cart/internal/pkg/errgroup"
 	internal_errors "route256/cart/internal/pkg/errors"
 	"sync"
+
+	"go.opentelemetry.io/otel"
 )
 
 const getCartGoroutineLimit = 10
@@ -44,6 +46,10 @@ func NewService(repository ICartRepository, productService IProductService, loms
 
 // AddProduct function for add product into cart.
 func (s *CartService) AddProduct(ctx context.Context, UID models.UID, SKU models.SKU, Count uint16) error {
+	// Tracer
+	ctx, span := otel.Tracer("CartService").Start(ctx, "AddProduct")
+	defer span.End()
+
 	if UID < 1 || SKU < 1 || Count < 1 {
 		return fmt.Errorf("UID, SKU and Count must be greater than zero: %w", internal_errors.ErrBadRequest)
 	}
@@ -77,6 +83,10 @@ func (s *CartService) AddProduct(ctx context.Context, UID models.UID, SKU models
 
 // DelProduct function for delete product from cart.
 func (s *CartService) DelProduct(ctx context.Context, UID models.UID, SKU models.SKU) error {
+	// Tracer
+	ctx, span := otel.Tracer("CartService").Start(ctx, "DelProduct")
+	defer span.End()
+
 	if UID < 1 || SKU < 1 {
 		return fmt.Errorf("UID and SKU must be greater than zero: %w", internal_errors.ErrBadRequest)
 	}
@@ -91,6 +101,10 @@ func (s *CartService) DelProduct(ctx context.Context, UID models.UID, SKU models
 
 // DelCart function for delete user cart.
 func (s *CartService) DelCart(ctx context.Context, UID models.UID) error {
+	// Tracer
+	ctx, span := otel.Tracer("CartService").Start(ctx, "DelCart")
+	defer span.End()
+
 	if UID < 1 {
 		return fmt.Errorf("UID must be greater than zero: %w", internal_errors.ErrBadRequest)
 	}
@@ -105,6 +119,10 @@ func (s *CartService) DelCart(ctx context.Context, UID models.UID) error {
 
 // GetCart function for get user cart.
 func (s *CartService) GetCart(ctx context.Context, UID models.UID) ([]models.CartItemResponse, uint32, error) {
+	// Tracer
+	ctx, span := otel.Tracer("CartService").Start(ctx, "GetCart")
+	defer span.End()
+
 	if UID < 1 {
 		return nil, 0, fmt.Errorf("UID must be greater than zero: %w", internal_errors.ErrBadRequest)
 	}
@@ -159,6 +177,10 @@ func (s *CartService) GetCart(ctx context.Context, UID models.UID) ([]models.Car
 
 // Checkout function for create order.
 func (s *CartService) Checkout(ctx context.Context, UID models.UID) (int64, error) {
+	// Tracer
+	ctx, span := otel.Tracer("CartService").Start(ctx, "Checkout")
+	defer span.End()
+
 	cartItems, err := s.repository.GetItemsByUserID(ctx, UID)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get cart items: %w", err)

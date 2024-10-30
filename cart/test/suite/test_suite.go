@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -16,6 +15,8 @@ import (
 	internal_errors "route256/cart/internal/pkg/errors"
 	repository "route256/cart/internal/repository/cart"
 	service "route256/cart/internal/service/cart"
+
+	"route256/utils/logger"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -45,6 +46,14 @@ func (c *Config) GetMaxRetries() int {
 	return 3
 }
 
+func (c *Config) GetDebug() bool {
+	return true
+}
+
+func (c *Config) GetName() string {
+	return "test_service"
+}
+
 // Struct TSuite for tests.
 type TSuite struct {
 	suite.Suite
@@ -55,10 +64,22 @@ type TSuite struct {
 	lomsService    *loms_service.LomsClient
 	serverURL      string
 	cancelFunc     context.CancelFunc
+	logger         *logger.Logger
 }
+
+const stdout = "stdout"
 
 // SetupTest.
 func (s *TSuite) SetupTest() {
+	// Context
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Init logger
+	var errorOutputPaths = []string{stdout}
+	log := logger.NewLogger(ctx, true, errorOutputPaths, "cart")
+	s.logger = log
+
 	// Repository
 	s.repo = repository.NewCartRepository()
 
@@ -76,14 +97,13 @@ func (s *TSuite) SetupTest() {
 	s.server = server.NewServer(cfg, s.service)
 
 	// Create context for cancel
-	_, cancel := context.WithCancel(context.Background())
 	s.cancelFunc = cancel
 
 	// Run server
 	go func() {
 		err := s.server.Run()
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			log.Fatalf("Server failed to start: %v", err)
+			logger.Errorw(context.Background(), "Failed to start server", "error", err)
 		}
 	}()
 

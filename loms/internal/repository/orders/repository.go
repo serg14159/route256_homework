@@ -6,9 +6,13 @@ import (
 	"route256/loms/internal/models"
 	internal_errors "route256/loms/internal/pkg/errors"
 	"route256/loms/internal/repository/sqlc"
+	"time"
+
+	"route256/loms/internal/pkg/metrics"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"go.opentelemetry.io/otel"
 )
 
 // OrderRepository.
@@ -27,6 +31,18 @@ func NewOrderRepository(pool *pgxpool.Pool) *OrderRepository {
 
 // Create adds a new order to repository and returns unique orderID.
 func (r *OrderRepository) Create(ctx context.Context, tx pgx.Tx, order models.Order) (models.OID, error) {
+	// Tracer
+	ctx, span := otel.Tracer("OrderRepository").Start(ctx, "Create")
+	defer span.End()
+
+	startTime := time.Now()
+	defer func() {
+		duration := time.Since(startTime)
+		operation := "Create"
+		metrics.IncDBQueryCounter(operation)
+		metrics.ObserveDBQueryDuration(operation, duration)
+	}()
+
 	// Validate input data
 	if err := validateOrder(order); err != nil {
 		return 0, err
@@ -60,6 +76,18 @@ func (r *OrderRepository) Create(ctx context.Context, tx pgx.Tx, order models.Or
 
 // GetByID return order by orderID.
 func (r *OrderRepository) GetByID(ctx context.Context, tx pgx.Tx, orderID models.OID) (models.Order, error) {
+	// Tracer
+	ctx, span := otel.Tracer("OrderRepository").Start(ctx, "GetByID")
+	defer span.End()
+
+	startTime := time.Now()
+	defer func() {
+		duration := time.Since(startTime)
+		operation := "GetByID"
+		metrics.IncDBQueryCounter(operation)
+		metrics.ObserveDBQueryDuration(operation, duration)
+	}()
+
 	// Validate input data
 	if orderID < 1 {
 		return models.Order{}, fmt.Errorf("orderID must be greater than zero: %w", internal_errors.ErrBadRequest)
@@ -98,6 +126,18 @@ func (r *OrderRepository) GetByID(ctx context.Context, tx pgx.Tx, orderID models
 
 // SetStatus updates the status of an existing order.
 func (r *OrderRepository) SetStatus(ctx context.Context, tx pgx.Tx, orderID models.OID, status models.OrderStatus) error {
+	// Tracer
+	ctx, span := otel.Tracer("OrderRepository").Start(ctx, "SetStatus")
+	defer span.End()
+
+	startTime := time.Now()
+	defer func() {
+		duration := time.Since(startTime)
+		operation := "SetStatus"
+		metrics.IncDBQueryCounter(operation)
+		metrics.ObserveDBQueryDuration(operation, duration)
+	}()
+
 	// Validate input data
 	if orderID < 1 {
 		return fmt.Errorf("orderID must be greater than zero: %w", internal_errors.ErrBadRequest)

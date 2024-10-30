@@ -2,7 +2,7 @@ package service_test
 
 import (
 	"errors"
-	service "route256/loms/internal/service/loms"
+	loms_service "route256/loms/internal/service/loms"
 	"route256/loms/internal/service/loms/mock"
 
 	"testing"
@@ -13,7 +13,7 @@ import (
 var ErrRepository = errors.New("repository error")
 
 // setup function for setup initializes the mocks and the CartService for the tests.
-func setup(t *testing.T) (*mock.IOrderRepositoryMock, *mock.IStockRepositoryMock, *mock.IOutboxRepositoryMock, *mock.IProducerMock, *mock.ITxManagerMock, *service.LomsService) {
+func setup(t *testing.T) (*mock.IOrderRepositoryMock, *mock.IStockRepositoryMock, *mock.IOutboxRepositoryMock, *mock.IProducerMock, *mock.ITxManagerMock, *loms_service.LomsService) {
 	ctrl := minimock.NewController(t)
 
 	// Create mocks for ICartRepository and IProductService
@@ -24,7 +24,7 @@ func setup(t *testing.T) (*mock.IOrderRepositoryMock, *mock.IStockRepositoryMock
 	producerMock := mock.NewIProducerMock(ctrl)
 
 	// Initialize the service with the mocks
-	service := service.NewService(orderRepoMock, stockRepoMock, outboxRepoMock, txManagerMock, producerMock)
+	service := loms_service.NewService(orderRepoMock, stockRepoMock, outboxRepoMock, txManagerMock, producerMock)
 
 	return orderRepoMock, stockRepoMock, outboxRepoMock, producerMock, txManagerMock, service
 }

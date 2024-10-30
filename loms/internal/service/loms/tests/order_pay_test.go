@@ -8,7 +8,7 @@ import (
 
 	"route256/loms/internal/models"
 	internal_errors "route256/loms/internal/pkg/errors"
-	service "route256/loms/internal/service/loms"
+	loms_service "route256/loms/internal/service/loms"
 	"route256/loms/internal/service/loms/mock"
 
 	"github.com/jackc/pgx/v5"
@@ -38,9 +38,21 @@ func TestLomsService_OrderPay_Table(t *testing.T) {
 					Items:  []models.Item{{SKU: 1001, Count: 2}},
 				}
 
-				orderRepoMock.GetByIDMock.Expect(ctx, txMock, models.OID(req.OrderID)).Return(order, nil)
-				stockRepoMock.RemoveReservedItemsMock.Expect(ctx, txMock, order.Items).Return(nil)
-				orderRepoMock.SetStatusMock.Expect(ctx, txMock, models.OID(req.OrderID), models.OrderStatusPayed).Return(nil)
+				orderRepoMock.GetByIDMock.Set(func(ctx context.Context, tx pgx.Tx, orderID models.OID) (models.Order, error) {
+					require.Equal(t, models.OID(1), orderID)
+					return order, nil
+				})
+
+				stockRepoMock.RemoveReservedItemsMock.Set(func(ctx context.Context, tx pgx.Tx, items []models.Item) error {
+					require.Equal(t, order.Items, items)
+					return nil
+				})
+
+				orderRepoMock.SetStatusMock.Set(func(ctx context.Context, tx pgx.Tx, orderID models.OID, status models.OrderStatus) error {
+					require.Equal(t, models.OID(1), orderID)
+					require.Equal(t, models.OrderStatusPayed, status)
+					return nil
+				})
 
 				outboxRepoMock.CreateEventMock.Set(func(ctx context.Context, tx pgx.Tx, eventType string, payload interface{}) error {
 					event, ok := payload.(models.OrderEvent)
@@ -53,7 +65,7 @@ func TestLomsService_OrderPay_Table(t *testing.T) {
 					return nil
 				})
 
-				txManagerMock.WithTxMock.Set(func(ctx context.Context, fn service.WithTxFunc) error {
+				txManagerMock.WithTxMock.Set(func(ctx context.Context, fn loms_service.WithTxFunc) error {
 					return fn(ctx, txMock)
 				})
 			},
@@ -80,9 +92,13 @@ func TestLomsService_OrderPay_Table(t *testing.T) {
 			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock,
 				stockRepoMock *mock.IStockRepositoryMock, outboxRepoMock *mock.IOutboxRepositoryMock,
 				txManagerMock *mock.ITxManagerMock, txMock *mock.TxMock, req *models.OrderPayRequest) {
-				orderRepoMock.GetByIDMock.Expect(ctx, txMock, models.OID(req.OrderID)).Return(models.Order{}, errors.New("db error"))
 
-				txManagerMock.WithTxMock.Set(func(ctx context.Context, fn service.WithTxFunc) error {
+				orderRepoMock.GetByIDMock.Set(func(ctx context.Context, tx pgx.Tx, orderID models.OID) (models.Order, error) {
+					require.Equal(t, models.OID(2), orderID)
+					return models.Order{}, errors.New("db error")
+				})
+
+				txManagerMock.WithTxMock.Set(func(ctx context.Context, fn loms_service.WithTxFunc) error {
 					return fn(ctx, txMock)
 				})
 			},
@@ -103,9 +119,12 @@ func TestLomsService_OrderPay_Table(t *testing.T) {
 					Items:  []models.Item{{SKU: 1002, Count: 1}},
 				}
 
-				orderRepoMock.GetByIDMock.Expect(ctx, txMock, models.OID(req.OrderID)).Return(order, nil)
+				orderRepoMock.GetByIDMock.Set(func(ctx context.Context, tx pgx.Tx, orderID models.OID) (models.Order, error) {
+					require.Equal(t, models.OID(3), orderID)
+					return order, nil
+				})
 
-				txManagerMock.WithTxMock.Set(func(ctx context.Context, fn service.WithTxFunc) error {
+				txManagerMock.WithTxMock.Set(func(ctx context.Context, fn loms_service.WithTxFunc) error {
 					return fn(ctx, txMock)
 				})
 			},
@@ -126,10 +145,17 @@ func TestLomsService_OrderPay_Table(t *testing.T) {
 					Items:  []models.Item{{SKU: 1003, Count: 3}},
 				}
 
-				orderRepoMock.GetByIDMock.Expect(ctx, txMock, models.OID(req.OrderID)).Return(order, nil)
-				stockRepoMock.RemoveReservedItemsMock.Expect(ctx, txMock, order.Items).Return(errors.New("reserve remove error"))
+				orderRepoMock.GetByIDMock.Set(func(ctx context.Context, tx pgx.Tx, orderID models.OID) (models.Order, error) {
+					require.Equal(t, models.OID(4), orderID)
+					return order, nil
+				})
 
-				txManagerMock.WithTxMock.Set(func(ctx context.Context, fn service.WithTxFunc) error {
+				stockRepoMock.RemoveReservedItemsMock.Set(func(ctx context.Context, tx pgx.Tx, items []models.Item) error {
+					require.Equal(t, order.Items, items)
+					return errors.New("reserve remove error")
+				})
+
+				txManagerMock.WithTxMock.Set(func(ctx context.Context, fn loms_service.WithTxFunc) error {
 					return fn(ctx, txMock)
 				})
 			},
@@ -150,11 +176,23 @@ func TestLomsService_OrderPay_Table(t *testing.T) {
 					Items:  []models.Item{{SKU: 1004, Count: 4}},
 				}
 
-				orderRepoMock.GetByIDMock.Expect(ctx, txMock, models.OID(req.OrderID)).Return(order, nil)
-				stockRepoMock.RemoveReservedItemsMock.Expect(ctx, txMock, order.Items).Return(nil)
-				orderRepoMock.SetStatusMock.Expect(ctx, txMock, models.OID(req.OrderID), models.OrderStatusPayed).Return(errors.New("set status payed error"))
+				orderRepoMock.GetByIDMock.Set(func(ctx context.Context, tx pgx.Tx, orderID models.OID) (models.Order, error) {
+					require.Equal(t, models.OID(5), orderID)
+					return order, nil
+				})
 
-				txManagerMock.WithTxMock.Set(func(ctx context.Context, fn service.WithTxFunc) error {
+				stockRepoMock.RemoveReservedItemsMock.Set(func(ctx context.Context, tx pgx.Tx, items []models.Item) error {
+					require.Equal(t, order.Items, items)
+					return nil
+				})
+
+				orderRepoMock.SetStatusMock.Set(func(ctx context.Context, tx pgx.Tx, orderID models.OID, status models.OrderStatus) error {
+					require.Equal(t, models.OID(5), orderID)
+					require.Equal(t, models.OrderStatusPayed, status)
+					return errors.New("set status payed error")
+				})
+
+				txManagerMock.WithTxMock.Set(func(ctx context.Context, fn loms_service.WithTxFunc) error {
 					return fn(ctx, txMock)
 				})
 			},
@@ -175,9 +213,21 @@ func TestLomsService_OrderPay_Table(t *testing.T) {
 					Items:  []models.Item{{SKU: 1005, Count: 5}},
 				}
 
-				orderRepoMock.GetByIDMock.Expect(ctx, txMock, models.OID(req.OrderID)).Return(order, nil)
-				stockRepoMock.RemoveReservedItemsMock.Expect(ctx, txMock, order.Items).Return(nil)
-				orderRepoMock.SetStatusMock.Expect(ctx, txMock, models.OID(req.OrderID), models.OrderStatusPayed).Return(nil)
+				orderRepoMock.GetByIDMock.Set(func(ctx context.Context, tx pgx.Tx, orderID models.OID) (models.Order, error) {
+					require.Equal(t, models.OID(6), orderID)
+					return order, nil
+				})
+
+				stockRepoMock.RemoveReservedItemsMock.Set(func(ctx context.Context, tx pgx.Tx, items []models.Item) error {
+					require.Equal(t, order.Items, items)
+					return nil
+				})
+
+				orderRepoMock.SetStatusMock.Set(func(ctx context.Context, tx pgx.Tx, orderID models.OID, status models.OrderStatus) error {
+					require.Equal(t, models.OID(6), orderID)
+					require.Equal(t, models.OrderStatusPayed, status)
+					return nil
+				})
 
 				outboxRepoMock.CreateEventMock.Set(func(ctx context.Context, tx pgx.Tx, eventType string, payload interface{}) error {
 					event, ok := payload.(models.OrderEvent)
@@ -190,7 +240,7 @@ func TestLomsService_OrderPay_Table(t *testing.T) {
 					return errors.New("outbox write error")
 				})
 
-				txManagerMock.WithTxMock.Set(func(ctx context.Context, fn service.WithTxFunc) error {
+				txManagerMock.WithTxMock.Set(func(ctx context.Context, fn loms_service.WithTxFunc) error {
 					return fn(ctx, txMock)
 				})
 			},

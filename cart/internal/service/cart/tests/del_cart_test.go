@@ -17,38 +17,47 @@ func TestCartService_DelCart_Table(t *testing.T) {
 	tests := []struct {
 		name          string
 		UID           models.UID
-		setupMocks    func(ctx context.Context, repoMock *mock.ICartRepositoryMock)
+		setupMocks    func(repoMock *mock.ICartRepositoryMock)
 		expectedErr   error
 		errorContains string
 	}{
 		{
 			name: "successful delete cart",
 			UID:  1,
-			setupMocks: func(ctx context.Context, repoMock *mock.ICartRepositoryMock) {
-				repoMock.DeleteItemsByUserIDMock.When(ctx, models.UID(1)).Then(nil)
+			setupMocks: func(repoMock *mock.ICartRepositoryMock) {
+				repoMock.DeleteItemsByUserIDMock.Set(func(ctx context.Context, uid models.UID) error {
+					require.Equal(t, models.UID(1), uid)
+					return nil
+				})
 			},
 			expectedErr: nil,
 		},
 		{
 			name: "delete empty cart",
 			UID:  5,
-			setupMocks: func(ctx context.Context, repoMock *mock.ICartRepositoryMock) {
-				repoMock.DeleteItemsByUserIDMock.When(ctx, models.UID(5)).Then(nil)
+			setupMocks: func(repoMock *mock.ICartRepositoryMock) {
+				repoMock.DeleteItemsByUserIDMock.Set(func(ctx context.Context, uid models.UID) error {
+					require.Equal(t, models.UID(5), uid)
+					return nil
+				})
 			},
 			expectedErr: nil,
 		},
 		{
 			name: "bad request with UID 0",
 			UID:  0,
-			setupMocks: func(ctx context.Context, repoMock *mock.ICartRepositoryMock) {
+			setupMocks: func(repoMock *mock.ICartRepositoryMock) {
 			},
 			expectedErr: internal_errors.ErrBadRequest,
 		},
 		{
 			name: "repository error",
 			UID:  1,
-			setupMocks: func(ctx context.Context, repoMock *mock.ICartRepositoryMock) {
-				repoMock.DeleteItemsByUserIDMock.When(ctx, models.UID(1)).Then(ErrRepository)
+			setupMocks: func(repoMock *mock.ICartRepositoryMock) {
+				repoMock.DeleteItemsByUserIDMock.Set(func(ctx context.Context, uid models.UID) error {
+					require.Equal(t, models.UID(1), uid)
+					return ErrRepository
+				})
 			},
 			expectedErr: ErrRepository,
 		},
@@ -61,7 +70,7 @@ func TestCartService_DelCart_Table(t *testing.T) {
 			ctx := context.Background()
 			repoMock, _, _, service := setup(t)
 
-			tt.setupMocks(ctx, repoMock)
+			tt.setupMocks(repoMock)
 
 			err := service.DelCart(ctx, tt.UID)
 

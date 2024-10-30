@@ -7,10 +7,16 @@ import (
 	"route256/loms/internal/models"
 	internal_errors "route256/loms/internal/pkg/errors"
 	pb "route256/loms/pkg/api/loms/v1"
+
+	"go.opentelemetry.io/otel"
 )
 
 // OrderInfo implements the GRPC OrderInfo method.
 func (s *Service) OrderInfo(ctx context.Context, req *pb.OrderInfoRequest) (*pb.OrderInfoResponse, error) {
+	// Tracer
+	ctx, span := otel.Tracer("LomsHandlers").Start(ctx, "OrderInfo")
+	defer span.End()
+
 	orderInfoRequest, err := toModelOrderInfoRequest(req)
 	if err != nil {
 		return nil, errorToStatus(err)

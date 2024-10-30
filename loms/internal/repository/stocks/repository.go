@@ -5,11 +5,14 @@ import (
 	"fmt"
 	"route256/loms/internal/models"
 	internal_errors "route256/loms/internal/pkg/errors"
+	"route256/loms/internal/pkg/metrics"
+	"time"
 
 	"route256/loms/internal/repository/sqlc"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"go.opentelemetry.io/otel"
 )
 
 // StockRepository
@@ -28,6 +31,18 @@ func NewStockRepository(pool *pgxpool.Pool) *StockRepository {
 
 // GetAvailableStockBySKU returns the available stock for specified SKU.
 func (r *StockRepository) GetAvailableStockBySKU(ctx context.Context, SKU models.SKU) (uint64, error) {
+	// Tracer
+	ctx, span := otel.Tracer("StockRepository").Start(ctx, "GetAvailableStockBySKU")
+	defer span.End()
+
+	startTime := time.Now()
+	defer func() {
+		duration := time.Since(startTime)
+		operation := "GetAvailableStockBySKU"
+		metrics.IncDBQueryCounter(operation)
+		metrics.ObserveDBQueryDuration(operation, duration)
+	}()
+
 	// Validate input data
 	if err := r.validateSKU(SKU); err != nil {
 		return 0, err
@@ -44,6 +59,18 @@ func (r *StockRepository) GetAvailableStockBySKU(ctx context.Context, SKU models
 
 // ReserveItems reserves the specified count of products in the provided array of items.
 func (r *StockRepository) ReserveItems(ctx context.Context, tx pgx.Tx, items []models.Item) error {
+	// Tracer
+	ctx, span := otel.Tracer("StockRepository").Start(ctx, "ReserveItems")
+	defer span.End()
+
+	startTime := time.Now()
+	defer func() {
+		duration := time.Since(startTime)
+		operation := "ReserveItems"
+		metrics.IncDBQueryCounter(operation)
+		metrics.ObserveDBQueryDuration(operation, duration)
+	}()
+
 	// Validate input data
 	if err := r.validateItems(items); err != nil {
 		return err
@@ -80,6 +107,18 @@ func (r *StockRepository) ReserveItems(ctx context.Context, tx pgx.Tx, items []m
 
 // RemoveReservedItems removes reserved stock for product.
 func (r *StockRepository) RemoveReservedItems(ctx context.Context, tx pgx.Tx, items []models.Item) error {
+	// Tracer
+	ctx, span := otel.Tracer("StockRepository").Start(ctx, "RemoveReservedItems")
+	defer span.End()
+
+	startTime := time.Now()
+	defer func() {
+		duration := time.Since(startTime)
+		operation := "RemoveReservedItems"
+		metrics.IncDBQueryCounter(operation)
+		metrics.ObserveDBQueryDuration(operation, duration)
+	}()
+
 	// Validate input data
 	if err := r.validateItems(items); err != nil {
 		return err
@@ -116,6 +155,18 @@ func (r *StockRepository) RemoveReservedItems(ctx context.Context, tx pgx.Tx, it
 
 // CancelReservedItems cancels reservation and makes the stock available again.
 func (r *StockRepository) CancelReservedItems(ctx context.Context, tx pgx.Tx, items []models.Item) error {
+	// Tracer
+	ctx, span := otel.Tracer("StockRepository").Start(ctx, "CancelReservedItems")
+	defer span.End()
+
+	startTime := time.Now()
+	defer func() {
+		duration := time.Since(startTime)
+		operation := "CancelReservedItems"
+		metrics.IncDBQueryCounter(operation)
+		metrics.ObserveDBQueryDuration(operation, duration)
+	}()
+
 	// Validate input data
 	if err := r.validateItems(items); err != nil {
 		return err
