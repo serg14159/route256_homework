@@ -21,3 +21,6 @@ jaeger:
 
 metrics:
   uri: "0.0.0.0:2112"
+
+cache:
+  capacity: 100

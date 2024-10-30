@@ -107,6 +107,15 @@ func (m *Metrics) GetURI() string {
 	return m.URI
 }
 
+// Cache
+type Cache struct {
+	Capacity int `yaml:"capacity"`
+}
+
+func (c *Cache) GetCapacity() int {
+	return c.Capacity
+}
+
 // Config - contains all configuration parameters in config package
 type Config struct {
 	Project        Project        `yaml:"project" mapstructure:"project"`
@@ -115,6 +124,7 @@ type Config struct {
 	LomsService    LomsService    `yaml:"lomsService" mapstructure:"lomsService"`
 	Jaeger         Jaeger         `yaml:"jaeger" mapstructure:"jaeger"`
 	Metrics        Metrics        `yaml:"metrics" mapstructure:"metrics"`
+	Cache          Cache          `yaml:"cache" mapstructure:"cache"`
 }
 
 func NewConfig() *Config {
@@ -161,20 +171,28 @@ func setDefaultValues() {
 	viper.SetDefault("project.debug", "false")
 	viper.SetDefault("project.name", "Cart")
 	viper.SetDefault("project.environment", "development")
+
 	// Server
 	viper.SetDefault("server.port", "8082")
 	viper.SetDefault("server.host", "localhost")
+
 	// ProductService
 	viper.SetDefault("productService.apiuri", "http://route256.pavl.uk:8080")
 	viper.SetDefault("productService.token", "testtoken")
 	viper.SetDefault("productService.maxRetries", "3")
+
 	// LomsService
 	viper.SetDefault("lomsService.host", "0.0.0.0")
 	viper.SetDefault("lomsService.port", "50051")
+
 	// Jaeger
 	viper.SetDefault("jaeger.uri", "http://localhost:4318")
+
 	// Metrics
 	viper.SetDefault("metrics.uri", "http://localhost:2112")
+
+	// Cache
+	viper.SetDefault("cache.capacity", "100")
 }
 
 // bindEnvVariables function for bind env variables with config name.
@@ -203,6 +221,9 @@ func (c *Config) bindEnvVariables() error {
 
 		// Metrics
 		"metrics.uri": "METRICS_URI",
+
+		// Cache
+		"cache.capacity": "CACHE_CAPACITY",
 	}
 
 	for key, env := range envVars {
