@@ -30,6 +30,9 @@ data:
 
 database:
   dsn: "postgres://user:password@localhost:5432/postgres?sslmode=disable"
+  shards:
+    - "postgres://user:password@localhost:5430/postgres?sslmode=disable"
+    - "postgres://user:password@localhost:5431/postgres?sslmode=disable"
 
 kafka:
   brokers: "localhost:9092"

@@ -130,11 +130,16 @@ func (d *Data) GetStockFilePath() string {
 
 // Database.
 type Database struct {
-	DSN string `yaml:"dsn"`
+	DSN    string   `yaml:"dsn"`
+	Shards []string `yaml:"shards" mapstructure:"shards"`
 }
 
 func (d *Database) GetDSN() string {
 	return d.DSN
+}
+
+func (d *Database) GetShards() []string {
+	return d.Shards
 }
 
 // Kafka.
@@ -254,7 +259,11 @@ func setDefaultValues() {
 	viper.SetDefault("data.stockFilePath", "data/stock-data.json")
 
 	// Database
-	viper.SetDefault("database.dsn", "postgres://username:password@localhost:pgpool_port/dbname?sslmode=disable")
+	viper.SetDefault("database.dsn", "postgres://user:password@localhost:5432/postgres?sslmode=disable")
+	viper.SetDefault("database.shards", []string{
+		"postgres://user:password@localhost:5430/postgres?sslmode=disable",
+		"postgres://user:password@localhost:5431/postgres?sslmode=disable",
+	})
 
 	// Kafka
 	viper.SetDefault("kafka.brokers", "localhost:9092")
@@ -298,7 +307,8 @@ func (c *Config) bindEnvVariables() error {
 		"data.stockFilePath": "DATA_STOCK_FILEPATH",
 
 		// Database
-		"database.dsn": "DATABASE_DSN",
+		"database.dsn":    "DATABASE_DSN",
+		"database.shards": "DATABASE_SHARDS",
 
 		// Kafka
 		"kafka.brokers": "KAFKA_BROKERS",
