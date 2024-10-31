@@ -17,6 +17,7 @@ import (
 	"route256/utils/logger"
 
 	loms_service "route256/cart/internal/clients/loms"
+	"route256/cart/internal/pkg/cacher"
 	grpc_mw "route256/cart/internal/pkg/mw/grpc"
 	cart_repository "route256/cart/internal/repository/cart"
 	cart_service "route256/cart/internal/service/cart"
@@ -89,6 +90,12 @@ func NewApp(ctx context.Context) (*App, error) {
 	// Product service client
 	productService := product_service.NewClient(&cfg.ProductService)
 
+	// Cacher
+	cacher := cacher.NewLRUCache(cfg.Cache.Capacity)
+
+	// Product service client with cache
+	productServiceWithCache := product_service.NewClientWithCache(productService, cacher)
+
 	// Loms service client
 	lomsAddr := fmt.Sprintf("%s:%s", cfg.LomsService.GetHost(), cfg.LomsService.GetPort())
 	connGrpc, err := grpc.NewClient(lomsAddr,
@@ -103,7 +110,7 @@ func NewApp(ctx context.Context) (*App, error) {
 	loms := loms_service.NewLomsClient(connGrpc)
 
 	// Init service
-	cartService := cart_service.NewService(cartRepository, productService, loms)
+	cartService := cart_service.NewService(cartRepository, productServiceWithCache, loms)
 
 	// Init server
 	srv := server.NewServer(&cfg.Server, cartService)
