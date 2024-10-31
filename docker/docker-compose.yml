@@ -13,6 +13,32 @@ x-postgres-common: &postgres-common
 
 services:
 # postgres
+  # shard0
+  postgres_shard0:
+    <<: *postgres-common
+    container_name: postgres_shard0
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5430:5432"
+    volumes:
+      - ./postgres/shard0_data:/var/lib/postgresql/data
+
+  # shard1
+  postgres_shard1:
+    <<: *postgres-common
+    container_name: postgres_shard1
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5431:5432"
+    volumes:
+      - ./postgres/shard1_data:/var/lib/postgresql/data
+
   postgres_primary:
     <<: *postgres-common
     container_name: postgres_primary
