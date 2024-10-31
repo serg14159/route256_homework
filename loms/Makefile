@@ -216,17 +216,29 @@ create_migration_insert_initial_stocks_data:
 create_migration_create_outbox_table:
 	bin/goose -dir migrations create create_outbox_table sql
 
+
+DB_DSN_SHARD0=postgres://user:password@localhost:5430/postgres?sslmode=disable
+DB_DSN_SHARD1=postgres://user:password@localhost:5431/postgres?sslmode=disable
+
 .PHONY: migrations_up
 migrations_up:
-	bin/goose -dir migrations postgres "postgres://user:password@localhost:5434/postgres?sslmode=disable" up
+	bin/goose -dir migrations postgres "$(DB_DSN_SHARD0)" up
+	bin/goose -dir migrations postgres "$(DB_DSN_SHARD1)" up
 
 .PHONY: migrations_down
 migrations_down:
-	bin/goose -dir migrations postgres "postgres://user:password@localhost:5434/postgres?sslmode=disable" down
+	bin/goose -dir migrations postgres "$(DB_DSN_SHARD0)" down
+	bin/goose -dir migrations postgres "$(DB_DSN_SHARD1)" down
 
-.PHONY: migrate
-migrate:
-	go run cmd/migration/main.go
+.PHONY: migrate_up
+migrate_up:
+	go run cmd/migration/main.go -action up -dsn $(DB_DSN_SHARD0)
+	go run cmd/migration/main.go -action up -dsn $(DB_DSN_SHARD1)
+
+.PHONY: migrate_down
+migrate_down:
+	go run cmd/migration/main.go -action down -dsn $(DB_DSN_SHARD0)
+	go run cmd/migration/main.go -action down -dsn $(DB_DSN_SHARD1)
 
 
 .PHONY: sqlc_generate

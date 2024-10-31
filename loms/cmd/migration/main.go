@@ -4,48 +4,31 @@ import (
 	"context"
 	"database/sql"
 	"flag"
-	"fmt"
 	"log"
 
-	config "route256/loms/internal/config"
-
 	"route256/loms/migrations"
-
-	"github.com/joho/godotenv"
 
 	_ "github.com/jackc/pgx/v4/stdlib"
 	"github.com/pressly/goose/v3"
 )
 
 func main() {
-	// Load environment
-	_ = godotenv.Load()
-
 	// Flags
-	var configPath string
 	var action string
+	var dsn string
 
-	flag.StringVar(&configPath, "config", "", "Path to config file")
 	flag.StringVar(&action, "action", "up", "Migration action: up or down")
+	flag.StringVar(&dsn, "dsn", "", "Database DSN")
 	flag.Parse()
 
-	// Set default config path
-	if configPath == "" {
-		configPath = "config.yml"
+	// Check DSN
+	if dsn == "" {
+		log.Fatal("Database DSN must be provided")
 	}
-
-	// Read config
-	cfg := config.NewConfig()
-	if err := cfg.ReadConfig(configPath); err != nil {
-		log.Fatalf("Failed to initialize configuration, error: %s", err)
-	}
-
-	// Cfg
-	fmt.Printf("cfg: %v", cfg)
 
 	// Database connect
 	ctx := context.Background()
-	db, err := NewConnect(ctx, &cfg.Database)
+	db, err := NewConnect(ctx, dsn)
 	if err != nil {
 		log.Fatalf("Failed to connect to the database, error: %s", err)
 	}
@@ -74,8 +57,8 @@ func main() {
 }
 
 // NewConnect return *sql.DB connection to database
-func NewConnect(ctx context.Context, cfg *config.Database) (*sql.DB, error) {
-	db, err := sql.Open("pgx", cfg.DSN)
+func NewConnect(ctx context.Context, dsn string) (*sql.DB, error) {
+	db, err := sql.Open("pgx", dsn)
 	if err != nil {
 		return nil, err
 	}
