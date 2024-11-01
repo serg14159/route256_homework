@@ -6,7 +6,7 @@ GRPC_METHOD="loms.Loms/OrderCancel"
 payload=$(
   cat <<EOF
 {
-  "orderID": 2
+  "orderID": 1001
 }
 EOF
 )

@@ -216,6 +216,9 @@ create_migration_insert_initial_stocks_data:
 create_migration_create_outbox_table:
 	bin/goose -dir migrations create create_outbox_table sql
 
+.PHONY: create_migration_create_order_id_manual_seq
+create_migration_create_order_id_manual_seq:
+	bin/goose -dir migrations create create_order_id_manual_seq sql
 
 
 DB_DSN_SHARD0=postgres://user:password@localhost:5430/postgres?sslmode=disable

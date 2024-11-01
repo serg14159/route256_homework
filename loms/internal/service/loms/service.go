@@ -8,9 +8,9 @@ import (
 )
 
 type IOrderRepository interface {
-	Create(ctx context.Context, tx pgx.Tx, order models.Order) (models.OID, error)
-	GetByID(ctx context.Context, tx pgx.Tx, orderID models.OID) (models.Order, error)
-	SetStatus(ctx context.Context, tx pgx.Tx, orderID models.OID, status models.OrderStatus) error
+	Create(ctx context.Context, order models.Order) (models.OID, error)
+	GetByID(ctx context.Context, orderID models.OID) (models.Order, error)
+	SetStatus(ctx context.Context, orderID models.OID, status models.OrderStatus) error
 }
 
 type IStockRepository interface {

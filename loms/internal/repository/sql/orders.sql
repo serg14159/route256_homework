@@ -1,8 +1,7 @@
 -- name: CreateOrder :one
-INSERT INTO orders (user_id, status_id)
-VALUES ($1, (SELECT id FROM statuses st WHERE st.name = $2))
-RETURNING id, user_id, (SELECT name FROM statuses st WHERE st.id = orders.status_id) AS status, created_at;
-
+INSERT INTO orders (id, user_id, status_id)
+VALUES (nextval('order_id_manual_seq') + $1, $2, (SELECT id FROM statuses st WHERE st.name = $3))
+RETURNING id;
 
 -- name: GetOrderByID :one
 SELECT o.id, o.user_id, s.name AS status, o.created_at

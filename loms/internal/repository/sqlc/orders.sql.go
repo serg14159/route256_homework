@@ -12,33 +12,22 @@ import (
 )
 
 const createOrder = `-- name: CreateOrder :one
-INSERT INTO orders (user_id, status_id)
-VALUES ($1, (SELECT id FROM statuses st WHERE st.name = $2))
-RETURNING id, user_id, (SELECT name FROM statuses st WHERE st.id = orders.status_id) AS status, created_at
+INSERT INTO orders (id, user_id, status_id)
+VALUES (nextval('order_id_manual_seq') + $1, $2, (SELECT id FROM statuses st WHERE st.name = $3))
+RETURNING id
 `
 
 type CreateOrderParams struct {
-	UserID int64
-	Name   string
+	Column1 interface{}
+	UserID  int64
+	Name    string
 }
 
-type CreateOrderRow struct {
-	ID        int64
-	UserID    int64
-	Status    string
-	CreatedAt pgtype.Timestamptz
-}
-
-func (q *Queries) CreateOrder(ctx context.Context, arg *CreateOrderParams) (*CreateOrderRow, error) {
-	row := q.db.QueryRow(ctx, createOrder, arg.UserID, arg.Name)
-	var i CreateOrderRow
-	err := row.Scan(
-		&i.ID,
-		&i.UserID,
-		&i.Status,
-		&i.CreatedAt,
-	)
-	return &i, err
+func (q *Queries) CreateOrder(ctx context.Context, arg *CreateOrderParams) (int64, error) {
+	row := q.db.QueryRow(ctx, createOrder, arg.Column1, arg.UserID, arg.Name)
+	var id int64
+	err := row.Scan(&id)
+	return id, err
 }
 
 const createOrderItem = `-- name: CreateOrderItem :one

@@ -130,8 +130,9 @@ func (d *Data) GetStockFilePath() string {
 
 // Database.
 type Database struct {
-	DSN    string   `yaml:"dsn"`
-	Shards []string `yaml:"shards" mapstructure:"shards"`
+	DSN              string   `yaml:"dsn"`
+	Shards           []string `yaml:"shards" mapstructure:"shards"`
+	ShardBucketCount int      `yaml:"shardBucketCount" mapstructure:"shardBucketCount"`
 }
 
 func (d *Database) GetDSN() string {
@@ -140,6 +141,10 @@ func (d *Database) GetDSN() string {
 
 func (d *Database) GetShards() []string {
 	return d.Shards
+}
+
+func (d *Database) GetShardBucketCount() int {
+	return d.ShardBucketCount
 }
 
 // Kafka.
@@ -264,6 +269,7 @@ func setDefaultValues() {
 		"postgres://user:password@localhost:5430/postgres?sslmode=disable",
 		"postgres://user:password@localhost:5431/postgres?sslmode=disable",
 	})
+	viper.SetDefault("database.shardBucketCount", 1000)
 
 	// Kafka
 	viper.SetDefault("kafka.brokers", "localhost:9092")
@@ -307,8 +313,9 @@ func (c *Config) bindEnvVariables() error {
 		"data.stockFilePath": "DATA_STOCK_FILEPATH",
 
 		// Database
-		"database.dsn":    "DATABASE_DSN",
-		"database.shards": "DATABASE_SHARDS",
+		"database.dsn":              "DATABASE_DSN",
+		"database.shards":           "DATABASE_SHARDS",
+		"database.shardBucketCount": "DATABASE_SHARD_BUCKET_COUNT",
 
 		// Kafka
 		"kafka.brokers": "KAFKA_BROKERS",

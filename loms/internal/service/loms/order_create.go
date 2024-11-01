@@ -47,23 +47,16 @@ func (s *LomsService) OrderCreate(ctx context.Context, req *models.OrderCreateRe
 
 // createOrderWithEvent creates an order and writes an event to the outbox.
 func (s *LomsService) createOrderWithEvent(ctx context.Context, req *models.OrderCreateRequest, eventType string) (models.OID, error) {
-	var orderID models.OID
+	// Create order
+	orderID, err := s.createOrder(ctx, req)
+	if err != nil {
+		return orderID, err
+	}
 
-	err := s.txManager.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) error {
-		// Create order
-		var err error
-		orderID, err = s.createOrder(ctx, tx, req)
-		if err != nil {
-			return fmt.Errorf("create order: %w", err)
-		}
-
-		// Write event in outbox
-		if err := s.createOutboxEvent(ctx, tx, orderID, models.OrderStatusNew, eventType); err != nil {
-			return err
-		}
-
-		return nil
-	})
+	// Write event in outbox
+	if err := s.createOutboxEvent(ctx, nil, orderID, models.OrderStatusNew, eventType); err != nil {
+		return orderID, err
+	}
 
 	return orderID, err
 }
@@ -77,7 +70,7 @@ func (s *LomsService) reserveStocksAndUpdateOrder(ctx context.Context, orderID m
 		}
 
 		// Update order status
-		if err := s.updateOrderStatus(ctx, tx, orderID, models.OrderStatusAwaitingPayment); err != nil {
+		if err := s.updateOrderStatus(ctx, orderID, models.OrderStatusAwaitingPayment); err != nil {
 			return fmt.Errorf("update order status: %w", err)
 		}
 
@@ -94,7 +87,7 @@ func (s *LomsService) reserveStocksAndUpdateOrder(ctx context.Context, orderID m
 func (s *LomsService) updateOrderStatusAndCreateEvent(ctx context.Context, orderID models.OID, status models.OrderStatus, eventType string) error {
 	return s.txManager.WithTx(ctx, func(ctx context.Context, tx pgx.Tx) error {
 		// Update order status
-		if err := s.updateOrderStatus(ctx, tx, orderID, status); err != nil {
+		if err := s.updateOrderStatus(ctx, orderID, status); err != nil {
 			return fmt.Errorf("update order status: %w", err)
 		}
 
@@ -108,14 +101,14 @@ func (s *LomsService) updateOrderStatusAndCreateEvent(ctx context.Context, order
 }
 
 // createOrder handles order creation and returns the created order ID.
-func (s *LomsService) createOrder(ctx context.Context, tx pgx.Tx, req *models.OrderCreateRequest) (models.OID, error) {
+func (s *LomsService) createOrder(ctx context.Context, req *models.OrderCreateRequest) (models.OID, error) {
 	order := models.Order{
 		Status: models.OrderStatusNew,
 		UserID: req.User,
 		Items:  req.Items,
 	}
 
-	orderID, err := s.orderRepository.Create(ctx, tx, order)
+	orderID, err := s.orderRepository.Create(ctx, order)
 	if err != nil {
 		return 0, fmt.Errorf("failed to create order: %w", err)
 	}

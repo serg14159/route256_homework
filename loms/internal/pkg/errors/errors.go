@@ -15,4 +15,5 @@ var (
 	ErrStockReservation   = errors.New("stock reservation failed")
 
 	ErrShardIndexOutOfRange = errors.New("shard index is out of range")
+	ErrNoShardsAvailable    = errors.New("no shards available")
 )

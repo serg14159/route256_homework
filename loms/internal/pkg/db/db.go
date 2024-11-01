@@ -7,13 +7,9 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type Config interface {
-	GetDSN() string
-}
-
 // NewConnect create new connection to DB.
-func NewConnect(ctx context.Context, cfg Config) (*pgxpool.Pool, error) {
-	pool, err := pgxpool.New(ctx, cfg.GetDSN())
+func NewConnect(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
+	pool, err := pgxpool.New(ctx, dsn)
 	if err != nil {
 		return nil, fmt.Errorf("pgxpool.New() err: %w", err)
 	}

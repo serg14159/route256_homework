@@ -15,21 +15,28 @@ type ShardIndex int
 type ShardFn func(ShardKey) ShardIndex
 
 type ShardManager struct {
-	shardFn ShardFn
-	shards  []*pgxpool.Pool
+	shardFn          ShardFn
+	shards           []*pgxpool.Pool
+	shardBucketCount int
 }
 
 // NewShardManager creates a new ShardManager instance.
-func NewShardManager(shardFn ShardFn, shards []*pgxpool.Pool) *ShardManager {
+func NewShardManager(shardFn ShardFn, shards []*pgxpool.Pool, shardBucketCount int) *ShardManager {
 	return &ShardManager{
-		shardFn: shardFn,
-		shards:  shards,
+		shardFn:          shardFn,
+		shards:           shards,
+		shardBucketCount: shardBucketCount,
 	}
 }
 
 // GetShardIndex returns the shard index for a given key.
 func (sm *ShardManager) GetShardIndex(key ShardKey) ShardIndex {
 	return sm.shardFn(key)
+}
+
+// GetShardIndexFromID
+func (sm *ShardManager) GetShardIndexFromID(id int64) ShardIndex {
+	return ShardIndex(id % int64(sm.shardBucketCount))
 }
 
 // GetShard returns the connection pool for the given shard index.
@@ -55,5 +62,12 @@ func GetMurmur3ShardFn(shardCount int) ShardFn {
 		hasher := murmur3.New32()
 		hasher.Write([]byte(key))
 		return ShardIndex(hasher.Sum32() % uint32(shardCount))
+	}
+}
+
+// CloseShards сlose all pool.
+func (sm *ShardManager) CloseShards() {
+	for _, pool := range sm.shards {
+		pool.Close()
 	}
 }

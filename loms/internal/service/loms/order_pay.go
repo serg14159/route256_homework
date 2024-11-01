@@ -40,7 +40,7 @@ func (s *LomsService) validateOrderPayRequest(req *models.OrderPayRequest) error
 // processOrderPayment processes payment of order within transaction.
 func (s *LomsService) processOrderPayment(ctx context.Context, tx pgx.Tx, req *models.OrderPayRequest) error {
 	// Get info about order
-	order, err := s.orderRepository.GetByID(ctx, tx, req.OrderID)
+	order, err := s.orderRepository.GetByID(ctx, req.OrderID)
 	if err != nil {
 		return fmt.Errorf("failed to get order: %w", err)
 	}
@@ -56,7 +56,7 @@ func (s *LomsService) processOrderPayment(ctx context.Context, tx pgx.Tx, req *m
 	}
 
 	// Set order status to "payed"
-	if err := s.updateOrderStatus(ctx, tx, req.OrderID, models.OrderStatusPayed); err != nil {
+	if err := s.updateOrderStatus(ctx, req.OrderID, models.OrderStatusPayed); err != nil {
 		return err
 	}
 

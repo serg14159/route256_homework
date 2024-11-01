@@ -5,32 +5,38 @@ import (
 	"fmt"
 	"route256/loms/internal/models"
 	internal_errors "route256/loms/internal/pkg/errors"
+	"route256/loms/internal/pkg/shard_manager"
 	"route256/loms/internal/repository/sqlc"
+	"strconv"
 	"time"
 
 	"route256/loms/internal/pkg/metrics"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.opentelemetry.io/otel"
 )
 
+type IShardManager interface {
+	GetShardIndex(key shard_manager.ShardKey) shard_manager.ShardIndex
+	GetShardIndexFromID(id int64) shard_manager.ShardIndex
+	GetShard(shard_manager.ShardIndex) (*pgxpool.Pool, error)
+	CloseShards()
+}
+
 // OrderRepository.
 type OrderRepository struct {
-	queries sqlc.Querier
-	pool    *pgxpool.Pool
+	shardManager IShardManager
 }
 
 // NewOrderRepository creates a new instance of OrderRepository.
-func NewOrderRepository(pool *pgxpool.Pool) *OrderRepository {
+func NewOrderRepository(shardManager IShardManager) *OrderRepository {
 	return &OrderRepository{
-		queries: sqlc.New(pool),
-		pool:    pool,
+		shardManager: shardManager,
 	}
 }
 
 // Create adds a new order to repository and returns unique orderID.
-func (r *OrderRepository) Create(ctx context.Context, tx pgx.Tx, order models.Order) (models.OID, error) {
+func (r *OrderRepository) Create(ctx context.Context, order models.Order) (models.OID, error) {
 	// Tracer
 	ctx, span := otel.Tracer("OrderRepository").Start(ctx, "Create")
 	defer span.End()
@@ -48,13 +54,27 @@ func (r *OrderRepository) Create(ctx context.Context, tx pgx.Tx, order models.Or
 		return 0, err
 	}
 
-	// Check transaction
-	q := r.getQuerier(tx)
+	// Determine shard
+	shardIndex := r.shardManager.GetShardIndex(shard_manager.ShardKey(strconv.FormatInt(order.UserID, 10)))
+	pool, err := r.shardManager.GetShard(shardIndex)
+	if err != nil {
+		return 0, err
+	}
+
+	// Start transaction on the shard
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	q := sqlc.New(tx)
 
 	// Create order
-	createdOrder, err := q.CreateOrder(ctx, &sqlc.CreateOrderParams{
-		UserID: order.UserID,
-		Name:   string(order.Status),
+	orderID, err := q.CreateOrder(ctx, &sqlc.CreateOrderParams{
+		Column1: shardIndex,
+		UserID:  order.UserID,
+		Name:    string(order.Status),
 	})
 	if err != nil {
 		return 0, fmt.Errorf("failed to create order: %w", err)
@@ -62,7 +82,7 @@ func (r *OrderRepository) Create(ctx context.Context, tx pgx.Tx, order models.Or
 
 	for _, item := range order.Items {
 		_, err := q.CreateOrderItem(ctx, &sqlc.CreateOrderItemParams{
-			OrderID: &createdOrder.ID,
+			OrderID: &orderID,
 			Sku:     int32(item.SKU),
 			Count:   int16(item.Count),
 		})
@@ -71,11 +91,16 @@ func (r *OrderRepository) Create(ctx context.Context, tx pgx.Tx, order models.Or
 		}
 	}
 
-	return models.OID(createdOrder.ID), nil
+	// Commit transaction
+	if err := tx.Commit(ctx); err != nil {
+		return 0, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return models.OID(orderID), nil
 }
 
 // GetByID return order by orderID.
-func (r *OrderRepository) GetByID(ctx context.Context, tx pgx.Tx, orderID models.OID) (models.Order, error) {
+func (r *OrderRepository) GetByID(ctx context.Context, orderID models.OID) (models.Order, error) {
 	// Tracer
 	ctx, span := otel.Tracer("OrderRepository").Start(ctx, "GetByID")
 	defer span.End()
@@ -93,8 +118,14 @@ func (r *OrderRepository) GetByID(ctx context.Context, tx pgx.Tx, orderID models
 		return models.Order{}, fmt.Errorf("orderID must be greater than zero: %w", internal_errors.ErrBadRequest)
 	}
 
-	// Check transaction
-	q := r.getQuerier(tx)
+	// Determine shard
+	shardIndex := r.shardManager.GetShardIndexFromID(orderID)
+	pool, err := r.shardManager.GetShard(shardIndex)
+	if err != nil {
+		return models.Order{}, err
+	}
+
+	q := sqlc.New(pool)
 
 	// Get order
 	order, err := q.GetOrderByID(ctx, orderID)
@@ -125,7 +156,7 @@ func (r *OrderRepository) GetByID(ctx context.Context, tx pgx.Tx, orderID models
 }
 
 // SetStatus updates the status of an existing order.
-func (r *OrderRepository) SetStatus(ctx context.Context, tx pgx.Tx, orderID models.OID, status models.OrderStatus) error {
+func (r *OrderRepository) SetStatus(ctx context.Context, orderID models.OID, status models.OrderStatus) error {
 	// Tracer
 	ctx, span := otel.Tracer("OrderRepository").Start(ctx, "SetStatus")
 	defer span.End()
@@ -147,11 +178,18 @@ func (r *OrderRepository) SetStatus(ctx context.Context, tx pgx.Tx, orderID mode
 		return fmt.Errorf("invalid order status: %w", internal_errors.ErrPreconditionFailed)
 	}
 
+	// Determine shard
+	shardIndex := r.shardManager.GetShardIndexFromID(orderID)
+	pool, err := r.shardManager.GetShard(shardIndex)
+	if err != nil {
+		return err
+	}
+
 	// Check transaction
-	q := r.getQuerier(tx)
+	q := sqlc.New(pool)
 
 	// Update order status
-	err := q.SetOrderStatus(ctx, &sqlc.SetOrderStatusParams{
+	err = q.SetOrderStatus(ctx, &sqlc.SetOrderStatusParams{
 		ID:   orderID,
 		Name: string(status),
 	})
@@ -193,12 +231,4 @@ func isValidOrderStatus(status models.OrderStatus) bool {
 	default:
 		return false
 	}
-}
-
-// getQuerier returns sqlc.Querier based on provided transaction.
-func (r *OrderRepository) getQuerier(tx pgx.Tx) sqlc.Querier {
-	if tx != nil {
-		return sqlc.New(tx)
-	}
-	return r.queries
 }

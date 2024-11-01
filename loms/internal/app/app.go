@@ -16,7 +16,9 @@ import (
 	loms_app "route256/loms/internal/app/loms"
 	"route256/loms/internal/config"
 	db "route256/loms/internal/pkg/db"
+	internal_errors "route256/loms/internal/pkg/errors"
 	kafka_producer "route256/loms/internal/pkg/kafka"
+	"route256/loms/internal/pkg/shard_manager"
 	repo_order "route256/loms/internal/repository/orders"
 	repo_outbox "route256/loms/internal/repository/outbox"
 	repo_stocks "route256/loms/internal/repository/stocks"
@@ -49,6 +51,7 @@ type App struct {
 	logger          *logger.Logger
 	tracer          *oteltrace.TracerProvider
 	metricsListener net.Listener
+	shardManager    *shard_manager.ShardManager
 }
 
 // NewApp
@@ -68,10 +71,10 @@ func NewApp(ctx context.Context, cancel context.CancelFunc) (*App, error) {
 	// Read config
 	cfg := config.NewConfig()
 	if err := cfg.ReadConfig(configPath); err != nil {
-		return nil, fmt.Errorf("failed to init configuration: %w", err)
+		return nil, fmt.Errorf("failed to initialize configuration: %w", err)
 	}
 
-	// Init logger
+	// Initialize logger
 	var errorOutputPaths = []string{stdout}
 	log := logger.NewLogger(ctx, cfg.Project.GetDebug(), errorOutputPaths, cfg.Project.GetName())
 
@@ -83,23 +86,42 @@ func NewApp(ctx context.Context, cancel context.CancelFunc) (*App, error) {
 		"environment", cfg.Project.GetEnvironment(),
 	)
 
-	// Init tracer
+	// Initialize tracer
 	tr, err := tracer.InitTracer(ctx, cfg.Project.GetName(), cfg.Jaeger.GetURI())
 	if err != nil {
 		logger.Errorw(ctx, "Failed to initialize tracer", "error", err)
 	}
 
-	// DB connect
-	pool, err := db.NewConnect(ctx, &cfg.Database)
+	// Initialize DB connect
+	pool, err := db.NewConnect(ctx, cfg.Database.GetDSN())
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
+
+	// Initialize shard connections
+	shardCount := len(cfg.Database.GetShards())
+	if shardCount == 0 {
+		return nil, fmt.Errorf("failed to connect to database: %w", internal_errors.ErrNoShardsAvailable)
+	}
+
+	shardPools := make([]*pgxpool.Pool, shardCount)
+	for i, dsn := range cfg.Database.GetShards() {
+		pool, err := db.NewConnect(ctx, dsn)
+		if err != nil {
+			return nil, fmt.Errorf("failed to connect to shard %d: %w", i, err)
+		}
+		shardPools[i] = pool
+	}
+
+	// Initialize ShardManager
+	shardFn := shard_manager.GetMurmur3ShardFn(shardCount)
+	shardManager := shard_manager.NewShardManager(shardFn, shardPools, cfg.Database.GetShardBucketCount())
 
 	// TxManager
 	txManager := db.NewTransactionManager(pool)
 
 	// Repository order/stocks/outbox
-	repoOrder := repo_order.NewOrderRepository(pool)
+	repoOrder := repo_order.NewOrderRepository(shardManager)
 	repoStocks := repo_stocks.NewStockRepository(pool)
 	repoOutbox := repo_outbox.NewOutboxRepository(pool)
 
@@ -120,16 +142,17 @@ func NewApp(ctx context.Context, cancel context.CancelFunc) (*App, error) {
 	grpcServer := server.NewGrpcServer(&cfg.Project, &cfg.Grpc, &cfg.Gateway, &cfg.Swagger, lomsApp)
 
 	return &App{
-		config:      cfg,
-		ctx:         ctx,
-		cancel:      cancel,
-		pool:        pool,
-		lomsService: lomsService,
-		lomsApp:     lomsApp,
-		server:      grpcServer,
-		producer:    kafkaProd,
-		logger:      log,
-		tracer:      tr,
+		config:       cfg,
+		ctx:          ctx,
+		cancel:       cancel,
+		pool:         pool,
+		lomsService:  lomsService,
+		lomsApp:      lomsApp,
+		server:       grpcServer,
+		producer:     kafkaProd,
+		logger:       log,
+		tracer:       tr,
+		shardManager: shardManager,
 	}, nil
 }
 
@@ -193,6 +216,9 @@ func (a *App) Shutdown() {
 
 	// Shutdown DB conn
 	a.pool.Close()
+
+	// Shutdown shard conn
+	a.shardManager.CloseShards()
 
 	if err := a.producer.Close(); err != nil {
 		logger.Errorw(a.ctx, "Failed to close Kafka producer", "error", err)
