@@ -25,6 +25,7 @@ import (
 
 	oteltrace "go.opentelemetry.io/otel/sdk/trace"
 
+	"github.com/go-redis/redis/v8"
 	"github.com/joho/godotenv"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
@@ -44,6 +45,7 @@ type App struct {
 	lomsClient      *loms_service.LomsClient
 	productClient   *product_service.Client
 	connGrpc        *grpc.ClientConn
+	redisClient     *redis.Client
 }
 
 // NewApp
@@ -87,14 +89,27 @@ func NewApp(ctx context.Context) (*App, error) {
 	// Init repository
 	cartRepository := cart_repository.NewCartRepository()
 
+	// Init Redis
+	redisAddr := fmt.Sprintf("%s:%s", cfg.Redis.GetHost(), cfg.Redis.GetPort())
+	redisOptions := &redis.Options{
+		Addr:     redisAddr,
+		Password: cfg.Redis.GetPassword(),
+		DB:       cfg.Redis.GetDB(),
+	}
+	redisClient := redis.NewClient(redisOptions)
+	if err := redisClient.Ping(ctx).Err(); err != nil {
+		return nil, fmt.Errorf("failed to connect to Redis: %w", err)
+	}
+
+	// Cacher
+	cacheTTL := time.Duration(cfg.Redis.GetTTL()) * time.Second
+	redisCacher := cacher.NewRedisCacher(redisClient, cacheTTL)
+
 	// Product service client
 	productService := product_service.NewClient(&cfg.ProductService)
 
-	// Cacher
-	cacher := cacher.NewLRUCache(cfg.Cache.Capacity)
-
 	// Product service client with cache
-	productServiceWithCache := product_service.NewClientWithCache(productService, cacher)
+	productServiceWithCache := product_service.NewClientWithRedisCache(productService, redisCacher)
 
 	// Loms service client
 	lomsAddr := fmt.Sprintf("%s:%s", cfg.LomsService.GetHost(), cfg.LomsService.GetPort())
@@ -124,6 +139,7 @@ func NewApp(ctx context.Context) (*App, error) {
 		lomsClient:    loms,
 		productClient: productService,
 		connGrpc:      connGrpc,
+		redisClient:   redisClient,
 	}, nil
 }
 
@@ -165,6 +181,11 @@ func (a *App) Shutdown() error {
 	// Shutdown logger
 	if err := a.logger.Sync(); err != nil {
 		logger.Errorw(ctx, "Failed to sync logger", "error", err)
+	}
+
+	// Shutdown Redis
+	if err := a.redisClient.Close(); err != nil {
+		logger.Errorw(ctx, "Failed to close Redis client", "error", err)
 	}
 
 	a.connGrpc.Close()

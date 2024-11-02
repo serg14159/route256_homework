@@ -74,6 +74,32 @@ var (
 			Help:      "Total number of items in in-memory repository",
 		},
 	)
+
+	cacheHitCounter = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Namespace: "app",
+			Name:      "cache_hits_total",
+			Help:      "Total number of cache hits",
+		},
+	)
+
+	cacheMissCounter = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Namespace: "app",
+			Name:      "cache_misses_total",
+			Help:      "Total number of cache misses",
+		},
+	)
+
+	cacheResponseTimeHistogram = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Namespace: "app",
+			Name:      "cache_response_time_seconds",
+			Help:      "Response time for cache hits and misses",
+			Buckets:   prometheus.DefBuckets,
+		},
+		[]string{"result"}, // "hit" или "miss"
+	)
 )
 
 // IncRequestCounterWithStatus increments the request counter for a handler with status code.
@@ -132,4 +158,19 @@ func LogDBOperation(operation string, start time.Time, err *error) {
 	}
 	IncDBOperation(operation)
 	ObserveDBLatency(operation, duration, status)
+}
+
+// IncCacheHitCounter
+func IncCacheHitCounter() {
+	cacheHitCounter.Inc()
+}
+
+// IncCacheMissCounter
+func IncCacheMissCounter() {
+	cacheMissCounter.Inc()
+}
+
+// ObserveCacheResponseTime
+func ObserveCacheResponseTime(result string, duration time.Duration) {
+	cacheResponseTimeHistogram.WithLabelValues(result).Observe(duration.Seconds())
 }
