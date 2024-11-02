@@ -10,7 +10,6 @@ import (
 	internal_errors "route256/loms/internal/pkg/errors"
 	"route256/loms/internal/service/loms/mock"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/require"
 )
 
@@ -35,7 +34,7 @@ func TestLomsService_OrderInfo_Table(t *testing.T) {
 					UserID: 1,
 					Items:  []models.Item{{SKU: 1001, Count: 2}},
 				}
-				orderRepoMock.GetByIDMock.Set(func(ctx context.Context, tx pgx.Tx, orderID models.OID) (models.Order, error) {
+				orderRepoMock.GetByIDMock.Set(func(ctx context.Context, orderID models.OID) (models.Order, error) {
 					require.Equal(t, models.OID(1), orderID)
 					return order, nil
 				})
@@ -66,7 +65,7 @@ func TestLomsService_OrderInfo_Table(t *testing.T) {
 				OrderID: 2,
 			},
 			setupMocks: func(ctx context.Context, orderRepoMock *mock.IOrderRepositoryMock, stockRepoMock *mock.IStockRepositoryMock, txManagerMock *mock.ITxManagerMock, req *models.OrderInfoRequest) {
-				orderRepoMock.GetByIDMock.Set(func(ctx context.Context, tx pgx.Tx, orderID models.OID) (models.Order, error) {
+				orderRepoMock.GetByIDMock.Set(func(ctx context.Context, orderID models.OID) (models.Order, error) {
 					require.Equal(t, models.OID(2), orderID)
 					return models.Order{}, errors.New("db error")
 				})

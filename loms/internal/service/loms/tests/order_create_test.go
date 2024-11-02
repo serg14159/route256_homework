@@ -45,7 +45,7 @@ func TestLomsService_OrderCreate_Table(t *testing.T) {
 					Items:  req.Items,
 				}
 
-				orderRepoMock.CreateMock.Set(func(ctx context.Context, tx pgx.Tx, order models.Order) (models.OID, error) {
+				orderRepoMock.CreateMock.Set(func(ctx context.Context, order models.Order) (models.OID, error) {
 					require.Equal(t, order, newOrder)
 					return models.OID(1), nil
 				})
@@ -82,7 +82,7 @@ func TestLomsService_OrderCreate_Table(t *testing.T) {
 					return nil
 				})
 
-				orderRepoMock.SetStatusMock.Set(func(ctx context.Context, tx pgx.Tx, orderID models.OID, status models.OrderStatus) error {
+				orderRepoMock.SetStatusMock.Set(func(ctx context.Context, orderID models.OID, status models.OrderStatus) error {
 					require.Equal(t, models.OID(1), orderID)
 					require.Equal(t, models.OrderStatusAwaitingPayment, status)
 					return nil
@@ -178,14 +178,11 @@ func TestLomsService_OrderCreate_Table(t *testing.T) {
 					Items:  req.Items,
 				}
 
-				orderRepoMock.CreateMock.Set(func(ctx context.Context, tx pgx.Tx, order models.Order) (models.OID, error) {
+				orderRepoMock.CreateMock.Set(func(ctx context.Context, order models.Order) (models.OID, error) {
 					require.Equal(t, order, newOrder)
 					return models.OID(0), errors.New("create order error")
 				})
 
-				txManagerMock.WithTxMock.Set(func(ctx context.Context, fn loms_service.WithTxFunc) error {
-					return fn(ctx, txMock)
-				})
 			},
 			expectedResp:  nil,
 			expectedErr:   errors.New("failed to create order"),
@@ -209,7 +206,7 @@ func TestLomsService_OrderCreate_Table(t *testing.T) {
 					Items:  req.Items,
 				}
 
-				orderRepoMock.CreateMock.Set(func(ctx context.Context, tx pgx.Tx, order models.Order) (models.OID, error) {
+				orderRepoMock.CreateMock.Set(func(ctx context.Context, order models.Order) (models.OID, error) {
 					require.Equal(t, order, newOrder)
 					return models.OID(2), nil
 				})
@@ -246,7 +243,7 @@ func TestLomsService_OrderCreate_Table(t *testing.T) {
 					return errors.New("reserve items error")
 				})
 
-				orderRepoMock.SetStatusMock.Set(func(ctx context.Context, tx pgx.Tx, orderID models.OID, status models.OrderStatus) error {
+				orderRepoMock.SetStatusMock.Set(func(ctx context.Context, orderID models.OID, status models.OrderStatus) error {
 					require.Equal(t, models.OID(2), orderID)
 					require.Equal(t, models.OrderStatusFailed, status)
 					return nil
@@ -278,7 +275,7 @@ func TestLomsService_OrderCreate_Table(t *testing.T) {
 					Items:  req.Items,
 				}
 
-				orderRepoMock.CreateMock.Set(func(ctx context.Context, tx pgx.Tx, order models.Order) (models.OID, error) {
+				orderRepoMock.CreateMock.Set(func(ctx context.Context, order models.Order) (models.OID, error) {
 					require.Equal(t, order, newOrder)
 					return models.OID(3), nil
 				})
@@ -318,7 +315,7 @@ func TestLomsService_OrderCreate_Table(t *testing.T) {
 
 				callCountSetStatus := 0
 
-				orderRepoMock.SetStatusMock.Set(func(ctx context.Context, tx pgx.Tx, orderID models.OID, status models.OrderStatus) error {
+				orderRepoMock.SetStatusMock.Set(func(ctx context.Context, orderID models.OID, status models.OrderStatus) error {
 					callCountSetStatus++
 					switch callCountSetStatus {
 					case 1:
@@ -356,7 +353,7 @@ func TestLomsService_OrderCreate_Table(t *testing.T) {
 					Items:  req.Items,
 				}
 
-				orderRepoMock.CreateMock.Set(func(ctx context.Context, tx pgx.Tx, order models.Order) (models.OID, error) {
+				orderRepoMock.CreateMock.Set(func(ctx context.Context, order models.Order) (models.OID, error) {
 					require.Equal(t, order, newOrder)
 					return models.OID(4), nil
 				})
@@ -395,7 +392,7 @@ func TestLomsService_OrderCreate_Table(t *testing.T) {
 				})
 
 				callCountSetStatus := 0
-				orderRepoMock.SetStatusMock.Set(func(ctx context.Context, tx pgx.Tx, orderID models.OID, status models.OrderStatus) error {
+				orderRepoMock.SetStatusMock.Set(func(ctx context.Context, orderID models.OID, status models.OrderStatus) error {
 					callCountSetStatus++
 					switch callCountSetStatus {
 					case 1:
