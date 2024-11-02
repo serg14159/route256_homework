@@ -22,25 +22,11 @@ type Project struct {
 	CommitHash  string
 }
 
-func (p *Project) GetDebug() bool {
-	return p.Debug
-}
-
-func (p *Project) GetName() string {
-	return p.Name
-}
-
-func (p *Project) GetEnvironment() string {
-	return p.Environment
-}
-
-func (p *Project) GetVersion() string {
-	return p.Version
-}
-
-func (p *Project) GetCommitHash() string {
-	return p.CommitHash
-}
+func (p *Project) GetDebug() bool         { return p.Debug }
+func (p *Project) GetName() string        { return p.Name }
+func (p *Project) GetEnvironment() string { return p.Environment }
+func (p *Project) GetVersion() string     { return p.Version }
+func (p *Project) GetCommitHash() string  { return p.CommitHash }
 
 // Server - contains parameters for server address and port
 type Server struct {
@@ -48,13 +34,8 @@ type Server struct {
 	Port string `yaml:"port" mapstructure:"port"`
 }
 
-func (s *Server) GetPort() string {
-	return s.Port
-}
-
-func (s *Server) GetHost() string {
-	return s.Host
-}
+func (s *Server) GetPort() string { return s.Port }
+func (s *Server) GetHost() string { return s.Host }
 
 // ProductService - contains parameters for ProductService.
 type ProductService struct {
@@ -63,17 +44,9 @@ type ProductService struct {
 	MaxRetries int    `yaml:"maxRetries" mapstructure:"maxRetries"`
 }
 
-func (ps *ProductService) GetURI() string {
-	return ps.ApiURI
-}
-
-func (ps *ProductService) GetToken() string {
-	return ps.Token
-}
-
-func (ps *ProductService) GetMaxRetries() int {
-	return ps.MaxRetries
-}
+func (ps *ProductService) GetURI() string     { return ps.ApiURI }
+func (ps *ProductService) GetToken() string   { return ps.Token }
+func (ps *ProductService) GetMaxRetries() int { return ps.MaxRetries }
 
 // LomsService - contains parameters for server address and port
 type LomsService struct {
@@ -81,40 +54,44 @@ type LomsService struct {
 	Port string `yaml:"port" mapstructure:"port"`
 }
 
-func (l *LomsService) GetPort() string {
-	return l.Port
-}
-
-func (l *LomsService) GetHost() string {
-	return l.Host
-}
+func (l *LomsService) GetPort() string { return l.Port }
+func (l *LomsService) GetHost() string { return l.Host }
 
 // Jaeger - contains parameters for jaeger.
 type Jaeger struct {
 	URI string `yaml:"uri" mapstructure:"uri"`
 }
 
-func (j *Jaeger) GetURI() string {
-	return j.URI
-}
+func (j *Jaeger) GetURI() string { return j.URI }
 
 // Metrics - contains parameters for metrics.
 type Metrics struct {
 	URI string `yaml:"uri" mapstructure:"uri"`
 }
 
-func (m *Metrics) GetURI() string {
-	return m.URI
-}
+func (m *Metrics) GetURI() string { return m.URI }
 
 // Cache
 type Cache struct {
 	Capacity int `yaml:"capacity"`
 }
 
-func (c *Cache) GetCapacity() int {
-	return c.Capacity
+func (c *Cache) GetCapacity() int { return c.Capacity }
+
+// Redis
+type Redis struct {
+	Host     string `yaml:"host" mapstructure:"host"`
+	Port     string `yaml:"port" mapstructure:"port"`
+	Password string `yaml:"password" mapstructure:"password"`
+	DB       int    `yaml:"db" mapstructure:"db"`
+	TTL      int    `yaml:"ttl" mapstructure:"ttl"`
 }
+
+func (r *Redis) GetHost() string     { return r.Host }
+func (r *Redis) GetPort() string     { return r.Port }
+func (r *Redis) GetPassword() string { return r.Password }
+func (r *Redis) GetDB() int          { return r.DB }
+func (r *Redis) GetTTL() int         { return r.TTL }
 
 // Config - contains all configuration parameters in config package
 type Config struct {
@@ -125,6 +102,7 @@ type Config struct {
 	Jaeger         Jaeger         `yaml:"jaeger" mapstructure:"jaeger"`
 	Metrics        Metrics        `yaml:"metrics" mapstructure:"metrics"`
 	Cache          Cache          `yaml:"cache" mapstructure:"cache"`
+	Redis          Redis          `yaml:"redis" mapstructure:"redis"`
 }
 
 func NewConfig() *Config {
@@ -193,6 +171,13 @@ func setDefaultValues() {
 
 	// Cache
 	viper.SetDefault("cache.capacity", "100")
+
+	// Redis
+	viper.SetDefault("redis.host", "localhost")
+	viper.SetDefault("redis.port", "6379")
+	viper.SetDefault("redis.password", "")
+	viper.SetDefault("redis.db", 0)
+	viper.SetDefault("redis.ttl", 60)
 }
 
 // bindEnvVariables function for bind env variables with config name.
@@ -224,6 +209,13 @@ func (c *Config) bindEnvVariables() error {
 
 		// Cache
 		"cache.capacity": "CACHE_CAPACITY",
+
+		// Redis
+		"redis.host":     "REDIS_HOST",
+		"redis.port":     "REDIS_PORT",
+		"redis.password": "REDIS_PASSWORD",
+		"redis.db":       "REDIS_DB",
+		"redis.ttl":      "REDIS_TTL",
 	}
 
 	for key, env := range envVars {
