@@ -7,7 +7,9 @@ import (
 	internal_errors "route256/loms/internal/pkg/errors"
 	"route256/loms/internal/pkg/shard_manager"
 	"route256/loms/internal/repository/sqlc"
+	"sort"
 	"strconv"
+	"sync"
 	"time"
 
 	"route256/loms/internal/pkg/metrics"
@@ -16,10 +18,13 @@ import (
 	"go.opentelemetry.io/otel"
 )
 
+const allOrdersChannelBufferSize = 100
+
 type IShardManager interface {
 	GetShardIndex(key shard_manager.ShardKey) shard_manager.ShardIndex
 	GetShardIndexFromID(id int64) shard_manager.ShardIndex
 	GetShard(shard_manager.ShardIndex) (*pgxpool.Pool, error)
+	GetShards() []*pgxpool.Pool
 	CloseShards()
 }
 
@@ -42,12 +47,7 @@ func (r *OrderRepository) Create(ctx context.Context, order models.Order) (model
 	defer span.End()
 
 	startTime := time.Now()
-	defer func() {
-		duration := time.Since(startTime)
-		operation := "Create"
-		metrics.IncDBQueryCounter(operation)
-		metrics.ObserveDBQueryDuration(operation, duration)
-	}()
+	defer setMetrics("Create", startTime)
 
 	// Validate input data
 	if err := validateOrder(order); err != nil {
@@ -106,12 +106,7 @@ func (r *OrderRepository) GetByID(ctx context.Context, orderID models.OID) (mode
 	defer span.End()
 
 	startTime := time.Now()
-	defer func() {
-		duration := time.Since(startTime)
-		operation := "GetByID"
-		metrics.IncDBQueryCounter(operation)
-		metrics.ObserveDBQueryDuration(operation, duration)
-	}()
+	defer setMetrics("GetByID", startTime)
 
 	// Validate input data
 	if orderID < 1 {
@@ -162,12 +157,7 @@ func (r *OrderRepository) SetStatus(ctx context.Context, orderID models.OID, sta
 	defer span.End()
 
 	startTime := time.Now()
-	defer func() {
-		duration := time.Since(startTime)
-		operation := "SetStatus"
-		metrics.IncDBQueryCounter(operation)
-		metrics.ObserveDBQueryDuration(operation, duration)
-	}()
+	defer setMetrics("SetStatus", startTime)
 
 	// Validate input data
 	if orderID < 1 {
@@ -198,6 +188,57 @@ func (r *OrderRepository) SetStatus(ctx context.Context, orderID models.OID, sta
 	}
 
 	return nil
+}
+
+// GetOrders returns all orders.
+func (r *OrderRepository) GetOrders(ctx context.Context) ([]models.Order, error) {
+	// Tracer
+	ctx, span := otel.Tracer("OrderRepository").Start(ctx, "GetOrders")
+	defer span.End()
+
+	startTime := time.Now()
+	defer setMetrics("GetOrders", startTime)
+
+	shards := r.shardManager.GetShards()
+	allOrders := make(chan models.Order, allOrdersChannelBufferSize)
+	errCh := make(chan error, len(shards))
+	var wg sync.WaitGroup
+
+	// Run
+	for _, pool := range shards {
+		wg.Add(1)
+		go func(pool *pgxpool.Pool) {
+			defer wg.Done()
+			if err := r.processShard(ctx, pool, allOrders); err != nil {
+				errCh <- err
+			}
+		}(pool)
+	}
+
+	// Close channels
+	go func() {
+		wg.Wait()
+		close(allOrders)
+		close(errCh)
+	}()
+
+	// Collecting all orders
+	var orders []models.Order
+	for order := range allOrders {
+		orders = append(orders, order)
+	}
+
+	// Collecting errors
+	if err := collectErrors(errCh); err != nil {
+		return nil, err
+	}
+
+	// Sort orders by ID desc
+	sort.Slice(orders, func(i, j int) bool {
+		return orders[i].OrderID > orders[j].OrderID
+	})
+
+	return orders, nil
 }
 
 // validateOrder validate the order.
@@ -231,4 +272,64 @@ func isValidOrderStatus(status models.OrderStatus) bool {
 	default:
 		return false
 	}
+}
+
+// setMetrics set metrics of operation.
+func setMetrics(operation string, startTime time.Time) {
+	duration := time.Since(startTime)
+	metrics.IncDBQueryCounter(operation)
+	metrics.ObserveDBQueryDuration(operation, duration)
+}
+
+// processShard processes one shard.
+func (r *OrderRepository) processShard(ctx context.Context, pool *pgxpool.Pool, allOrders chan<- models.Order) error {
+	q := sqlc.New(pool)
+
+	orders, err := q.GetAllOrders(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get orders from shard: %w", err)
+	}
+
+	for _, order := range orders {
+		modelOrder, err := r.buildModelOrder(ctx, q, order)
+		if err != nil {
+			return err
+		}
+		allOrders <- modelOrder
+	}
+
+	return nil
+}
+
+// buildModelOrder build order model.
+func (r *OrderRepository) buildModelOrder(ctx context.Context, q *sqlc.Queries, order *sqlc.GetAllOrdersRow) (models.Order, error) {
+	modelOrder := models.Order{
+		OrderID: order.ID,
+		Status:  models.OrderStatus(order.Status),
+		UserID:  order.UserID,
+	}
+
+	items, err := q.GetOrderItems(ctx, &order.ID)
+	if err != nil {
+		return models.Order{}, fmt.Errorf("failed to get items for order %d: %w", order.ID, err)
+	}
+
+	for _, item := range items {
+		modelOrder.Items = append(modelOrder.Items, models.Item{
+			SKU:   models.SKU(item.Sku),
+			Count: uint16(item.Count),
+		})
+	}
+
+	return modelOrder, nil
+}
+
+// collectErrors collects errors from the error channel.
+func collectErrors(errCh <-chan error) error {
+	for err := range errCh {
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

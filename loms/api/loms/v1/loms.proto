@@ -4,7 +4,6 @@ package loms;
 
 option go_package = "pkg/api/loms/v1;loms";
 
-import "google/protobuf/empty.proto";
 import "validate/validate.proto";
 import "google/api/annotations.proto";
 import "protoc-gen-openapiv2/options/annotations.proto";
@@ -34,11 +33,23 @@ service Loms {
             body: "*"
         };
     }
+    rpc OrderList(OrderListRequest) returns (OrderListResponse) {
+        option (google.api.http) = {
+            get: "/v1/order/list"
+        };
+    }
     rpc StocksInfo(StocksInfoRequest) returns (StocksInfoResponse) {
         option (google.api.http) = {
             get: "/v1/stocks/info/{sku}"
         };
     }
+}
+
+message Order{
+    int64 orderID = 1 [(validate.rules).int64.gt = 0];
+    string status = 2;
+    int64 user = 3 [(validate.rules).int64.gt = 0];
+    repeated Item items = 4;
 }
 
 message Item {
@@ -49,7 +60,7 @@ message Item {
 // OrderCreate
 message OrderCreateRequest {
     int64 user = 1 [(validate.rules).int64.gt = 0];
-    repeated Item items = 2 [(validate.rules).message.required = true];
+    repeated Item items = 2 [(validate.rules).repeated.min_items = 1];
 }
 
 message OrderCreateResponse {
@@ -83,6 +94,15 @@ message OrderCancelRequest {
 message OrderCancelResponse {
 }
 
+// OrderList
+message OrderListRequest {
+}
+
+message OrderListResponse {
+    repeated Order orders = 1;
+}
+
+// StocksInfo
 message StocksInfoRequest {
     uint32 sku = 1 [(validate.rules).uint32.gt = 0];
 }

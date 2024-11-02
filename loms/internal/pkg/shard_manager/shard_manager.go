@@ -47,6 +47,11 @@ func (sm *ShardManager) GetShard(index ShardIndex) (*pgxpool.Pool, error) {
 	return nil, fmt.Errorf("%w: given index=%d, len=%d", internal_errors.ErrShardIndexOutOfRange, index, len(sm.shards))
 }
 
+// GetShard returns all connection pool.
+func (sm *ShardManager) GetShards() []*pgxpool.Pool {
+	return sm.shards
+}
+
 // HashShardFn is a hash function for sharding.
 func HashShardFn(shardCount int) ShardFn {
 	return func(key ShardKey) ShardIndex {

@@ -33,6 +33,13 @@ type IOrderRepositoryMock struct {
 	beforeGetByIDCounter uint64
 	GetByIDMock          mIOrderRepositoryMockGetByID
 
+	funcGetOrders          func(ctx context.Context) (oa1 []models.Order, err error)
+	funcGetOrdersOrigin    string
+	inspectFuncGetOrders   func(ctx context.Context)
+	afterGetOrdersCounter  uint64
+	beforeGetOrdersCounter uint64
+	GetOrdersMock          mIOrderRepositoryMockGetOrders
+
 	funcSetStatus          func(ctx context.Context, orderID models.OID, status models.OrderStatus) (err error)
 	funcSetStatusOrigin    string
 	inspectFuncSetStatus   func(ctx context.Context, orderID models.OID, status models.OrderStatus)
@@ -54,6 +61,9 @@ func NewIOrderRepositoryMock(t minimock.Tester) *IOrderRepositoryMock {
 
 	m.GetByIDMock = mIOrderRepositoryMockGetByID{mock: m}
 	m.GetByIDMock.callArgs = []*IOrderRepositoryMockGetByIDParams{}
+
+	m.GetOrdersMock = mIOrderRepositoryMockGetOrders{mock: m}
+	m.GetOrdersMock.callArgs = []*IOrderRepositoryMockGetOrdersParams{}
 
 	m.SetStatusMock = mIOrderRepositoryMockSetStatus{mock: m}
 	m.SetStatusMock.callArgs = []*IOrderRepositoryMockSetStatusParams{}
@@ -749,6 +759,318 @@ func (m *IOrderRepositoryMock) MinimockGetByIDInspect() {
 	}
 }
 
+type mIOrderRepositoryMockGetOrders struct {
+	optional           bool
+	mock               *IOrderRepositoryMock
+	defaultExpectation *IOrderRepositoryMockGetOrdersExpectation
+	expectations       []*IOrderRepositoryMockGetOrdersExpectation
+
+	callArgs []*IOrderRepositoryMockGetOrdersParams
+	mutex    sync.RWMutex
+
+	expectedInvocations       uint64
+	expectedInvocationsOrigin string
+}
+
+// IOrderRepositoryMockGetOrdersExpectation specifies expectation struct of the IOrderRepository.GetOrders
+type IOrderRepositoryMockGetOrdersExpectation struct {
+	mock               *IOrderRepositoryMock
+	params             *IOrderRepositoryMockGetOrdersParams
+	paramPtrs          *IOrderRepositoryMockGetOrdersParamPtrs
+	expectationOrigins IOrderRepositoryMockGetOrdersExpectationOrigins
+	results            *IOrderRepositoryMockGetOrdersResults
+	returnOrigin       string
+	Counter            uint64
+}
+
+// IOrderRepositoryMockGetOrdersParams contains parameters of the IOrderRepository.GetOrders
+type IOrderRepositoryMockGetOrdersParams struct {
+	ctx context.Context
+}
+
+// IOrderRepositoryMockGetOrdersParamPtrs contains pointers to parameters of the IOrderRepository.GetOrders
+type IOrderRepositoryMockGetOrdersParamPtrs struct {
+	ctx *context.Context
+}
+
+// IOrderRepositoryMockGetOrdersResults contains results of the IOrderRepository.GetOrders
+type IOrderRepositoryMockGetOrdersResults struct {
+	oa1 []models.Order
+	err error
+}
+
+// IOrderRepositoryMockGetOrdersOrigins contains origins of expectations of the IOrderRepository.GetOrders
+type IOrderRepositoryMockGetOrdersExpectationOrigins struct {
+	origin    string
+	originCtx string
+}
+
+// Marks this method to be optional. The default behavior of any method with Return() is '1 or more', meaning
+// the test will fail minimock's automatic final call check if the mocked method was not called at least once.
+// Optional() makes method check to work in '0 or more' mode.
+// It is NOT RECOMMENDED to use this option unless you really need it, as default behaviour helps to
+// catch the problems when the expected method call is totally skipped during test run.
+func (mmGetOrders *mIOrderRepositoryMockGetOrders) Optional() *mIOrderRepositoryMockGetOrders {
+	mmGetOrders.optional = true
+	return mmGetOrders
+}
+
+// Expect sets up expected params for IOrderRepository.GetOrders
+func (mmGetOrders *mIOrderRepositoryMockGetOrders) Expect(ctx context.Context) *mIOrderRepositoryMockGetOrders {
+	if mmGetOrders.mock.funcGetOrders != nil {
+		mmGetOrders.mock.t.Fatalf("IOrderRepositoryMock.GetOrders mock is already set by Set")
+	}
+
+	if mmGetOrders.defaultExpectation == nil {
+		mmGetOrders.defaultExpectation = &IOrderRepositoryMockGetOrdersExpectation{}
+	}
+
+	if mmGetOrders.defaultExpectation.paramPtrs != nil {
+		mmGetOrders.mock.t.Fatalf("IOrderRepositoryMock.GetOrders mock is already set by ExpectParams functions")
+	}
+
+	mmGetOrders.defaultExpectation.params = &IOrderRepositoryMockGetOrdersParams{ctx}
+	mmGetOrders.defaultExpectation.expectationOrigins.origin = minimock.CallerInfo(1)
+	for _, e := range mmGetOrders.expectations {
+		if minimock.Equal(e.params, mmGetOrders.defaultExpectation.params) {
+			mmGetOrders.mock.t.Fatalf("Expectation set by When has same params: %#v", *mmGetOrders.defaultExpectation.params)
+		}
+	}
+
+	return mmGetOrders
+}
+
+// ExpectCtxParam1 sets up expected param ctx for IOrderRepository.GetOrders
+func (mmGetOrders *mIOrderRepositoryMockGetOrders) ExpectCtxParam1(ctx context.Context) *mIOrderRepositoryMockGetOrders {
+	if mmGetOrders.mock.funcGetOrders != nil {
+		mmGetOrders.mock.t.Fatalf("IOrderRepositoryMock.GetOrders mock is already set by Set")
+	}
+
+	if mmGetOrders.defaultExpectation == nil {
+		mmGetOrders.defaultExpectation = &IOrderRepositoryMockGetOrdersExpectation{}
+	}
+
+	if mmGetOrders.defaultExpectation.params != nil {
+		mmGetOrders.mock.t.Fatalf("IOrderRepositoryMock.GetOrders mock is already set by Expect")
+	}
+
+	if mmGetOrders.defaultExpectation.paramPtrs == nil {
+		mmGetOrders.defaultExpectation.paramPtrs = &IOrderRepositoryMockGetOrdersParamPtrs{}
+	}
+	mmGetOrders.defaultExpectation.paramPtrs.ctx = &ctx
+	mmGetOrders.defaultExpectation.expectationOrigins.originCtx = minimock.CallerInfo(1)
+
+	return mmGetOrders
+}
+
+// Inspect accepts an inspector function that has same arguments as the IOrderRepository.GetOrders
+func (mmGetOrders *mIOrderRepositoryMockGetOrders) Inspect(f func(ctx context.Context)) *mIOrderRepositoryMockGetOrders {
+	if mmGetOrders.mock.inspectFuncGetOrders != nil {
+		mmGetOrders.mock.t.Fatalf("Inspect function is already set for IOrderRepositoryMock.GetOrders")
+	}
+
+	mmGetOrders.mock.inspectFuncGetOrders = f
+
+	return mmGetOrders
+}
+
+// Return sets up results that will be returned by IOrderRepository.GetOrders
+func (mmGetOrders *mIOrderRepositoryMockGetOrders) Return(oa1 []models.Order, err error) *IOrderRepositoryMock {
+	if mmGetOrders.mock.funcGetOrders != nil {
+		mmGetOrders.mock.t.Fatalf("IOrderRepositoryMock.GetOrders mock is already set by Set")
+	}
+
+	if mmGetOrders.defaultExpectation == nil {
+		mmGetOrders.defaultExpectation = &IOrderRepositoryMockGetOrdersExpectation{mock: mmGetOrders.mock}
+	}
+	mmGetOrders.defaultExpectation.results = &IOrderRepositoryMockGetOrdersResults{oa1, err}
+	mmGetOrders.defaultExpectation.returnOrigin = minimock.CallerInfo(1)
+	return mmGetOrders.mock
+}
+
+// Set uses given function f to mock the IOrderRepository.GetOrders method
+func (mmGetOrders *mIOrderRepositoryMockGetOrders) Set(f func(ctx context.Context) (oa1 []models.Order, err error)) *IOrderRepositoryMock {
+	if mmGetOrders.defaultExpectation != nil {
+		mmGetOrders.mock.t.Fatalf("Default expectation is already set for the IOrderRepository.GetOrders method")
+	}
+
+	if len(mmGetOrders.expectations) > 0 {
+		mmGetOrders.mock.t.Fatalf("Some expectations are already set for the IOrderRepository.GetOrders method")
+	}
+
+	mmGetOrders.mock.funcGetOrders = f
+	mmGetOrders.mock.funcGetOrdersOrigin = minimock.CallerInfo(1)
+	return mmGetOrders.mock
+}
+
+// When sets expectation for the IOrderRepository.GetOrders which will trigger the result defined by the following
+// Then helper
+func (mmGetOrders *mIOrderRepositoryMockGetOrders) When(ctx context.Context) *IOrderRepositoryMockGetOrdersExpectation {
+	if mmGetOrders.mock.funcGetOrders != nil {
+		mmGetOrders.mock.t.Fatalf("IOrderRepositoryMock.GetOrders mock is already set by Set")
+	}
+
+	expectation := &IOrderRepositoryMockGetOrdersExpectation{
+		mock:               mmGetOrders.mock,
+		params:             &IOrderRepositoryMockGetOrdersParams{ctx},
+		expectationOrigins: IOrderRepositoryMockGetOrdersExpectationOrigins{origin: minimock.CallerInfo(1)},
+	}
+	mmGetOrders.expectations = append(mmGetOrders.expectations, expectation)
+	return expectation
+}
+
+// Then sets up IOrderRepository.GetOrders return parameters for the expectation previously defined by the When method
+func (e *IOrderRepositoryMockGetOrdersExpectation) Then(oa1 []models.Order, err error) *IOrderRepositoryMock {
+	e.results = &IOrderRepositoryMockGetOrdersResults{oa1, err}
+	return e.mock
+}
+
+// Times sets number of times IOrderRepository.GetOrders should be invoked
+func (mmGetOrders *mIOrderRepositoryMockGetOrders) Times(n uint64) *mIOrderRepositoryMockGetOrders {
+	if n == 0 {
+		mmGetOrders.mock.t.Fatalf("Times of IOrderRepositoryMock.GetOrders mock can not be zero")
+	}
+	mm_atomic.StoreUint64(&mmGetOrders.expectedInvocations, n)
+	mmGetOrders.expectedInvocationsOrigin = minimock.CallerInfo(1)
+	return mmGetOrders
+}
+
+func (mmGetOrders *mIOrderRepositoryMockGetOrders) invocationsDone() bool {
+	if len(mmGetOrders.expectations) == 0 && mmGetOrders.defaultExpectation == nil && mmGetOrders.mock.funcGetOrders == nil {
+		return true
+	}
+
+	totalInvocations := mm_atomic.LoadUint64(&mmGetOrders.mock.afterGetOrdersCounter)
+	expectedInvocations := mm_atomic.LoadUint64(&mmGetOrders.expectedInvocations)
+
+	return totalInvocations > 0 && (expectedInvocations == 0 || expectedInvocations == totalInvocations)
+}
+
+// GetOrders implements mm_service.IOrderRepository
+func (mmGetOrders *IOrderRepositoryMock) GetOrders(ctx context.Context) (oa1 []models.Order, err error) {
+	mm_atomic.AddUint64(&mmGetOrders.beforeGetOrdersCounter, 1)
+	defer mm_atomic.AddUint64(&mmGetOrders.afterGetOrdersCounter, 1)
+
+	mmGetOrders.t.Helper()
+
+	if mmGetOrders.inspectFuncGetOrders != nil {
+		mmGetOrders.inspectFuncGetOrders(ctx)
+	}
+
+	mm_params := IOrderRepositoryMockGetOrdersParams{ctx}
+
+	// Record call args
+	mmGetOrders.GetOrdersMock.mutex.Lock()
+	mmGetOrders.GetOrdersMock.callArgs = append(mmGetOrders.GetOrdersMock.callArgs, &mm_params)
+	mmGetOrders.GetOrdersMock.mutex.Unlock()
+
+	for _, e := range mmGetOrders.GetOrdersMock.expectations {
+		if minimock.Equal(*e.params, mm_params) {
+			mm_atomic.AddUint64(&e.Counter, 1)
+			return e.results.oa1, e.results.err
+		}
+	}
+
+	if mmGetOrders.GetOrdersMock.defaultExpectation != nil {
+		mm_atomic.AddUint64(&mmGetOrders.GetOrdersMock.defaultExpectation.Counter, 1)
+		mm_want := mmGetOrders.GetOrdersMock.defaultExpectation.params
+		mm_want_ptrs := mmGetOrders.GetOrdersMock.defaultExpectation.paramPtrs
+
+		mm_got := IOrderRepositoryMockGetOrdersParams{ctx}
+
+		if mm_want_ptrs != nil {
+
+			if mm_want_ptrs.ctx != nil && !minimock.Equal(*mm_want_ptrs.ctx, mm_got.ctx) {
+				mmGetOrders.t.Errorf("IOrderRepositoryMock.GetOrders got unexpected parameter ctx, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmGetOrders.GetOrdersMock.defaultExpectation.expectationOrigins.originCtx, *mm_want_ptrs.ctx, mm_got.ctx, minimock.Diff(*mm_want_ptrs.ctx, mm_got.ctx))
+			}
+
+		} else if mm_want != nil && !minimock.Equal(*mm_want, mm_got) {
+			mmGetOrders.t.Errorf("IOrderRepositoryMock.GetOrders got unexpected parameters, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+				mmGetOrders.GetOrdersMock.defaultExpectation.expectationOrigins.origin, *mm_want, mm_got, minimock.Diff(*mm_want, mm_got))
+		}
+
+		mm_results := mmGetOrders.GetOrdersMock.defaultExpectation.results
+		if mm_results == nil {
+			mmGetOrders.t.Fatal("No results are set for the IOrderRepositoryMock.GetOrders")
+		}
+		return (*mm_results).oa1, (*mm_results).err
+	}
+	if mmGetOrders.funcGetOrders != nil {
+		return mmGetOrders.funcGetOrders(ctx)
+	}
+	mmGetOrders.t.Fatalf("Unexpected call to IOrderRepositoryMock.GetOrders. %v", ctx)
+	return
+}
+
+// GetOrdersAfterCounter returns a count of finished IOrderRepositoryMock.GetOrders invocations
+func (mmGetOrders *IOrderRepositoryMock) GetOrdersAfterCounter() uint64 {
+	return mm_atomic.LoadUint64(&mmGetOrders.afterGetOrdersCounter)
+}
+
+// GetOrdersBeforeCounter returns a count of IOrderRepositoryMock.GetOrders invocations
+func (mmGetOrders *IOrderRepositoryMock) GetOrdersBeforeCounter() uint64 {
+	return mm_atomic.LoadUint64(&mmGetOrders.beforeGetOrdersCounter)
+}
+
+// Calls returns a list of arguments used in each call to IOrderRepositoryMock.GetOrders.
+// The list is in the same order as the calls were made (i.e. recent calls have a higher index)
+func (mmGetOrders *mIOrderRepositoryMockGetOrders) Calls() []*IOrderRepositoryMockGetOrdersParams {
+	mmGetOrders.mutex.RLock()
+
+	argCopy := make([]*IOrderRepositoryMockGetOrdersParams, len(mmGetOrders.callArgs))
+	copy(argCopy, mmGetOrders.callArgs)
+
+	mmGetOrders.mutex.RUnlock()
+
+	return argCopy
+}
+
+// MinimockGetOrdersDone returns true if the count of the GetOrders invocations corresponds
+// the number of defined expectations
+func (m *IOrderRepositoryMock) MinimockGetOrdersDone() bool {
+	if m.GetOrdersMock.optional {
+		// Optional methods provide '0 or more' call count restriction.
+		return true
+	}
+
+	for _, e := range m.GetOrdersMock.expectations {
+		if mm_atomic.LoadUint64(&e.Counter) < 1 {
+			return false
+		}
+	}
+
+	return m.GetOrdersMock.invocationsDone()
+}
+
+// MinimockGetOrdersInspect logs each unmet expectation
+func (m *IOrderRepositoryMock) MinimockGetOrdersInspect() {
+	for _, e := range m.GetOrdersMock.expectations {
+		if mm_atomic.LoadUint64(&e.Counter) < 1 {
+			m.t.Errorf("Expected call to IOrderRepositoryMock.GetOrders at\n%s with params: %#v", e.expectationOrigins.origin, *e.params)
+		}
+	}
+
+	afterGetOrdersCounter := mm_atomic.LoadUint64(&m.afterGetOrdersCounter)
+	// if default expectation was set then invocations count should be greater than zero
+	if m.GetOrdersMock.defaultExpectation != nil && afterGetOrdersCounter < 1 {
+		if m.GetOrdersMock.defaultExpectation.params == nil {
+			m.t.Errorf("Expected call to IOrderRepositoryMock.GetOrders at\n%s", m.GetOrdersMock.defaultExpectation.returnOrigin)
+		} else {
+			m.t.Errorf("Expected call to IOrderRepositoryMock.GetOrders at\n%s with params: %#v", m.GetOrdersMock.defaultExpectation.expectationOrigins.origin, *m.GetOrdersMock.defaultExpectation.params)
+		}
+	}
+	// if func was set then invocations count should be greater than zero
+	if m.funcGetOrders != nil && afterGetOrdersCounter < 1 {
+		m.t.Errorf("Expected call to IOrderRepositoryMock.GetOrders at\n%s", m.funcGetOrdersOrigin)
+	}
+
+	if !m.GetOrdersMock.invocationsDone() && afterGetOrdersCounter > 0 {
+		m.t.Errorf("Expected %d calls to IOrderRepositoryMock.GetOrders at\n%s but found %d calls",
+			mm_atomic.LoadUint64(&m.GetOrdersMock.expectedInvocations), m.GetOrdersMock.expectedInvocationsOrigin, afterGetOrdersCounter)
+	}
+}
+
 type mIOrderRepositoryMockSetStatus struct {
 	optional           bool
 	mock               *IOrderRepositoryMock
@@ -1130,6 +1452,8 @@ func (m *IOrderRepositoryMock) MinimockFinish() {
 
 			m.MinimockGetByIDInspect()
 
+			m.MinimockGetOrdersInspect()
+
 			m.MinimockSetStatusInspect()
 		}
 	})
@@ -1156,5 +1480,6 @@ func (m *IOrderRepositoryMock) minimockDone() bool {
 	return done &&
 		m.MinimockCreateDone() &&
 		m.MinimockGetByIDDone() &&
+		m.MinimockGetOrdersDone() &&
 		m.MinimockSetStatusDone()
 }

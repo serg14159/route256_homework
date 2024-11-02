@@ -26,6 +26,7 @@ type LomsClient interface {
 	OrderInfo(ctx context.Context, in *OrderInfoRequest, opts ...grpc.CallOption) (*OrderInfoResponse, error)
 	OrderPay(ctx context.Context, in *OrderPayRequest, opts ...grpc.CallOption) (*OrderPayResponse, error)
 	OrderCancel(ctx context.Context, in *OrderCancelRequest, opts ...grpc.CallOption) (*OrderCancelResponse, error)
+	OrderList(ctx context.Context, in *OrderListRequest, opts ...grpc.CallOption) (*OrderListResponse, error)
 	StocksInfo(ctx context.Context, in *StocksInfoRequest, opts ...grpc.CallOption) (*StocksInfoResponse, error)
 }
 
@@ -73,6 +74,15 @@ func (c *lomsClient) OrderCancel(ctx context.Context, in *OrderCancelRequest, op
 	return out, nil
 }
 
+func (c *lomsClient) OrderList(ctx context.Context, in *OrderListRequest, opts ...grpc.CallOption) (*OrderListResponse, error) {
+	out := new(OrderListResponse)
+	err := c.cc.Invoke(ctx, "/loms.Loms/OrderList", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *lomsClient) StocksInfo(ctx context.Context, in *StocksInfoRequest, opts ...grpc.CallOption) (*StocksInfoResponse, error) {
 	out := new(StocksInfoResponse)
 	err := c.cc.Invoke(ctx, "/loms.Loms/StocksInfo", in, out, opts...)
@@ -90,6 +100,7 @@ type LomsServer interface {
 	OrderInfo(context.Context, *OrderInfoRequest) (*OrderInfoResponse, error)
 	OrderPay(context.Context, *OrderPayRequest) (*OrderPayResponse, error)
 	OrderCancel(context.Context, *OrderCancelRequest) (*OrderCancelResponse, error)
+	OrderList(context.Context, *OrderListRequest) (*OrderListResponse, error)
 	StocksInfo(context.Context, *StocksInfoRequest) (*StocksInfoResponse, error)
 	mustEmbedUnimplementedLomsServer()
 }
@@ -109,6 +120,9 @@ func (UnimplementedLomsServer) OrderPay(context.Context, *OrderPayRequest) (*Ord
 }
 func (UnimplementedLomsServer) OrderCancel(context.Context, *OrderCancelRequest) (*OrderCancelResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method OrderCancel not implemented")
+}
+func (UnimplementedLomsServer) OrderList(context.Context, *OrderListRequest) (*OrderListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method OrderList not implemented")
 }
 func (UnimplementedLomsServer) StocksInfo(context.Context, *StocksInfoRequest) (*StocksInfoResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method StocksInfo not implemented")
@@ -198,6 +212,24 @@ func _Loms_OrderCancel_Handler(srv interface{}, ctx context.Context, dec func(in
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Loms_OrderList_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(OrderListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LomsServer).OrderList(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/loms.Loms/OrderList",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LomsServer).OrderList(ctx, req.(*OrderListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Loms_StocksInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(StocksInfoRequest)
 	if err := dec(in); err != nil {
@@ -238,6 +270,10 @@ var Loms_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "OrderCancel",
 			Handler:    _Loms_OrderCancel_Handler,
+		},
+		{
+			MethodName: "OrderList",
+			Handler:    _Loms_OrderList_Handler,
 		},
 		{
 			MethodName: "StocksInfo",

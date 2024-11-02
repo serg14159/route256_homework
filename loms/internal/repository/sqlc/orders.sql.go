@@ -49,6 +49,45 @@ func (q *Queries) CreateOrderItem(ctx context.Context, arg *CreateOrderItemParam
 	return id, err
 }
 
+const getAllOrders = `-- name: GetAllOrders :many
+SELECT o.id, o.user_id, s.name AS status, o.created_at
+FROM orders o
+JOIN statuses s ON o.status_id = s.id
+ORDER BY o.id DESC
+`
+
+type GetAllOrdersRow struct {
+	ID        int64
+	UserID    int64
+	Status    string
+	CreatedAt pgtype.Timestamptz
+}
+
+func (q *Queries) GetAllOrders(ctx context.Context) ([]*GetAllOrdersRow, error) {
+	rows, err := q.db.Query(ctx, getAllOrders)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*GetAllOrdersRow
+	for rows.Next() {
+		var i GetAllOrdersRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Status,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, &i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getOrderByID = `-- name: GetOrderByID :one
 SELECT o.id, o.user_id, s.name AS status, o.created_at
 FROM orders o

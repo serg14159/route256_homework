@@ -17,6 +17,7 @@ type ILomsService interface {
 	OrderInfo(ctx context.Context, req *models.OrderInfoRequest) (*models.OrderInfoResponse, error)
 	OrderPay(ctx context.Context, req *models.OrderPayRequest) error
 	OrderCancel(ctx context.Context, req *models.OrderCancelRequest) error
+	OrderList(ctx context.Context) ([]models.Order, error)
 	StocksInfo(ctx context.Context, req *models.StocksInfoRequest) (*models.StocksInfoResponse, error)
 }
 

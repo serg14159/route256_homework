@@ -23,3 +23,9 @@ RETURNING id;
 SELECT id, order_id, sku, count
 FROM items
 WHERE order_id = $1;
+
+-- name: GetAllOrders :many
+SELECT o.id, o.user_id, s.name AS status, o.created_at
+FROM orders o
+JOIN statuses s ON o.status_id = s.id
+ORDER BY o.id DESC;
