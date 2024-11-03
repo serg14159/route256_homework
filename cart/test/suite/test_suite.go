@@ -77,7 +77,7 @@ func (s *TSuite) SetupTest() {
 
 	// Init logger
 	var errorOutputPaths = []string{stdout}
-	log := logger.NewLogger(ctx, true, errorOutputPaths, "cart")
+	log := logger.NewLogger(ctx, true, errorOutputPaths, "cart", nil)
 	s.logger = log
 
 	// Repository

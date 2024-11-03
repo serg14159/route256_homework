@@ -4,6 +4,7 @@ go 1.22
 
 require (
 	github.com/go-playground/validator v9.31.0+incompatible
+	github.com/go-redis/redis/v8 v8.11.5
 	github.com/gojuno/minimock/v3 v3.4.0
 	github.com/joho/godotenv v1.5.1
 	github.com/prometheus/client_golang v1.20.5
@@ -13,6 +14,7 @@ require (
 	go.opentelemetry.io/otel v1.31.0
 	go.opentelemetry.io/otel/sdk v1.31.0
 	go.uber.org/goleak v1.3.0
+	golang.org/x/sync v0.8.0
 	google.golang.org/grpc v1.67.1
 )
 
@@ -27,7 +29,6 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
-	github.com/go-redis/redis/v8 v8.11.5 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/klauspost/compress v1.17.9 // indirect

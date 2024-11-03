@@ -31,3 +31,6 @@ redis:
   password: ""
   db: 0
   ttl: 600
+
+graylog:
+  uri: "0.0.0.0:12201"

@@ -93,6 +93,13 @@ func (r *Redis) GetPassword() string { return r.Password }
 func (r *Redis) GetDB() int          { return r.DB }
 func (r *Redis) GetTTL() int         { return r.TTL }
 
+// Graylog - contains parameters for graylog.
+type Graylog struct {
+	URI string `yaml:"uri" mapstructure:"uri"`
+}
+
+func (g *Graylog) GetURI() string { return g.URI }
+
 // Config - contains all configuration parameters in config package
 type Config struct {
 	Project        Project        `yaml:"project" mapstructure:"project"`
@@ -103,6 +110,7 @@ type Config struct {
 	Metrics        Metrics        `yaml:"metrics" mapstructure:"metrics"`
 	Cache          Cache          `yaml:"cache" mapstructure:"cache"`
 	Redis          Redis          `yaml:"redis" mapstructure:"redis"`
+	Graylog        Graylog        `yaml:"graylog" mapstructure:"graylog"`
 }
 
 func NewConfig() *Config {
@@ -178,6 +186,9 @@ func setDefaultValues() {
 	viper.SetDefault("redis.password", "")
 	viper.SetDefault("redis.db", 0)
 	viper.SetDefault("redis.ttl", 60)
+
+	// Graylog
+	viper.SetDefault("graylog.uri", "127.0.0.1:12201")
 }
 
 // bindEnvVariables function for bind env variables with config name.
@@ -216,6 +227,9 @@ func (c *Config) bindEnvVariables() error {
 		"redis.password": "REDIS_PASSWORD",
 		"redis.db":       "REDIS_DB",
 		"redis.ttl":      "REDIS_TTL",
+
+		// Graylog
+		"graylog.uri": "GRAYLOG_URI",
 	}
 
 	for key, env := range envVars {

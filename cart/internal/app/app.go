@@ -70,7 +70,8 @@ func NewApp(ctx context.Context) (*App, error) {
 
 	// Init logger
 	var errorOutputPaths = []string{stdout}
-	log := logger.NewLogger(ctx, cfg.Project.GetDebug(), errorOutputPaths, cfg.Project.GetName())
+	graylogAddr := cfg.Graylog.GetURI()
+	log := logger.NewLogger(ctx, cfg.Project.GetDebug(), errorOutputPaths, cfg.Project.GetName(), &graylogAddr)
 
 	// App info
 	logger.Infow(ctx, fmt.Sprintf("Starting service: %s", cfg.Project.GetName()),

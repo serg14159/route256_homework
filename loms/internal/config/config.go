@@ -22,25 +22,11 @@ type Project struct {
 	CommitHash  string
 }
 
-func (p *Project) GetDebug() bool {
-	return p.Debug
-}
-
-func (p *Project) GetName() string {
-	return p.Name
-}
-
-func (p *Project) GetEnvironment() string {
-	return p.Environment
-}
-
-func (p *Project) GetVersion() string {
-	return p.Version
-}
-
-func (p *Project) GetCommitHash() string {
-	return p.CommitHash
-}
+func (p *Project) GetDebug() bool         { return p.Debug }
+func (p *Project) GetName() string        { return p.Name }
+func (p *Project) GetEnvironment() string { return p.Environment }
+func (p *Project) GetVersion() string     { return p.Version }
+func (p *Project) GetCommitHash() string  { return p.CommitHash }
 
 // Grpc - contains parameter address grpc.
 type Grpc struct {
@@ -51,25 +37,11 @@ type Grpc struct {
 	MaxConnectionAge  int64  `yaml:"maxConnectionAge" mapstructure:"maxConnectionAge"`
 }
 
-func (g *Grpc) GetGrpcHost() string {
-	return g.Host
-}
-
-func (g *Grpc) GetGrpcPort() int {
-	return g.Port
-}
-
-func (g *Grpc) GetGrpcMaxConnectionIdle() int64 {
-	return g.MaxConnectionIdle
-}
-
-func (g *Grpc) GetGrpcTimeout() int64 {
-	return g.Timeout
-}
-
-func (g *Grpc) GetMaxConnectionAge() int64 {
-	return g.MaxConnectionAge
-}
+func (g *Grpc) GetGrpcHost() string             { return g.Host }
+func (g *Grpc) GetGrpcPort() int                { return g.Port }
+func (g *Grpc) GetGrpcMaxConnectionIdle() int64 { return g.MaxConnectionIdle }
+func (g *Grpc) GetGrpcTimeout() int64           { return g.Timeout }
+func (g *Grpc) GetMaxConnectionAge() int64      { return g.MaxConnectionAge }
 
 // Gateway - contains parameters for grpc-gateway port.
 type Gateway struct {
@@ -78,17 +50,9 @@ type Gateway struct {
 	AllowedCORSOrigins []string `yaml:"allowedCorsOrigins" mapstructure:"allowedCorsOrigins"`
 }
 
-func (g *Gateway) GetGatewayHost() string {
-	return g.Host
-}
-
-func (g *Gateway) GetGatewayPort() int {
-	return g.Port
-}
-
-func (g *Gateway) GetGatewayAllowedCORSOrigins() []string {
-	return g.AllowedCORSOrigins
-}
+func (g *Gateway) GetGatewayHost() string                 { return g.Host }
+func (g *Gateway) GetGatewayPort() int                    { return g.Port }
+func (g *Gateway) GetGatewayAllowedCORSOrigins() []string { return g.AllowedCORSOrigins }
 
 // Swagger - contains parameters for swagger port.
 type Swagger struct {
@@ -99,34 +63,18 @@ type Swagger struct {
 	Dist     string `yaml:"dist" mapstructure:"dist"`
 }
 
-func (s *Swagger) GetSwaggerHost() string {
-	return s.Host
-}
-
-func (s *Swagger) GetSwaggerPort() int {
-	return s.Port
-}
-
-func (s *Swagger) GetGtAddr() string {
-	return s.GtAddr
-}
-
-func (s *Swagger) GetFilepath() string {
-	return s.Filepath
-}
-
-func (s *Swagger) GetDist() string {
-	return s.Dist
-}
+func (s *Swagger) GetSwaggerHost() string { return s.Host }
+func (s *Swagger) GetSwaggerPort() int    { return s.Port }
+func (s *Swagger) GetGtAddr() string      { return s.GtAddr }
+func (s *Swagger) GetFilepath() string    { return s.Filepath }
+func (s *Swagger) GetDist() string        { return s.Dist }
 
 // Data - struct for data.
 type Data struct {
 	StockFilePath string `yaml:"stockFilePath" mapstructure:"stockFilePath"`
 }
 
-func (d *Data) GetStockFilePath() string {
-	return d.StockFilePath
-}
+func (d *Data) GetStockFilePath() string { return d.StockFilePath }
 
 // Database.
 type Database struct {
@@ -135,17 +83,9 @@ type Database struct {
 	ShardBucketCount int      `yaml:"shardBucketCount" mapstructure:"shardBucketCount"`
 }
 
-func (d *Database) GetDSN() string {
-	return d.DSN
-}
-
-func (d *Database) GetShards() []string {
-	return d.Shards
-}
-
-func (d *Database) GetShardBucketCount() int {
-	return d.ShardBucketCount
-}
+func (d *Database) GetDSN() string           { return d.DSN }
+func (d *Database) GetShards() []string      { return d.Shards }
+func (d *Database) GetShardBucketCount() int { return d.ShardBucketCount }
 
 // Kafka.
 type Kafka struct {
@@ -153,31 +93,29 @@ type Kafka struct {
 	Topic   string   `yaml:"topic"`
 }
 
-func (k *Kafka) GetBrokers() []string {
-	return k.Brokers
-}
-
-func (k *Kafka) GetTopic() string {
-	return k.Topic
-}
+func (k *Kafka) GetBrokers() []string { return k.Brokers }
+func (k *Kafka) GetTopic() string     { return k.Topic }
 
 // Jaeger - contains parameters for jaeger.
 type Jaeger struct {
 	URI string `yaml:"uri" mapstructure:"uri"`
 }
 
-func (j *Jaeger) GetURI() string {
-	return j.URI
-}
+func (j *Jaeger) GetURI() string { return j.URI }
 
 // Metrics - contains parameters for metrics.
 type Metrics struct {
 	URI string `yaml:"uri" mapstructure:"uri"`
 }
 
-func (m *Metrics) GetURI() string {
-	return m.URI
+func (m *Metrics) GetURI() string { return m.URI }
+
+// Graylog - contains parameters for graylog.
+type Graylog struct {
+	URI string `yaml:"uri" mapstructure:"uri"`
 }
+
+func (g *Graylog) GetURI() string { return g.URI }
 
 // Config - contains all configuration parameters in config package.
 type Config struct {
@@ -190,6 +128,7 @@ type Config struct {
 	Kafka    Kafka    `yaml:"kafka" mapstructure:"kafka"`
 	Jaeger   Jaeger   `yaml:"jaeger" mapstructure:"jaeger"`
 	Metrics  Metrics  `yaml:"metrics" mapstructure:"metrics"`
+	Graylog  Graylog  `yaml:"graylog" mapstructure:"graylog"`
 }
 
 func NewConfig() *Config {
@@ -280,6 +219,9 @@ func setDefaultValues() {
 
 	// Metrics
 	viper.SetDefault("metrics.uri", "http://localhost:2113")
+
+	// Graylog
+	viper.SetDefault("graylog.uri", "127.0.0.1:12201")
 }
 
 // bindEnvVariables function for bind env variables with config name.
@@ -326,6 +268,9 @@ func (c *Config) bindEnvVariables() error {
 
 		// Metrics
 		"metrics.uri": "METRICS_URI",
+
+		// Graylog
+		"graylog.uri": "GRAYLOG_URI",
 	}
 
 	for key, env := range envVars {

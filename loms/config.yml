@@ -45,4 +45,7 @@ jaeger:
 metrics:
   uri: "0.0.0.0:2113"
 
+graylog:
+  uri: "0.0.0.0:12201"
+
   
