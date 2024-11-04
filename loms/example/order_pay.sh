@@ -1,7 +1,7 @@
 #!/bin/bash
 
 GRPC_HOST="localhost:50051"
-GRPC_METHOD="loms.Loms/OrderList"
+GRPC_METHOD="loms.Loms/OrderPay"
 
 payload=$(
   cat <<EOF
