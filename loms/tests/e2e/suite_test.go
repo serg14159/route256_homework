@@ -16,11 +16,11 @@ import (
 	"google.golang.org/grpc/test/bufconn"
 
 	loms_app "route256/loms/internal/app/loms"
-	"route256/loms/internal/config"
 	"route256/loms/internal/models"
 	db "route256/loms/internal/pkg/db"
 	kafka_producer "route256/loms/internal/pkg/kafka"
 	mw "route256/loms/internal/pkg/mw"
+	"route256/loms/internal/pkg/shard_manager"
 	repo_order "route256/loms/internal/repository/orders"
 	repo_outbox "route256/loms/internal/repository/outbox"
 	repo_stock "route256/loms/internal/repository/stocks"
@@ -37,10 +37,14 @@ import (
 )
 
 const (
-	bufSize      = 1024 * 1024
-	DSN          = "postgres://user:password@localhost:5432/postgres_test?sslmode=disable"
-	KafkaBrokers = "localhost:9092"
-	KafkaTopic   = "test_topic"
+	bufSize          = 1024 * 1024
+	DSN              = "postgres://user:password@localhost:5432/postgres_test?sslmode=disable"
+	ShardDSN1        = "postgres://user:password@localhost:5430/postgres_test?sslmode=disable"
+	ShardDSN2        = "postgres://user:password@localhost:5431/postgres_test?sslmode=disable"
+	ShardCount       = 2
+	ShardBucketCount = 10
+	KafkaBrokers     = "localhost:9092"
+	KafkaTopic       = "test_topic"
 )
 
 // TSuite
@@ -59,7 +63,9 @@ type TSuite struct {
 	kafkaProducer *kafka_producer.KafkaProducer
 	kafkaConfig   *TestKafkaConfig
 	dbPool        *pgxpool.Pool
-	connGoose     *sql.DB
+	shardPools    []*pgxpool.Pool
+	shardManager  *shard_manager.ShardManager
+	gooseConns    []*sql.DB
 }
 
 // TestKafkaConfig
@@ -80,25 +86,49 @@ func (c *TestKafkaConfig) GetTopic() string {
 
 // SetupSuite
 func (s *TSuite) SetupSuite() {
+	// Context
+	ctx := context.Background()
 	// Initialize bufconn listener
 	s.listener = bufconn.Listen(bufSize)
 
 	// DB connection
-	dbConn, err := db.NewConnect(context.Background(), &config.Database{
-		DSN: DSN,
-	})
+	dbConn, err := db.NewConnect(ctx, DSN)
 	require.NoError(s.T(), err)
 	s.dbPool = dbConn
 
 	// DB connection for goose migrations
-	s.connGoose, err = sql.Open("pgx", DSN)
+	s.gooseConns = make([]*sql.DB, 3)
+	s.gooseConns[0], err = sql.Open("pgx", DSN)
+	require.NoError(s.T(), err)
+	s.gooseConns[1], err = sql.Open("pgx", ShardDSN1)
+	require.NoError(s.T(), err)
+	s.gooseConns[2], err = sql.Open("pgx", ShardDSN2)
 	require.NoError(s.T(), err)
 
 	// Run migrations up
-	s.runMigrations("up")
+	for i, conn := range s.gooseConns {
+		if err := runMigrations(conn, "up"); err != nil {
+			log.Fatalf("Failed to run migrations on shard %d: %v", i, err)
+		}
+	}
+
+	// Initialize shard pools
+	shards := []string{ShardDSN1, ShardDSN2}
+	s.shardPools = make([]*pgxpool.Pool, len(shards))
+	for i, dsn := range shards {
+		pool, err := pgxpool.New(ctx, dsn)
+		if err != nil {
+			log.Fatalf("Failed to connect to shard %d: %v", i, err)
+		}
+		s.shardPools[i] = pool
+	}
+
+	// Initialize ShardManager
+	shardFn := shard_manager.GetMurmur3ShardFn(len(s.shardPools))
+	s.shardManager = shard_manager.NewShardManager(shardFn, s.shardPools, ShardBucketCount)
 
 	// Initialize repositories
-	s.orderRepo = repo_order.NewOrderRepository(dbConn)
+	s.orderRepo = repo_order.NewOrderRepository(s.shardManager)
 	s.stockRepo = repo_stock.NewStockRepository(dbConn)
 	s.outboxRepo = repo_outbox.NewOutboxRepository(dbConn)
 	s.txManager = db.NewTransactionManager(dbConn)
@@ -160,7 +190,11 @@ func (s *TSuite) bufDialer(ctx context.Context, address string) (net.Conn, error
 // TearDownSuite rolls back migrations and closes connections after all tests.
 func (s *TSuite) TearDownSuite() {
 	// Run migrations down
-	s.runMigrations("down")
+	for i, conn := range s.gooseConns {
+		if err := runMigrations(conn, "down"); err != nil {
+			log.Fatalf("Failed to run migrations on shard %d: %v", i, err)
+		}
+	}
 
 	if s.conn != nil {
 		s.conn.Close()
@@ -177,8 +211,11 @@ func (s *TSuite) TearDownSuite() {
 	if s.dbPool != nil {
 		s.dbPool.Close()
 	}
-	if s.connGoose != nil {
-		s.connGoose.Close()
+	for _, conn := range s.gooseConns {
+		conn.Close()
+	}
+	for _, conn := range s.shardPools {
+		conn.Close()
 	}
 }
 
@@ -207,37 +244,42 @@ func (s *TSuite) AfterTest(suiteName, testName string) {
 }
 
 // runMigrations
-func (s *TSuite) runMigrations(action string) {
+func runMigrations(db *sql.DB, action string) error {
 	// Configure goose
 	goose.SetBaseFS(migrations.EmbedFS)
 
-	// Set dialect
+	// Init version
 	if err := goose.SetDialect("postgres"); err != nil {
 		log.Fatalf("Error setting goose dialect: %v", err)
+		return err
 	}
 
 	// Run migration
 	var err error
 	switch action {
 	case "up":
-		err = goose.Up(s.connGoose, ".")
+		err = goose.Up(db, ".")
 		if err != nil {
 			log.Fatalf("Error applying migrations up: %v", err)
+			return err
 		}
 		log.Println("Migrations successfully applied up.")
 	case "down":
-		err = goose.DownTo(s.connGoose, ".", 0)
+		err = goose.DownTo(db, ".", 0)
 		if err != nil {
 			log.Fatalf("Error rolling back migrations down: %v", err)
+			return err
 		}
 		log.Println("Migrations successfully rolled back down.")
 	default:
 		log.Fatalf("Unknown migration action: %s. Use 'up' or 'down'.", action)
+		return err
 	}
+	return nil
 }
 
 // consumeKafkaMessages consumes messages from Kafka topic.
-func (s *TSuite) consumeKafkaMessages(ctx context.Context, count int) ([]*sarama.ConsumerMessage, error) {
+func (s *TSuite) consumeKafkaMessages(_ context.Context, count int) ([]*sarama.ConsumerMessage, error) {
 	config := sarama.NewConfig()
 	config.Consumer.Return.Errors = true
 	config.Consumer.Offsets.Initial = sarama.OffsetOldest
@@ -311,7 +353,7 @@ func (s *TSuite) TestOrderCreate_Success() {
 	}
 
 	// Check order status
-	createdOrder, err := s.orderRepo.GetByID(ctx, nil, orderID)
+	createdOrder, err := s.orderRepo.GetByID(ctx, orderID)
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), models.OrderStatusAwaitingPayment, createdOrder.Status)
 	require.Equal(s.T(), models.UID(1), createdOrder.UserID)
@@ -334,7 +376,7 @@ func (s *TSuite) TestOrderCancel_Success() {
 	}
 
 	// Create order in repository
-	orderID, err := s.orderRepo.Create(ctx, nil, order)
+	orderID, err := s.orderRepo.Create(ctx, order)
 	require.NoError(s.T(), err)
 	require.Greater(s.T(), orderID, models.OID(0))
 
@@ -368,7 +410,7 @@ func (s *TSuite) TestOrderCancel_Success() {
 	require.Equal(s.T(), models.OrderStatusCancelled, event.Status)
 
 	// Check order status
-	updatedOrder, err := s.orderRepo.GetByID(ctx, nil, orderID)
+	updatedOrder, err := s.orderRepo.GetByID(ctx, orderID)
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), models.OrderStatusCancelled, updatedOrder.Status)
 }
@@ -387,7 +429,7 @@ func (s *TSuite) TestOrderPay_Success() {
 	}
 
 	// Create order in repository
-	orderID, err := s.orderRepo.Create(ctx, nil, order)
+	orderID, err := s.orderRepo.Create(ctx, order)
 	require.NoError(s.T(), err)
 	require.Greater(s.T(), orderID, models.OID(0))
 
@@ -420,7 +462,7 @@ func (s *TSuite) TestOrderPay_Success() {
 	require.Equal(s.T(), models.OrderStatusPayed, event.Status)
 
 	// Check order status
-	updatedOrder, err := s.orderRepo.GetByID(ctx, nil, orderID)
+	updatedOrder, err := s.orderRepo.GetByID(ctx, orderID)
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), models.OrderStatusPayed, updatedOrder.Status)
 }
@@ -441,7 +483,7 @@ func (s *TSuite) TestOrderInfo_Success() {
 	}
 
 	// Create order in repository
-	orderID, err := s.orderRepo.Create(ctx, nil, order)
+	orderID, err := s.orderRepo.Create(ctx, order)
 	require.NoError(s.T(), err)
 	require.Greater(s.T(), orderID, models.OID(0))
 

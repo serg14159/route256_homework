@@ -19,3 +19,6 @@ primary_data
 replica_data
 archive
 kafka_data
+shard0_data
+shard1_data
+redis_data

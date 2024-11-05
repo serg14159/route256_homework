@@ -1,12 +1,12 @@
 #!/bin/bash
 
 GRPC_HOST="localhost:50051"
-GRPC_METHOD="loms.Loms/OrderCancel"
+GRPC_METHOD="loms.Loms/OrderList"
 
 payload=$(
   cat <<EOF
 {
-  "orderID": 1001
+
 }
 EOF
 )

@@ -11,7 +11,7 @@ import (
 
 // Test for CreateOrder.
 func TestCreateOrder(t *testing.T) {
-	orderRepo := ordersRepository.NewOrderRepository(connTests)
+	orderRepo := ordersRepository.NewOrderRepository(shardManager)
 
 	order := models.Order{
 		UserID: 1,
@@ -22,19 +22,19 @@ func TestCreateOrder(t *testing.T) {
 	}
 	ctx := context.Background()
 	// Run test
-	orderID, err := orderRepo.Create(ctx, nil, order)
+	orderID, err := orderRepo.Create(ctx, order)
 	require.NoError(t, err)
 	require.Greater(t, orderID, int64(0))
 }
 
 // Test for GetOrderByID.
 func TestGetOrderByID(t *testing.T) {
-	orderRepo := ordersRepository.NewOrderRepository(connTests)
+	orderRepo := ordersRepository.NewOrderRepository(shardManager)
 
 	ctx := context.Background()
 	orderID := models.OID(1)
 
-	order, err := orderRepo.GetByID(ctx, nil, orderID)
+	order, err := orderRepo.GetByID(ctx, orderID)
 	require.NoError(t, err)
 	require.Equal(t, order.UserID, int64(1))
 	require.Equal(t, order.Items[0].SKU, models.SKU(1))
@@ -42,14 +42,14 @@ func TestGetOrderByID(t *testing.T) {
 
 // Test for SetOrderStatus.
 func TestSetOrderStatus(t *testing.T) {
-	orderRepo := ordersRepository.NewOrderRepository(connTests)
+	orderRepo := ordersRepository.NewOrderRepository(shardManager)
 
 	ctx := context.Background()
 
-	err := orderRepo.SetStatus(ctx, nil, 1, "paid")
+	err := orderRepo.SetStatus(ctx, 1, "paid")
 	require.NoError(t, err)
 
-	order, err := orderRepo.GetByID(ctx, nil, 1)
+	order, err := orderRepo.GetByID(ctx, 1)
 	require.NoError(t, err)
 	require.Equal(t, order.Status, models.OrderStatus("paid"))
 }

@@ -38,7 +38,7 @@ func (s *LomsService) validateOrderCancelRequest(req *models.OrderCancelRequest)
 // processOrderCancel processes cancel within transaction.
 func (s *LomsService) processOrderCancel(ctx context.Context, tx pgx.Tx, req *models.OrderCancelRequest) error {
 	// Get order by orderID
-	order, err := s.orderRepository.GetByID(ctx, tx, req.OrderID)
+	order, err := s.orderRepository.GetByID(ctx, req.OrderID)
 	if err != nil {
 		return fmt.Errorf("failed to get order: %w", err)
 	}
@@ -54,7 +54,7 @@ func (s *LomsService) processOrderCancel(ctx context.Context, tx pgx.Tx, req *mo
 	}
 
 	// Set order status to "cancelled"
-	if err := s.updateOrderStatus(ctx, tx, req.OrderID, models.OrderStatusCancelled); err != nil {
+	if err := s.updateOrderStatus(ctx, req.OrderID, models.OrderStatusCancelled); err != nil {
 		return err
 	}
 

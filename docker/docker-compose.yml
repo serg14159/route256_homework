@@ -13,6 +13,32 @@ x-postgres-common: &postgres-common
 
 services:
 # postgres
+  # shard0
+  postgres_shard0:
+    <<: *postgres-common
+    container_name: postgres_shard0
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5430:5432"
+    volumes:
+      - ./postgres/shard0_data:/var/lib/postgresql/data
+
+  # shard1
+  postgres_shard1:
+    <<: *postgres-common
+    container_name: postgres_shard1
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5431:5432"
+    volumes:
+      - ./postgres/shard1_data:/var/lib/postgresql/data
+
   postgres_primary:
     <<: *postgres-common
     container_name: postgres_primary
@@ -239,9 +265,87 @@ services:
     networks:
       - app-network
 
+  # redis
+  redis:
+    image: redis:latest
+    container_name: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - app-network
+    # command: ["redis-server", "--requirepass", "yourpassword"]
+
+  # graylog
+  graylog_mongodb:
+    image: mongo:4.2
+    container_name: graylog_mongo
+    restart: always
+    ports:
+     - 27018:27017
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: graylog
+      MONGO_INITDB_ROOT_PASSWORD: graylog_password
+    volumes:
+      - mongo_data_graylog:/data/db
+    networks:
+      - app-network
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.10.2
+    container_name: elasticsearch
+    environment:
+      - http.host=0.0.0.0
+      - transport.host=localhost
+      - network.host=0.0.0.0
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - xpack.monitoring.collection.enabled=true
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+    networks:
+      - app-network
+
+  graylog:
+    image: graylog/graylog:4.2
+    container_name: graylog
+    restart: always
+    environment:
+      # CHANGE ME (must be at least 16 characters)!
+      - GRAYLOG_PASSWORD_SECRET=somepasswordpepper
+      # Password: admin
+      - GRAYLOG_ROOT_PASSWORD_SHA2=8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918
+      - GRAYLOG_HTTP_EXTERNAL_URI=http://127.0.0.1:9000/
+      - GRAYLOG_MONGODB_URI=mongodb://graylog:graylog_password@graylog_mongo:27017/graylog?authSource=admin
+    depends_on:
+      - graylog_mongodb
+      - elasticsearch
+    links:
+      - graylog_mongodb
+      - elasticsearch
+    ports:
+      - "9000:9000" # Graylog Web Interface
+      - "12201:12201/udp" # GELF UDP
+    volumes:
+      - graylog_data:/usr/share/graylog/data
+    networks:
+      - app-network
+
 volumes:
   prometheus_data: {}
   grafana_data: {}
+  redis_data: {}
+  mongo_data_graylog: {}
+  elasticsearch_data: {}
+  graylog_data: {} 
 
 networks:
   app-network:

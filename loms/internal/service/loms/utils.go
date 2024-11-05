@@ -9,8 +9,8 @@ import (
 )
 
 // updateOrderStatus updates order status in repository.
-func (s *LomsService) updateOrderStatus(ctx context.Context, tx pgx.Tx, orderID models.OID, status models.OrderStatus) error {
-	if err := s.orderRepository.SetStatus(ctx, tx, orderID, status); err != nil {
+func (s *LomsService) updateOrderStatus(ctx context.Context, orderID models.OID, status models.OrderStatus) error {
+	if err := s.orderRepository.SetStatus(ctx, orderID, status); err != nil {
 		return fmt.Errorf("failed to set order status %s: %w", status, err)
 	}
 	return nil

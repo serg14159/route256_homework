@@ -216,17 +216,38 @@ create_migration_insert_initial_stocks_data:
 create_migration_create_outbox_table:
 	bin/goose -dir migrations create create_outbox_table sql
 
+.PHONY: create_migration_create_order_id_manual_seq
+create_migration_create_order_id_manual_seq:
+	bin/goose -dir migrations create create_order_id_manual_seq sql
+
+
+DB_DSN_SHARD0=postgres://user:password@localhost:5430/postgres?sslmode=disable
+DB_DSN_SHARD1=postgres://user:password@localhost:5431/postgres?sslmode=disable
+DB_DSN=postgres://user:password@localhost:5432/postgres?sslmode=disable
+
 .PHONY: migrations_up
 migrations_up:
-	bin/goose -dir migrations postgres "postgres://user:password@localhost:5434/postgres?sslmode=disable" up
+	bin/goose -dir migrations postgres "$(DB_DSN_SHARD0)" up
+	bin/goose -dir migrations postgres "$(DB_DSN_SHARD1)" up
+	bin/goose -dir migrations postgres "$(DB_DSN)" up
 
 .PHONY: migrations_down
 migrations_down:
-	bin/goose -dir migrations postgres "postgres://user:password@localhost:5434/postgres?sslmode=disable" down
+	bin/goose -dir migrations postgres "$(DB_DSN_SHARD0)" down
+	bin/goose -dir migrations postgres "$(DB_DSN_SHARD1)" down
+	bin/goose -dir migrations postgres "$(DB_DSN)" down
 
-.PHONY: migrate
-migrate:
-	go run cmd/migration/main.go
+.PHONY: migrate_up
+migrate_up:
+	go run cmd/migration/main.go -action up -dsn $(DB_DSN_SHARD0)
+	go run cmd/migration/main.go -action up -dsn $(DB_DSN_SHARD1)
+	go run cmd/migration/main.go -action up -dsn $(DB_DSN)
+
+.PHONY: migrate_down
+migrate_down:
+	go run cmd/migration/main.go -action down -dsn $(DB_DSN_SHARD0)
+	go run cmd/migration/main.go -action down -dsn $(DB_DSN_SHARD1)
+	go run cmd/migration/main.go -action down -dsn $(DB_DSN)
 
 
 .PHONY: sqlc_generate

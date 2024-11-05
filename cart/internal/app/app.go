@@ -17,6 +17,7 @@ import (
 	"route256/utils/logger"
 
 	loms_service "route256/cart/internal/clients/loms"
+	"route256/cart/internal/pkg/cacher"
 	grpc_mw "route256/cart/internal/pkg/mw/grpc"
 	cart_repository "route256/cart/internal/repository/cart"
 	cart_service "route256/cart/internal/service/cart"
@@ -24,6 +25,7 @@ import (
 
 	oteltrace "go.opentelemetry.io/otel/sdk/trace"
 
+	"github.com/go-redis/redis/v8"
 	"github.com/joho/godotenv"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"google.golang.org/grpc"
@@ -43,6 +45,7 @@ type App struct {
 	lomsClient      *loms_service.LomsClient
 	productClient   *product_service.Client
 	connGrpc        *grpc.ClientConn
+	redisClient     *redis.Client
 }
 
 // NewApp
@@ -67,7 +70,8 @@ func NewApp(ctx context.Context) (*App, error) {
 
 	// Init logger
 	var errorOutputPaths = []string{stdout}
-	log := logger.NewLogger(ctx, cfg.Project.GetDebug(), errorOutputPaths, cfg.Project.GetName())
+	graylogAddr := cfg.Graylog.GetURI()
+	log := logger.NewLogger(ctx, cfg.Project.GetDebug(), errorOutputPaths, cfg.Project.GetName(), &graylogAddr)
 
 	// App info
 	logger.Infow(ctx, fmt.Sprintf("Starting service: %s", cfg.Project.GetName()),
@@ -86,8 +90,27 @@ func NewApp(ctx context.Context) (*App, error) {
 	// Init repository
 	cartRepository := cart_repository.NewCartRepository()
 
+	// Init Redis
+	redisAddr := fmt.Sprintf("%s:%s", cfg.Redis.GetHost(), cfg.Redis.GetPort())
+	redisOptions := &redis.Options{
+		Addr:     redisAddr,
+		Password: cfg.Redis.GetPassword(),
+		DB:       cfg.Redis.GetDB(),
+	}
+	redisClient := redis.NewClient(redisOptions)
+	if err := redisClient.Ping(ctx).Err(); err != nil {
+		return nil, fmt.Errorf("failed to connect to Redis: %w", err)
+	}
+
+	// Cacher
+	cacheTTL := time.Duration(cfg.Redis.GetTTL()) * time.Second
+	redisCacher := cacher.NewRedisCacher(redisClient, cacheTTL)
+
 	// Product service client
 	productService := product_service.NewClient(&cfg.ProductService)
+
+	// Product service client with cache
+	productServiceWithCache := product_service.NewClientWithRedisCache(productService, redisCacher)
 
 	// Loms service client
 	lomsAddr := fmt.Sprintf("%s:%s", cfg.LomsService.GetHost(), cfg.LomsService.GetPort())
@@ -103,7 +126,7 @@ func NewApp(ctx context.Context) (*App, error) {
 	loms := loms_service.NewLomsClient(connGrpc)
 
 	// Init service
-	cartService := cart_service.NewService(cartRepository, productService, loms)
+	cartService := cart_service.NewService(cartRepository, productServiceWithCache, loms)
 
 	// Init server
 	srv := server.NewServer(&cfg.Server, cartService)
@@ -117,6 +140,7 @@ func NewApp(ctx context.Context) (*App, error) {
 		lomsClient:    loms,
 		productClient: productService,
 		connGrpc:      connGrpc,
+		redisClient:   redisClient,
 	}, nil
 }
 
@@ -158,6 +182,11 @@ func (a *App) Shutdown() error {
 	// Shutdown logger
 	if err := a.logger.Sync(); err != nil {
 		logger.Errorw(ctx, "Failed to sync logger", "error", err)
+	}
+
+	// Shutdown Redis
+	if err := a.redisClient.Close(); err != nil {
+		logger.Errorw(ctx, "Failed to close Redis client", "error", err)
 	}
 
 	a.connGrpc.Close()

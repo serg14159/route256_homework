@@ -37,9 +37,10 @@ const (
 
 // Order represents order containing items.
 type Order struct {
-	Status OrderStatus
-	UserID int64
-	Items  []Item
+	OrderID OID
+	Status  OrderStatus
+	UserID  int64
+	Items   []Item
 }
 
 // OrderCreateRequest represents a request to create an order.

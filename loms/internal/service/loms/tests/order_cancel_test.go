@@ -40,7 +40,7 @@ func TestLomsService_OrderCancel_Table(t *testing.T) {
 					Items:  []models.Item{{SKU: 1001, Count: 2}},
 				}
 
-				orderRepoMock.GetByIDMock.Set(func(ctx context.Context, tx pgx.Tx, orderID models.OID) (models.Order, error) {
+				orderRepoMock.GetByIDMock.Set(func(ctx context.Context, orderID models.OID) (models.Order, error) {
 					require.Equal(t, models.OID(1), orderID)
 					return order, nil
 				})
@@ -50,7 +50,7 @@ func TestLomsService_OrderCancel_Table(t *testing.T) {
 					return nil
 				})
 
-				orderRepoMock.SetStatusMock.Set(func(ctx context.Context, tx pgx.Tx, orderID models.OID, status models.OrderStatus) error {
+				orderRepoMock.SetStatusMock.Set(func(ctx context.Context, orderID models.OID, status models.OrderStatus) error {
 					require.Equal(t, models.OID(1), orderID)
 					require.Equal(t, models.OrderStatusCancelled, status)
 					return nil
@@ -96,7 +96,7 @@ func TestLomsService_OrderCancel_Table(t *testing.T) {
 				stockRepoMock *mock.IStockRepositoryMock, outboxRepoMock *mock.IOutboxRepositoryMock,
 				txManagerMock *mock.ITxManagerMock, txMock *mock.TxMock, req *models.OrderCancelRequest) {
 
-				orderRepoMock.GetByIDMock.Set(func(ctx context.Context, tx pgx.Tx, orderID models.OID) (models.Order, error) {
+				orderRepoMock.GetByIDMock.Set(func(ctx context.Context, orderID models.OID) (models.Order, error) {
 					require.Equal(t, models.OID(2), orderID)
 					return models.Order{}, errors.New("db error")
 				})
@@ -122,7 +122,7 @@ func TestLomsService_OrderCancel_Table(t *testing.T) {
 					Items:  []models.Item{{SKU: 1003, Count: 1}},
 				}
 
-				orderRepoMock.GetByIDMock.Set(func(ctx context.Context, tx pgx.Tx, orderID models.OID) (models.Order, error) {
+				orderRepoMock.GetByIDMock.Set(func(ctx context.Context, orderID models.OID) (models.Order, error) {
 					require.Equal(t, models.OID(3), orderID)
 					return order, nil
 				})
@@ -153,7 +153,7 @@ func TestLomsService_OrderCancel_Table(t *testing.T) {
 					Items:  []models.Item{{SKU: 1004, Count: 5}},
 				}
 
-				orderRepoMock.GetByIDMock.Set(func(ctx context.Context, tx pgx.Tx, orderID models.OID) (models.Order, error) {
+				orderRepoMock.GetByIDMock.Set(func(ctx context.Context, orderID models.OID) (models.Order, error) {
 					require.Equal(t, models.OID(4), orderID)
 					return order, nil
 				})
@@ -163,7 +163,7 @@ func TestLomsService_OrderCancel_Table(t *testing.T) {
 					return nil
 				})
 
-				orderRepoMock.SetStatusMock.Set(func(ctx context.Context, tx pgx.Tx, orderID models.OID, status models.OrderStatus) error {
+				orderRepoMock.SetStatusMock.Set(func(ctx context.Context, orderID models.OID, status models.OrderStatus) error {
 					require.Equal(t, models.OID(4), orderID)
 					require.Equal(t, models.OrderStatusCancelled, status)
 					return errors.New("update status error")
@@ -190,7 +190,7 @@ func TestLomsService_OrderCancel_Table(t *testing.T) {
 					Items:  []models.Item{{SKU: 1005, Count: 3}},
 				}
 
-				orderRepoMock.GetByIDMock.Set(func(ctx context.Context, tx pgx.Tx, orderID models.OID) (models.Order, error) {
+				orderRepoMock.GetByIDMock.Set(func(ctx context.Context, orderID models.OID) (models.Order, error) {
 					require.Equal(t, models.OID(5), orderID)
 					return order, nil
 				})
@@ -200,7 +200,7 @@ func TestLomsService_OrderCancel_Table(t *testing.T) {
 					return nil
 				})
 
-				orderRepoMock.SetStatusMock.Set(func(ctx context.Context, tx pgx.Tx, orderID models.OID, status models.OrderStatus) error {
+				orderRepoMock.SetStatusMock.Set(func(ctx context.Context, orderID models.OID, status models.OrderStatus) error {
 					require.Equal(t, models.OID(5), orderID)
 					require.Equal(t, models.OrderStatusCancelled, status)
 					return nil

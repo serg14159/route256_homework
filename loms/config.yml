@@ -30,6 +30,10 @@ data:
 
 database:
   dsn: "postgres://user:password@localhost:5432/postgres?sslmode=disable"
+  shards:
+    - "postgres://user:password@localhost:5430/postgres?sslmode=disable"
+    - "postgres://user:password@localhost:5431/postgres?sslmode=disable"
+  shardBucketCount: 1000
 
 kafka:
   brokers: "localhost:9092"
@@ -40,5 +44,8 @@ jaeger:
 
 metrics:
   uri: "0.0.0.0:2113"
+
+graylog:
+  uri: "0.0.0.0:12201"
 
   

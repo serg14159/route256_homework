@@ -21,3 +21,16 @@ jaeger:
 
 metrics:
   uri: "0.0.0.0:2112"
+
+cache:
+  capacity: 100
+
+redis:
+  host: "localhost"
+  port: "6379"
+  password: ""
+  db: 0
+  ttl: 600
+
+graylog:
+  uri: "0.0.0.0:12201"

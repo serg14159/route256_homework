@@ -2,10 +2,13 @@ package logger
 
 import (
 	"context"
+	"os"
 	"sync"
 
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"gopkg.in/Graylog2/go-gelf.v2/gelf"
 )
 
 var (
@@ -25,18 +28,49 @@ func NewTmpLogger() *Logger {
 }
 
 // NewLogger initializes new Logger instance.
-func NewLogger(_ context.Context, debug bool, errorOutputPaths []string, serviceName string) *Logger {
+func NewLogger(_ context.Context, debug bool, errorOutputPaths []string, serviceName string, graylogAddr *string) *Logger {
 	config := zap.NewProductionConfig()
-	config.ErrorOutputPaths = errorOutputPaths
 	config.Level.SetLevel(zap.InfoLevel)
 	if debug {
 		config.Level.SetLevel(zap.DebugLevel)
 	}
 
-	l, err := config.Build(zap.AddCallerSkip(1), zap.Fields(zap.String("service", serviceName)))
+	// Build the console core
+	consoleEncoder := zapcore.NewConsoleEncoder(zap.NewDevelopmentEncoderConfig())
+	consoleWS := zapcore.Lock(os.Stdout)
+	consoleCore := zapcore.NewCore(consoleEncoder, consoleWS, config.Level)
+
+	var cores []zapcore.Core
+	cores = append(cores, consoleCore)
+
+	if graylogAddr != nil && *graylogAddr != "" {
+		graylogWriter, err := gelf.NewUDPWriter(*graylogAddr)
+		if err != nil {
+			zap.L().Error("Failed to create Graylog writer", zap.Error(err))
+		} else {
+			graylogWS := zapcore.AddSync(graylogWriter)
+			graylogEncoder := zapcore.NewJSONEncoder(config.EncoderConfig)
+			graylogCore := zapcore.NewCore(graylogEncoder, graylogWS, config.Level)
+			cores = append(cores, graylogCore)
+		}
+	}
+
+	// Combine cores
+	combinedCore := zapcore.NewTee(cores...)
+
+	// Open error output paths
+	errorOutput, _, err := zap.Open(errorOutputPaths...)
 	if err != nil {
 		panic(err)
 	}
+
+	// Build logger with combined core
+	l := zap.New(
+		combinedCore,
+		zap.AddCallerSkip(1),
+		zap.Fields(zap.String("service", serviceName)),
+		zap.ErrorOutput(errorOutput),
+	)
 
 	once.Do(func() {
 		globalLogger = &Logger{l: l.Sugar()}

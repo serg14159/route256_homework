@@ -111,6 +111,28 @@
         ]
       }
     },
+    "/v1/order/list": {
+      "get": {
+        "operationId": "Loms_OrderList",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/lomsOrderListResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "tags": [
+          "Loms"
+        ]
+      }
+    },
     "/v1/order/pay": {
       "post": {
         "operationId": "Loms_OrderPay",
@@ -189,6 +211,29 @@
         }
       }
     },
+    "lomsOrder": {
+      "type": "object",
+      "properties": {
+        "orderID": {
+          "type": "string",
+          "format": "int64"
+        },
+        "status": {
+          "type": "string"
+        },
+        "user": {
+          "type": "string",
+          "format": "int64"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/lomsItem"
+          }
+        }
+      }
+    },
     "lomsOrderCancelRequest": {
       "type": "object",
       "properties": {
@@ -243,6 +288,18 @@
           "items": {
             "type": "object",
             "$ref": "#/definitions/lomsItem"
+          }
+        }
+      }
+    },
+    "lomsOrderListResponse": {
+      "type": "object",
+      "properties": {
+        "orders": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/lomsOrder"
           }
         }
       }
